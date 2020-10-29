@@ -1,0 +1,473 @@
+{
+    "category": {
+        "roles": {
+            "err_name_not_provided": "You must provide the role name category.",
+            "err_role_mention_not_provided": "You must ping the role, or type the role ID.",
+            "err_role_mention_not_correct": "Incorrect role ID specified, or the mention/ping was typed incorrectly.",
+            "err_role_not_on_server": "The specified role is not part of this server.",
+
+            "role_add_success": "Role association set."
+        },
+        "channels": {
+            "channel_persist_added": "Bot messages will no longer be automatically removed in this channel.",
+            "channel_persist_removed": "Bot messages will now be automatically removed in this channel."
+        },
+        "": {
+            "os_role_granted": "You're now a %0!",
+            "os_role_removed": "You're no longer a %0."
+        },
+        "kcgmm": {
+            "no_game": "The game wasn't specified.",
+            "bad_game": "The specified game is not correct.",
+            "no_type": "The type of the map wasn't specified.",
+            "bad_type": "Either an incorrect type of the map was specified, or the argument list doesn't match the custom map type.",
+            "no_id": "The id of the map wasn't specified.",
+            "bad_id": "The specified id of the map is not correct.",
+            "no_cw2_code_size": "The size parameter of this CW2 code map wasn't specified.",
+            "bad_cw2_code_size": "The size parameter of this CW2 code map is not correct.",
+            "no_cw2_code_complexity": "The complexity parameter of this CW2 code map wasn't specified.",
+            "bad_cw2_code_complexity": "The complexity parameter of this CW2 code map is not correct.",
+            "no_cw2_code_name": "You must specify the name of the CW2 code map."
+        },
+        "eventlog": {
+            "image_log_channel_add": "Image log channel set.",
+            "mod_log_channel_add": "Moderation log channel set.",
+            "event_log_channel_add": "Event log channel set."
+        },
+        "emotes": {
+            "err_game_name_not_provided": "You must provide the name of the game.",
+            "err_game_name_not_supported": "%0 is not supported/not a valid game name.",
+            "err_emote_not_provided": "You must specify an emote.",
+
+            "success": "Emote set!"
+        },
+        "welcome": {
+            "welcome_message": ":wave: Welcome to Knuckle Cracker. Home of the Creeper Nation and all things Creeper World!\n<https://knucklecracker.com/>\n\n:notepad_spiral: If this is your first visit here, please review the following resources:\n   • Creeper World 4 FAQ: <https://knucklecracker.com/forums/index.php?topic=26694.0>\n   • <#404013990788726815> channel for all the basic things you might want to know about Knuckle Cracker!\n   • <#370193944539168778> channel for a short overview of our rules.\n\nThank you and enjoy your stay!"
+        },
+        "experience": {
+            "err_game_name_not_provided": "You must provide the name of the game.",
+            "err_game_name_not_supported": "%0 is not supported/not a valid game name.",
+            "err_user_mention_not_provided": "You must ping the user, or type their user ID.",
+            "err_user_mention_not_correct": "Incorrect user ID specified, or the mention/ping was typed incorrectly.",
+            "err_leaderboard_name_not_provided": "You must provide the leaderboard name you wish to register with.",
+
+            "intro_name": ":video_game: Welcome to Experience\n\n",
+            "intro_value": "Play maps and earn points, for fun!\n\n`!exp register help` • Register\n`!exp get help` • Play maps\n\n`!exp show` • Show profile\n`!exp leaders` • Show leaderboards",
+
+            "embed_not_registered_1": "You're not registered for %0.",
+            "embed_not_registered_2": "You can register with `!exp register %0 <name>`",
+            "embed_maps_1": "Maps left to complete:",
+            "embed_maps_2": "Maps ready to claim:",
+            "embed_instructions_title": "Instructions",
+            "embed_instructions_value": "To claim experience and generate new maps to complete, call `!exp get [game]`\nMaps that haven't been beaten on this round will have a chance to appear again.",
+            "embed_results_title_1": "Experience",
+            "embed_results_title_2": "Your new %0 maps to beat are:",
+            "embed_results_title_3": "These selected maps you have beaten before. Hooray free experience!:",
+            "embed_results_value": "To view your current status, call `!exp show`\nTo claim experience from beaten maps and get five new ones, call `!exp get %0`\nMaps that haven't been beaten on this round will have a chance to appear again.",
+
+            "map_processing_error": "Could not find map list data for %0. Try again later.",
+            "wipe_successful": "Profile removed.",
+            "not_registered": "You have to register first to do this. The registered name has to be the name you use on the leaderboards.\n\nYou can register with `!exp register %0 <name>`",
+            "already_registered_with_this_name": "You are already registered as `%0` for %1.",
+            "already_registered_with_other_name": "You are already registered as `%0` for %1. You cannot register again without erasing your progress. To wipe your progress, contact moderation.",
+            "name_taken": "The name `%0` is already taken for %1. If you feel this is a mistake, please contact moderation.",
+            "register_confirm": "Are you sure you want to register with the name `%0` for %1? This has to be the name you use for the leaderboards. This name cannot be changed later without losing your progress.\n\nType the command again with your name to confirm, or use a different name to try again.",
+            "register_success": "You are now registered as `%0` for %1. Have fun!\n\nTo get your first set of maps to complete, type `!exp get %2`",
+            "leaderboard_empty": "Nothing to show.",
+            "leaderboard_title": "%0 leaderboards!"
+        },
+        "mapdata": {
+            "err_game_not_correct": "The game you asked for is not a Knuckle Cracker game.",
+            "err_game_not_supported": "%0 is not supported.",
+            "err_mapid_invalid": "The provided map ID is invalid.",
+            "err_mapid_negative": "Map ID can't be negative.",
+
+            "searching_map": "Digging through the archives...",
+            "searching_map_cw2_add": "For Creeper World 2, this might take a while. I'll need just a few minutes.",
+            "search_result_too_fast": "Could not find the requested map. If you're certain this map exists, try again in a few minutes.",
+            "search_result_not_found": "The requested map doesn't exist."
+        },
+        "moderation": {
+            "err_user_mention_not_provided": "You must ping the user, or type their user ID.",
+            "err_user_mention_not_correct": "Incorrect user ID specified, or the mention/ping was typed incorrectly.",
+            "err_user_not_member": "This user is not a part of this server.",
+            "err_user_friend": "You cannot remove one of your kind!",
+
+            "count_reached_global": "No more moderator actions can be issued today. Contact an administrator.",
+            "count_reached_user": "You can't %0 any more members today."
+        },
+        "stream": {
+            "err_game_name_not_provided": "You must provide the name of the game.",
+            "err_game_name_not_supported": "%0 is not supported/not a valid game name.",
+            "err_role_name_not_provided": "You must provide the id of the role to be mentioned whenever a stream of this game is running.",
+            "err_role_name_not_correct": "The specified role is not correct. Either mention the role or provide its id.",
+            "err_role_name_not_on_this_server": "The specified role is not part of this server.",
+            "err_url_not_provided": "You must provide a URL for your stream.",
+            "err_url_bad": "The provided URL is invalid. The URL must be a full Twitch or YouTube link.",
+            "err_no_vod": "Please provide a link to the VOD of the stream as a parameter. Alternatively write `override` as the parameter to not save a VOD.",
+
+            "intro_name": ":clapper: Stream Info",
+            "intro_value": "`!stream sub help` • Subscribe to streams.\n`!stream unsub help` • Unsubscribe from streams.\n\nTo be able to send stream announcements of your own, you must be a %0",
+
+            "channel_missing": "The streaming channel is missing. Please add a channel first.",
+            "channel_set": "Streaming channel set. Future stream announcements will appear here.",
+            "add_success": "Role successfully added.",
+            "game_not_added": "%0 is not a streamable game on this server. Valid games include: %1",
+            "subscribe_no_games": "There are no games added to subscribe to.",
+            "subscribe_game_role_missing": "The role assigned to this game is not on this server. Somebody might have deleted it. Ask a moderator to `!stream addgame` the game again with the appropriate role.",
+            "subscribe_already_subbed": "You are already subscribed to %0!",
+            "subscribe_success": "You've now been subscribed to Knuckle Cracker community Discord streams for %0! You will be notified whenever any streamer in this Discord is streaming this game.\n\nIf you would like to unsubscribe from notifications for this game, write `!stream unsub %1`",
+            "unsubscribe_no_games": "There are no games added to unsubscribe from.",
+            "unsubscribe_not_subbed": "You are not subscribed to %0.",
+            "unsubscribe_success": "You've unsubscribed from Knuckle Cracker community Discord streams for %0 and will no longer receive notifications.\n\nYou can resubscribe to notifications for this game at any point by writing `!stream sub %1`",
+            "status_no_games": "There are no games registered for streaming purposes.",
+            "start_already_streaming": "You are already streaming! Please end your current stream first.",
+            "end_not_streaming": "You're not streaming.",
+            "status_no_streams": "No streams are currently running.",
+            "synchronize_ongoing": "A synchronization work is currently ongoing. Wait until it's finished first.",
+            "synchronize_ing": "Synchronizing...",
+            "synchronize_success": "All finished successfully!",
+            "cw4_fluff": "I don't believe you own this game quite yet. :wink:"
+        },
+        "smitelist": {
+            "err_user_mention_not_provided": "You must ping the user, or type their user ID.",
+            "err_user_mention_not_correct": "Incorrect user ID specified, or the mention/ping was typed incorrectly.",
+            "err_duration_not_provided": "You must provide a duration in a valid duration format. Examples: 7d, 3d5h10m",
+            "err_duration_not_valid": "The provided duration format is not valid. Examples of a valid one: 7d, 3d5h10m",
+
+            "user_not_member": "This user is not a part of this server.",
+            "forgive_clean_record": "There is nothing to forgive this user for.",
+            "muted_role_not_added": "The Muted role has not been added. Create a role for muted users and add it with `!role MUTED <role_id>`",
+            "muted_role_missing": "The Muted role was previously added but is missing and needs to be re-added. Add a role for muted users with `!role MUTED <role_id>`",
+            "already_muted_for_longer": "This user is already muted for a longer period"
+        },
+        "competition": {
+            "err_game_name_not_provided": "You must provide the name of the game.",
+            "err_game_name_not_supported": "%0 is not supported/not a valid game name.",
+            "err_leaderboard_name_not_provided": "You must provide the leaderboard name you wish to register with.",
+            "err_user_mention_not_provided": "You must ping the user, or type their user ID.",
+            "err_user_mention_not_correct": "Incorrect user ID specified, or the mention/ping was typed incorrectly.",
+            "err_end_date_invalid": "Incorrect date format.",
+
+            "competitor_role_missing": "The competitor role has not been set up.",
+            "already_registered_with_this_name": "You are already registered as `%0` for %1.",
+            "name_taken": "The name `%0` is already taken for %1. If you feel this is a mistake, please contact moderation.",
+            "register_name_changed": "Your competition name has been changed from `%0` to `%1` for %2!",
+            "register_success": "Your competition name for %1 is now `%0`! Submit scores with this name and with `specialevent` as the group name and you will appear on the leaderboards.",
+            "unregister_not_registered": "This user is not registered for any game.",
+            "unregister_success": "The specified user is now no longer registered in %0 games.",
+            "info_title": ":trophy: Welcome to the Competition!",
+            "info_description": "Compete for the best score in numerous Particle Fleet, Creeper World 3, and Creeper World 2 maps. Your prize? Bragging rights... and points! Head over to the %0 channel and check the stickied messages for information on what maps we're currently competing in!\n\nYou're welcome to join any time. Simply type `!competition join` to receive your Competitor role and get cracking!\n\n:warning:**Make sure to submit your scores with the `specialevent` Group name, or your score won't be included!**:warning:\n\nFeel free to ask any questions you might have in %0.",
+            "info_inactive": "The competition is not active on this server. A competition channel needs to be set.",
+            "channel_set": "Competition channel set. Competition reset.",
+            "status_title": ":bar_chart: Competition status",
+            "end_date_in_past": "The competition end time cannot be in the past.",
+            "no_channel": "The competition channel hasn't been set yet.",
+            "channel_no_access": "I can't reach the competition channel.",
+            "start_message": "A new competition is being started.",
+            "erased": "Competition erased.",
+            "competitor_role_missing:": "A competitor role is not set up on this server, making it impossible to join or leave the competition.",
+            "competitor_role_already_owned": "You're already a Competitor!",
+            "competitor_role_not_owned": "You're not a Competitor!",
+            "join_success": "Greetings Competitor! The next step is to register your leaderboard name.\n\n```!c register pf yournamehere\n!c register cw3 yournamehere\n!c register cw2 yournamehere```",
+            "leave_success": "You're no longer a Competitor. You can come back at any time using `!competition join`.\n\nFuture competitions will no longer show your name on the scoreboards. However, your points will not be lost, just not visible.",
+            "addmap_not_started": "A competition must be running first to add a map.",
+            "removemap_not_added": "The specified map has not been added to the current competition, meaning it is free to add.",
+            "addmap_already_added": "This map has already been added to the competition.",
+            "addmap_already_in_history": "This map has already been featured in a previous competition.",
+            "addmap_success": "Map successfully added!",
+            "removemap_success": "Map successfully removed.",
+            "start_success": "New competition started!",
+            "scores_updated": "Scores updated!",
+            "not_running": "A competition hasn't been started.",
+            "cant_end_no_maps": "The competition cannot end, as no maps have been added to it.",
+            "end_in_progress": "Ending competition. Standby for confirmation.",
+            "end_success": "Competition ended.",
+            "end_channel_ended": "Competition has ended! Leaderboards:"
+        }
+    },
+    "command": {
+        "log": {
+            "": [
+                "!%name% <days>",
+                "Get the log file from the current day.",
+                "%space%<days> - An optional amount of days in the past to post the log from. 0 by default."
+            ]
+        },
+        "help": {
+            "": [
+                "!%name%",
+                "Show help for all commands available to you."
+            ]
+        },
+        "role": {
+            "": [
+                "!%name% <string> <id>",
+                "Associate a string with a role ID for usage with commands.",
+                "%space%<string> - An internal string ID for the role.",
+                "%space%<id> - The role mention/ping, or the role ID."
+            ]
+        },
+        "channel": {
+            "persist": [
+                "!%name% <bool>",
+                "Toggle whether the current channel will delete non-permanent bot messages.",
+                "%space%<bool> - 0 or 1."
+            ],
+            "stream": [
+                "!%name%",
+                "Set this channel as the one to broadcast stream announcements."
+            ],
+            "competition": [
+                "!%name%",
+                "Set this channel as the one for the Competition."
+            ],
+            "eventlog": [
+                "!%name%",
+                "Set this channel as the event-log channel, where message edit and delete events will be logged."
+            ],
+            "imagelog": [
+                "!%name%",
+                "Set this channel as the image-log channel, where images upload by users will be stored. This channel will help the bot log images in event-log from messages that were deleted."
+            ],
+            "modlog": [
+                "!%name%",
+                "Set this channel as the moderation-log channel, where moderation actions will be logged - message deletions, kicks and bans."
+            ]
+        },
+        "windows": {
+            "": [
+                "!%name%",
+                "Use this if you run Windows! You will receive a special role."
+            ]
+        },
+        "linux": {
+            "": [
+                "!%name%",
+                "Use this if you run Linux! You will receive a special role."
+            ]
+        },
+        "mac": {
+            "": [
+                "!%name%",
+                "Use this if you run MacOS! You will receive a special role."
+            ]
+        },
+        "roll": {
+            "": [
+                "!%name% <sides>",
+                "Roll a dice.",
+                "%space%<sides> - The number of sides on the dice. If not specified, rolls a 6 sided dice."
+            ]
+        },
+        "bored": {
+            "": [
+                "!%name%",
+                "I wonder what game to play..."
+            ]
+        },
+        "score": {
+            "": [
+                "<n>!%name% <game> <type> <id>",
+                "<v>Show score for a map.",
+                "<v>%space%<game> - pf, cw3, cw2",
+                "<v>%space%<type> - custom, dmd, code. If none is specified, assumes custom.",
+                "<v>%space%<id> - The map ID.",
+                "<n>!%name% cw2 code <size> <complexity> <name>",
+                "<v>Show score for a CW2 code map.",
+                "<v>%space%<size> - The map size parameter.",
+                "<v>%space%<complexity> - The map complexity parameter.",
+                "<v>%space%<id> - The map name."
+            ]
+        },
+        "map": {
+            "": [
+                "!%name% <game> <id>",
+                "Display information about a custom map.",
+                "%space%<game> - pf, cw3, cw2.",
+                "%space%<id> - The map ID number."
+            ]
+        },
+        "emote": {
+            "": [
+                "!%name% <game> <emote>",
+                "Associate an emote with a KC game for use with various commands.",
+                "%space%<game> - pf, cw3, cw2.",
+                "%space%<emote> - The emote to use."
+            ]
+        },
+        "message": {
+            "arrivals": [
+                "!%name%",
+                "Spawn an autoupdating message displaying user arrival and departure statistics."
+            ],
+            "smite": [
+                "!%name%",
+                "Spawn an autoupdating message displaying the smitelist status."
+            ]
+        },
+        "smite": {
+            "": [
+                "!%name% <user> <duration> <reason>",
+                "Smite a fool.",
+                "%space%<user> - Either the user ID, or ping the user.",
+                "%space%<duration> - The duration of the smite in duration format. Example: 5d3h, 7d, 30s",
+                "%space%<reason> - The reason for the smite."
+            ]
+        },
+        "forgive": {
+            "": [
+                "!%name% <user>",
+                "Forgive the last issued smite.",
+                "%space%<user> - Either the user ID, or ping the user."
+            ]
+        },
+        "exp": {
+            "": [
+                "!%name%",
+                "See the introduction to Experience!"
+            ],
+            "get": [
+                "!%name% <game>",
+                "Get experience from completed maps and generate five new maps to beat.",
+                "%space%<game> - pf, cw3, cw2."
+            ],
+            "show": [
+                "!%name%",
+                "Display information about your current profile."
+            ],
+            "leaders": [
+                "!%name% <game>",
+                "Show Discord experience leaderboards!",
+                "%space%<game> - pf, cw3, cw2."
+            ],
+            "register": [
+                "!%name% <game> <name>",
+                "Register your leaderboard name for the experience system.",
+                "%space%<game> - pf, cw3, cw2.",
+                "%space%<name> - The name you use on the leaderboards."
+            ],
+            "wipe": [
+                "!%name% <game> <id>",
+                "Full wipe a user's experience data for a specific game.",
+                "%space%<game> - pf, cw3, cw2.",
+                "%space%<id> - The user mention/ping, or the user ID."
+            ]
+        },
+        "stream": {
+            "": [
+                "!%name%",
+                "See the introduction to streaming!"
+            ],
+            "sync": [
+                "!%name%",
+                "Check all subscribed users in the database. If any of those users do not have their subscriber role, give it to them."
+            ],
+            "addgame": [
+                "!%name% <game> <role>",
+                "Associate a subscriber role with a Knuckle Cracker game. Users having this role by subscribing will be mentioned whenever a stream of said game goes live.",
+                "%space%<game> - cw4, pf, cw3, cw2.",
+                "%space%<role> - Role ID, or mention the role."
+            ],
+            "sub": [
+                "!%name% <game>",
+                "Subscribe to mentions of livestreams for the specified Knuckle Cracker game.",
+                "%space%<game> - cw4, pf, cw3, cw2."
+            ],
+            "unsub": [
+                "!%name% <game>",
+                "Unsubscribe from mentions of livestreams for the specified Knuckle Cracker game.",
+                "%space%<game> - cw4, pf, cw3, cw2."
+            ],
+            "start": [
+                "!%name% <game> <url>",
+                "Start a new stream.",
+                "%space%<game> - pf, cw3, cw2.",
+                "%space%<url> - The link to your stream."
+            ],
+            "end": [
+                "!%name% <vod>",
+                "End your current stream.",
+                "%space%<vod> - The link to the VOD from your stream, or `override` to not save a VOD."
+            ],
+            "status": [
+                "!%name%",
+                "Check if anyone is currently streaming."
+            ]
+        },
+        "kick": {
+            "": [
+                "!%name% <id> <reason>",
+                "Kick a user from the server.",
+                "%space%<id> - The user ID, or mention the user.",
+                "%space%<reason> - The reason for the kick."
+            ]
+        },
+        "ban": {
+            "": [
+                "!%name% <id> <reason>",
+                "Ban a user from the server.",
+                "%space%<id> - The user ID, or mention the user.",
+                "%space%<reason> - The reason for the ban."
+            ]
+        },
+        "c": {
+            "": [
+                "!%name%",
+                "See the introduction to the Competition!"
+            ],
+            "join": [
+                "!%name%",
+                "Join the Competition! You will receive a special Competitor role."
+            ],
+            "leave": [
+                "!%name%",
+                "Leave the Competition. You will lose your special Competitor role."
+            ],
+            "register": [
+                "!%name% <game> <name>",
+                "Register the user name you use on the in-game leaderboards for the specified game with your Discord profile.",
+                "%space%<game> - pf, cw3, cw2.",
+                "%space%<name> - The exact name you use on the in-game leaderboards."
+            ],
+            "status": [
+                "!%name%",
+                "See the status of the current Competition."
+            ],
+            "start": [
+                "!%name% <date>",
+                "Start a new Competition.",
+                "%space%<date> - The end date for the competition, in any valid date format."
+            ],
+            "end": [
+                "!%name%",
+                "End the current Competition."
+            ],
+            "update": [
+                "!%name%",
+                "Update the scores manually. Scores are updated periodically."
+            ],
+            "destroy": [
+                "!%name%",
+                "Wipe the current Competition without saving any scores."
+            ],
+            "wipe": [
+                "!%name% <id>",
+                "Wipe all Competition registration entries for the specified user.",
+                "<id> - The user ID, or mention the user."
+            ],
+            "addmap": [
+                "!%name% <game> <type> <id>\n!%name% cw2 code <size> <complexity> <name>",
+                "Add a map to the current Competition. See `!help score`"
+            ],
+            "removemap": [
+                "!%name% <game> <type> <id>\n!%name% cw2 code <size> <complexity> <name>",
+                "Remove a map from the current Competition. See `!help score`"
+            ],
+            "buildtally": [
+                "!%name%",
+                "Rebuild the score tally. This action is also performed automatically after ending the Competition. This action will also update the roles of all Champions, if it was tampered with."
+            ]
+        }
+    }
+}

@@ -1,0 +1,164 @@
+"use strict";
+
+const config = {
+    /** @type {Object.<string, string>} */
+    "url": {
+        "cw1": "creeperworld",
+        "cw2": "creeperworld2",
+        "cw3": "creeperworld3",
+        "pf": "particlefleet",
+        "cw4": "creeperworld4"
+    },
+    
+    /** @type {Object.<string, Object.<string, { display: string, aliases: string[] }>>} */
+    "namedef": {
+        "game" : {
+            "chopraider" : {
+                "display": "WhiteboardWar: ChopRaider",
+                "aliases": ["whiteboardwarchopraider", "whiteboardwar", "chopraider"]
+            },
+            "cw1" : {
+                "display": "Creeper World 1",
+                "aliases": ["creeperworld1", "creeperworld", "cw", "1", "cw1"]
+            },
+            "cw2" : {
+                "display": "Creeper World 2: Redemption",
+                "aliases": ["creeperworld2redemption", "creeperworld2", "cw2", "2", "redemption"]
+            },
+            "cw3" : {
+                "display": "Creeper World 3: Arc Eternal",
+                "aliases": ["creeperworld3arceternal", "creeperworld3arc", "creeperworld3", "cw3", "3", "arc", "eternal", "arceternal"]
+            },
+            "pf" : {
+                "display": "Particle Fleet: Emergence",
+                "aliases": ["pf", "pf1", "particle", "emergence", "particlefleet", "particlefleetemergence"]
+            },
+            "cw4" : {
+                "display": "Creeper World 4",
+                "aliases": ["creeperworld4", "cw4", "4"]
+            },
+            "gemcraft" : {
+                "display": "GemCraft",
+                "aliases": ["gemcraft", "gemcraftchasingshadows"]
+            }
+        },
+        "cw2_code_map_size" : {
+            "0" : {
+                "display": "Small",
+                "aliases": ["0", "small", "s", "sm", "sma", "smal"]
+            },
+            "1" : {
+                "display": "Medium",
+                "aliases": ["1", "medium", "m", "me", "med", "medi", "mediu"]
+            },
+            "2" : {
+                "display": "Large",
+                "aliases": ["2", "large", "l", "la", "lar", "larg"]
+            }
+        },
+        "cw2_code_map_complexity" : {
+            "0" : {
+                "display": "Low",
+                "aliases": ["0", "low", "l", "lo"]
+            },
+            "1" : {
+                "display": "Medium",
+                "aliases": ["1", "medium", "m", "me", "med", "medi", "mediu"]
+            },
+            "2" : {
+                "display": "High",
+                "aliases": ["2", "high", "h", "hi", "hig"]
+            }
+        },
+        "map_mode_custom" : {
+            "cw2_custom" : {
+                "display": "Custom",
+                "aliases": []
+            },
+            "cw2_code": {
+                "display": "Code",
+                "aliases": []
+            },
+            "cw3_custom" : {
+                "display": "Colonial Space",
+                "aliases": []
+            },
+            "cw3_dmd" : {
+                "display": "DMD",
+                "aliases": []
+            },
+            "pf_custom" : {
+                "display": "Exchange",
+                "aliases": []
+            }
+        }
+    },
+}
+
+export function KCLocaleManager() {}
+
+
+/**
+ * Get the display name from an alias.
+ * @param {"game"|"cw2_code_map_size"|"cw2_code_map_complexity"|"map_mode_custom"} category - The namedef category.
+ * @param {string} str - An alias name.
+ * @returns {string} The display name.
+ */
+KCLocaleManager.getDisplayNameFromAlias = function(category, str) {
+    if(config.namedef[category] == null) 
+        return `[error1,${category},${str}]`;
+
+    let defs = config.namedef[category];
+
+    str = str.toLowerCase();
+    str = str.replace(/[^a-z0-9]+/gi, "");
+
+    if(defs[str])
+        return defs[str].display;
+
+    let def = KCLocaleManager.getPrimaryAliasFromAlias(category, str);
+    if(def == null)
+        return `[error2,${category},${str}]`;
+    return defs[def].display;
+}
+
+/**
+ * Get the primary alias from any alias.
+ * @param {"game"|"cw2_code_map_size"|"cw2_code_map_complexity"|"map_mode_custom"} category - The namedef category.
+ * @param {string} str - An alias to convert to the primary alias.
+ * @returns {string | null} The primary alias.
+ */
+KCLocaleManager.getPrimaryAliasFromAlias = function(category, str) {
+    if(config.namedef[category] == null) return null;
+    
+    let defs = config.namedef[category];
+    
+    str = str.toLowerCase();
+    str = str.replace(/[^a-z0-9]+/gi, "");
+
+    for(let def in defs) {
+        for(let i = 0; i < defs[def].aliases.length; i++)
+            if(str === defs[def].aliases[i])
+                return def;
+    }
+    
+    return null;
+}
+
+/**
+ * From the url module, get the computed url name from a namedef computed name. For example, cw3 is turned to creeperworld3.
+ * @param {string} game - The namedef computed name.
+ * @returns {string | null} The url name.
+ */
+KCLocaleManager.getUrlStringFromPrimaryAlias = function(game) {
+    if(config.url[game])
+        return config.url[game];
+
+    let def = KCLocaleManager.getPrimaryAliasFromAlias("game", game);
+    if(def == null)
+        return null;
+    
+    if(config.url[def])
+        return config.url[def];
+    return null;
+}

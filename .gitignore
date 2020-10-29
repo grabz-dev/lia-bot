@@ -1,0 +1,5 @@
+/db
+/db_bak
+/node_modules
+/package-lock.json
+/auth.json
