@@ -1,4 +1,3 @@
-/** @typedef {import('winston').Logger} winston.Logger */
 /** @typedef {import("../KCGameMapManager")} KCGameMapManager */
 /** @typedef {import("../KCGameMapManager").KCGameMapManagerOptions} KCGameMapManagerOptions */
 /** @typedef {import("../KCGameMapManager").MapData} MapData */
@@ -14,13 +13,12 @@ const URL = "https://knucklecracker.com/creeperworld2/viewmaps.php?embedded=true
  * Fetch Creeper World 2 map data.
  * 
  * @this {KCGameMapManager}
- * @param {winston.Logger} logger
  * @param {KCGameMapManagerOptions} options
  * @param {Discord.Collection<String, Discord.Collection<number, MapData>>} mapListByIds
  * @param {Discord.Collection<String, ReadonlyArray<MapData>>} mapListArray
  * @returns {Promise<void>}
  */
-export async function fetchMapsCW2(logger, options, mapListByIds, mapListArray) {
+export async function fetchMapsCW2(options, mapListByIds, mapListArray) {
     /** @type {Discord.Collection<number, MapData>} */
     const mapListTemp = new Discord.Collection();
     let currentPage = 0;
@@ -30,7 +28,7 @@ export async function fetchMapsCW2(logger, options, mapListByIds, mapListArray) 
     }
 
     while(true) {
-        let finished = await fetcher(logger, options, mapListByIds, mapListArray, currentPage, mapListTemp);
+        let finished = await fetcher(options, mapListByIds, mapListArray, currentPage, mapListTemp);
         if(finished) break;
         currentPage++;
         await Bot.Util.Promise.sleep(1000);
@@ -39,7 +37,6 @@ export async function fetchMapsCW2(logger, options, mapListByIds, mapListArray) 
 
 /**
  * Repeatedly run fetcher and increment the page until we reach a page with no more maps left, then quit.
- * @param {winston.Logger} logger
  * @param {KCGameMapManagerOptions} options
  * @param {Discord.Collection<String, Discord.Collection<number, MapData>>} mapListByIds
  * @param {Discord.Collection<String, ReadonlyArray<MapData>>} mapListArray
@@ -47,7 +44,7 @@ export async function fetchMapsCW2(logger, options, mapListByIds, mapListArray) 
  * @param {Discord.Collection<number, MapData>} mapListTemp
  * @returns {Promise<boolean>} true if finished, false if not
  */
-async function fetcher(logger, options, mapListByIds, mapListArray, page, mapListTemp) {
+async function fetcher(options, mapListByIds, mapListArray, page, mapListTemp) {
     //Fetch all maps from the current page.
     let data = await HttpRequest.get(URL + "&page=" + page);
     let exit = true;

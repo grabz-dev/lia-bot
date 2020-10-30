@@ -149,7 +149,8 @@
             "err_user_mention_not_correct": "Incorrect user ID specified, or the mention/ping was typed incorrectly.",
             "err_end_date_invalid": "Incorrect date format.",
 
-            "competitor_role_missing": "The competitor role has not been set up.",
+            "competitor_role_no_setup": "The competitor role has not been set up.",
+            "competitor_role_missing": "The competitor role was deleted from the server or cannot be found.",
             "already_registered_with_this_name": "You are already registered as `%0` for %1.",
             "name_taken": "The name `%0` is already taken for %1. If you feel this is a mistake, please contact moderation.",
             "register_name_changed": "Your competition name has been changed from `%0` to `%1` for %2!",

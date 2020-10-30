@@ -108,10 +108,10 @@ KCLocaleManager.getDisplayNameFromAlias = function(category, str) {
     if(config.namedef[category] == null) 
         return `[error1,${category},${str}]`;
 
-    let defs = config.namedef[category];
+    let defs = config.namedef[category];    
 
     str = str.toLowerCase();
-    str = str.replace(/[^a-z0-9]+/gi, "");
+    str = str.replace(/[^a-z0-9_]+/gi, "");
 
     if(defs[str])
         return defs[str].display;
@@ -134,7 +134,7 @@ KCLocaleManager.getPrimaryAliasFromAlias = function(category, str) {
     let defs = config.namedef[category];
     
     str = str.toLowerCase();
-    str = str.replace(/[^a-z0-9]+/gi, "");
+    str = str.replace(/[^a-z0-9_]+/gi, "");
 
     for(let def in defs) {
         for(let i = 0; i < defs[def].aliases.length; i++)

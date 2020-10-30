@@ -17,7 +17,7 @@ core.on('ready', bot => {
         kcgmm.fetch('pf').catch(logger.error);
         kcgmm.fetch('cw3').catch(logger.error);
         kcgmm.fetch('cw2').catch(logger.error);
-
+        
         setInterval(() => {
             kcgmm.fetch('cw4').catch(logger.error);
             kcgmm.fetch('pf').catch(logger.error);
@@ -32,6 +32,12 @@ core.on('ready', bot => {
 
             m.message.reply(`[:game_die: D${sides}] rolled \`${roll}\`!`).catch(logger.error);
         });
+
+        core.getModule((await import('./src/modules/Emotes.js')).default).then(emotes => {
+            core.addCommand("emote", null, "admin", "MODERATOR", (message, args, arg) => {
+                return emotes.emote(message, args, arg, {});
+            });
+        }).catch(console.error);
 
         core.getModule((await import('./src/modules/Map.js')).default).then(map => {
             core.addCommand('map', null, 'misc', 'CITIZEN_OF_ODIN', (message, args, arg) => {
@@ -63,22 +69,7 @@ core.on('ready', bot => {
             });
         }).catch(logger.error);
 
-    })().catch(logger.error);
-});
-/*
-core.on('ready', bot => {
-    (async () => {
-        
-
-        
-
-
-        
-        
-        
-
-        
-        core.getModule(require('./src/modules/Competition.js')).then(competition => {
+        core.getModule((await import('./src/modules/Competition.js')).default).then(competition => {
             core.addLoop(1000 * 60 * 30, (guild) => {
                 competition.loop(guild, { kcgmm: kcgmm });
             });
@@ -125,6 +116,6 @@ core.on('ready', bot => {
                 return competition.unregister(message, args, arg, {});
             });
         }).catch(logger.error);
+
     })().catch(logger.error);
 });
-*/

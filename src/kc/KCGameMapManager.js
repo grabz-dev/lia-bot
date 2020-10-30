@@ -295,9 +295,9 @@ export function KCGameMapManager(options, locale) {
      */
     async function fetchMapData(game) {
         if(game === "cw2")
-            await fetchMapsCW2(logger, options, mapListByIds, mapListArray);
+            await fetchMapsCW2(options, mapListByIds, mapListArray);
         else
-            await fetchMapsDefault(logger, mapListByIds, mapListArray, game);
+            await fetchMapsDefault(mapListByIds, mapListArray, game);
     }
 
     /**

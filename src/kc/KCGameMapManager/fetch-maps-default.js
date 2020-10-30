@@ -1,4 +1,3 @@
-/** @typedef {import('winston').Logger} winston.Logger */
 /** @typedef {import("../KCGameMapManager")} KCGameMapManager */
 /** @typedef {import("../KCGameMapManager").KCGameMapManagerOptions} KCGameMapManagerOptions */
 /** @typedef {import("../KCGameMapManager").MapData} MapData */
@@ -14,13 +13,12 @@ const logger = Bot.logger;
  * Fetch map data. Confirmed to work for CW4, CW3 and PF.
  * 
  * @this {KCGameMapManager}
- * @param {winston.Logger} logger
  * @param {Discord.Collection<String, Discord.Collection<number, MapData>>} mapListByIds
  * @param {Discord.Collection<String, ReadonlyArray<MapData>>} mapListArray
  * @param {string} game //cw3 pf cw4
  * @returns {Promise<void>}
  */
-export async function fetchMapsDefault(logger, mapListByIds, mapListArray, game) {
+export async function fetchMapsDefault(mapListByIds, mapListArray, game) {
     let urlStr = KCLocaleManager.getUrlStringFromPrimaryAlias(game);
     if(urlStr == null) 
         throw "Specified game url does not exist.";
