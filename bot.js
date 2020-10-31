@@ -37,7 +37,16 @@ core.on('ready', bot => {
             core.addCommand("emote", null, "admin", "MODERATOR", (message, args, arg) => {
                 return emotes.emote(message, args, arg, {});
             });
-        }).catch(console.error);
+        }).catch(logger.error);
+
+        core.getModule((await import('./src/modules/EventLog.js')).default).then(eventlog => {
+            core.addCommand("channel", ["eventlog", "e"], "admin", null, (message, args, arg) => {
+                return eventlog.setChannel(message, args, arg, { type: 'event' });
+            });
+            core.addCommand("channel", ["imagelog", "e"], "admin", null, (message, args, arg) => {
+                return eventlog.setChannel(message, args, arg, { type: 'image' });
+            });
+        }).catch(logger.error);
 
         core.getModule((await import('./src/modules/Map.js')).default).then(map => {
             core.addCommand('map', null, 'misc', 'CITIZEN_OF_ODIN', (message, args, arg) => {

@@ -8,10 +8,6 @@
 
             "role_add_success": "Role association set."
         },
-        "channels": {
-            "channel_persist_added": "Bot messages will no longer be automatically removed in this channel.",
-            "channel_persist_removed": "Bot messages will now be automatically removed in this channel."
-        },
         "": {
             "os_role_granted": "You're now a %0!",
             "os_role_removed": "You're no longer a %0."
