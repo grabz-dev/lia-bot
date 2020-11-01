@@ -162,13 +162,13 @@ export default class Competition extends Bot.Module {
                     let fields = embed.fields;
                     if(!fields) fields = [];
                     if(map.type === "code")
-                        fields.push(getEmbedFieldFromMapData(guild, this.bot.locale, registeredMapLeaderboard, map, emote));
+                        fields.push(await getEmbedFieldFromMapData(guild, this.bot.locale, registeredMapLeaderboard, map, emote));
                     else {
                         let mapList = kcgmm.getMapListByIds(map.game);
                         if(mapList && map.id) {
                             let mapData = mapList.get(map.id);
                             if(mapData) 
-                                fields.push(getEmbedFieldFromMapData(guild, this.bot.locale, registeredMapLeaderboard, map, emote, mapData));
+                                fields.push(await getEmbedFieldFromMapData(guild, this.bot.locale, registeredMapLeaderboard, map, emote, mapData));
                             else fields.push({name: "err_map_not_found", value: "err_map_not_found", inline: false});
                         }
                         else
@@ -646,7 +646,7 @@ export default class Competition extends Bot.Module {
                 const mapData = !mapList || map.id == null ? undefined : mapList.get(map.id);
 
                 const embed = getEmbedTemplate();
-                const field = getEmbedFieldFromMapData(m.guild, this.bot.locale, registeredMapLeaderboard, map, emotes[map.game], mapData);
+                const field = await getEmbedFieldFromMapData(m.guild, this.bot.locale, registeredMapLeaderboard, map, emotes[map.game], mapData);
                 embed.title = field.name;
                 embed.description = field.value;
                 embed.footer = {
@@ -757,14 +757,17 @@ async function buildScoreTally(guild, channel, session) {
         value: "",
         inline: false
     }
-    champions.forEach((weeks, snowflake) => {
+    for(let champion of champions) {
+        let weeks = champion[1];
+        let snowflake = champion[0];
+
         field.value += `\`${weeks} weeks left\` <@${snowflake}>\n`;
 
         if(role) {
-            let member = guild.members.resolve(snowflake);
+            let member = await guild.members.fetch(snowflake);
             if(member) member.roles.add(role).catch(logger.error);
         }
-    });
+    }
     if(field.value.length === 0) field.value = "None";
     
     embed.fields = [];
@@ -900,9 +903,9 @@ function getEmbedScores(color, timeRemaining) {
  * @param {KCGameMapManager.MapScoreQueryData} mapScoreQueryData 
  * @param {string} emoteStr
  * @param {KCGameMapManager.MapData=} mapData
- * @returns {{name: string, value: string, inline: boolean}}
+ * @returns {Promise<{name: string, value: string, inline: boolean}>}
  */
-function getEmbedFieldFromMapData(guild, locale, mapLeaderboard, mapScoreQueryData, emoteStr, mapData) {
+async function getEmbedFieldFromMapData(guild, locale, mapLeaderboard, mapScoreQueryData, emoteStr, mapData) {
     let name = `${emoteStr} ${KCLocaleManager.getDisplayNameFromAlias("map_mode_custom", `${mapScoreQueryData.game}_${mapScoreQueryData.type}`)}`;
     let value = "";
 
@@ -939,7 +942,7 @@ function getEmbedFieldFromMapData(guild, locale, mapLeaderboard, mapScoreQueryDa
         value += "#" + Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true);
         value += Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 7, "⠀", false);
 
-        let member = guild.members.resolve(entry.user);
+        let member = await guild.members.fetch(entry.user);
         value += " " + (member ? member.nickname || member.user.username : entry.user).substring(0, 17) + "\n";
     }
     if(mapLeaderboard.entries.length === 0)
@@ -1000,29 +1003,27 @@ function getDifficultyEmoteFromMapData(mapData) {
  * @param {KCGameMapManager.MapLeaderboard} mapLeaderboard 
  * @returns {Promise<KCGameMapManager.MapLeaderboard>} New leaderboard without users that haven't registered on Discord.
  */
-function getMapLeaderboardWithOnlyRegisteredUsers(session, guild, game, mapLeaderboard) {
-    return new Promise(async (resolve, reject) => {
-        /** @type KCGameMapManager.MapLeaderboard */
-        const newLeaderboard = { ...mapLeaderboard }
-        newLeaderboard.entries = [];
+async function getMapLeaderboardWithOnlyRegisteredUsers(session, guild, game, mapLeaderboard) {
+    /** @type {KCGameMapManager.MapLeaderboard} */
+    const newLeaderboard = { ...mapLeaderboard }
+    newLeaderboard.entries = [];
 
-        let rank = 1;
-        for(let entry of mapLeaderboard.entries) {
-            /** @type Db.Competition.Register */
-            let docReg = await this.bot.tdb.findOne(session, guild, "competition", "register", { }, { n: entry.user }, { });
-            if(docReg == null) continue;
+    let rank = 1;
+    for(let entry of mapLeaderboard.entries) {
+        /** @type {Db.Competition.Register} */
+        let docReg = await this.bot.tdb.findOne(session, guild, "competition", "register", { }, { n: entry.user }, { });
+        if(docReg == null) continue;
 
-            let member = guild.members.resolve(docReg.u);
-            if(member == null) continue;
+        let member = await guild.members.fetch(docReg.u);
+        if(member == null) continue;
 
-            let newEntry = { ...entry };
-            newEntry.user = member.id;
-            newEntry.rank = rank;
-            rank++;
+        let newEntry = { ...entry };
+        newEntry.user = member.id;
+        newEntry.rank = rank;
+        rank++;
 
-            newLeaderboard.entries.push(newEntry);
-        }
+        newLeaderboard.entries.push(newEntry);
+    }
 
-        resolve(newLeaderboard);
-    });
+    return newLeaderboard;
 };

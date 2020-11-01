@@ -78,6 +78,36 @@ core.on('ready', bot => {
             });
         }).catch(logger.error);
 
+        core.getModule((await import('./src/modules/Stream.js')).default).then(stream => {
+            core.addCommand("stream", null, ["stream", "streamer"], null, (message, args, arg) => {
+                return stream.info(message, args, arg, {});
+            });
+            core.addCommand("channel", "stream", "admin", null, (message, args, arg) => {
+                return stream.setChannel(message, args, arg, {});
+            });
+            core.addCommand("stream", ["addgame", "add"], ["stream", "streamer"], null, (message, args, arg) => {
+                return stream.add(message, args, arg, {});
+            });
+            core.addCommand("stream", ["sub", "subscribe"], ["stream", "streamer"], "CITIZEN_OF_ODIN", (message, args, arg) => {
+                return stream.subscribe(message, args, arg, {});
+            });
+            core.addCommand("stream", ["unsub", "unsubscribe"], ["stream", "streamer"], "CITIZEN_OF_ODIN", (message, args, arg) => {
+                return stream.unsubscribe(message, args, arg, {});
+            });
+            core.addCommand("stream", "start", ["stream", "streamer"], "STREAMER", (message, args, arg) => {
+                return stream.start(message, args, arg, {});
+            });
+            core.addCommand("stream", "end", ["stream", "streamer"], "STREAMER", (message, args, arg) => {
+                return stream.end(message, args, arg, {});
+            });
+            core.addCommand("stream", "status", ["stream", "streamer"], "CITIZEN_OF_ODIN", (message, args, arg) => {
+                return stream.status(message, args, arg, {});
+            });
+            core.addCommand("stream", ["sync", "synchronize"], ["stream", "streamer"], null, (message, args, arg) => {
+                return stream.synchronize(message, args, arg, {});
+            });
+        }).catch(console.error);
+
         core.getModule((await import('./src/modules/Competition.js')).default).then(competition => {
             core.addLoop(1000 * 60 * 30, (guild) => {
                 competition.loop(guild, { kcgmm: kcgmm });
