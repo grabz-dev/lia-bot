@@ -8,10 +8,6 @@
 
             "role_add_success": "Role association set."
         },
-        "": {
-            "os_role_granted": "You're now a %0!",
-            "os_role_removed": "You're no longer a %0."
-        },
         "kcgmm": {
             "no_game": "The game wasn't specified.",
             "bad_game": "The specified game is not correct.",
@@ -25,20 +21,12 @@
             "bad_cw2_code_complexity": "The complexity parameter of this CW2 code map is not correct.",
             "no_cw2_code_name": "You must specify the name of the CW2 code map."
         },
-        "eventlog": {
-            "image_log_channel_add": "Image log channel set.",
-            "mod_log_channel_add": "Moderation log channel set.",
-            "event_log_channel_add": "Event log channel set."
-        },
         "emotes": {
             "err_game_name_not_provided": "You must provide the name of the game.",
             "err_game_name_not_supported": "%0 is not supported/not a valid game name.",
             "err_emote_not_provided": "You must specify an emote.",
 
             "success": "Emote set!"
-        },
-        "welcome": {
-            "welcome_message": ":wave: Welcome to Knuckle Cracker. Home of the Creeper Nation and all things Creeper World!\n<https://knucklecracker.com/>\n\n:notepad_spiral: If this is your first visit here, please review the following resources:\n   • Creeper World 4 FAQ: <https://knucklecracker.com/forums/index.php?topic=26694.0>\n   • <#404013990788726815> channel for all the basic things you might want to know about Knuckle Cracker!\n   • <#370193944539168778> channel for a short overview of our rules.\n\nThank you and enjoy your stay!"
         },
         "experience": {
             "err_game_name_not_provided": "You must provide the name of the game.",
@@ -83,15 +71,6 @@
             "search_result_too_fast": "Could not find the requested map. If you're certain this map exists, try again in a few minutes.",
             "search_result_not_found": "The requested map doesn't exist."
         },
-        "moderation": {
-            "err_user_mention_not_provided": "You must ping the user, or type their user ID.",
-            "err_user_mention_not_correct": "Incorrect user ID specified, or the mention/ping was typed incorrectly.",
-            "err_user_not_member": "This user is not a part of this server.",
-            "err_user_friend": "You cannot remove one of your kind!",
-
-            "count_reached_global": "No more moderator actions can be issued today. Contact an administrator.",
-            "count_reached_user": "You can't %0 any more members today."
-        },
         "stream": {
             "err_game_name_not_provided": "You must provide the name of the game.",
             "err_game_name_not_supported": "%0 is not supported/not a valid game name.",
@@ -103,39 +82,15 @@
             "err_no_vod": "Please provide a link to the VOD of the stream as a parameter. Alternatively write `override` as the parameter to not save a VOD.",
 
             "intro_name": ":clapper: Stream Info",
-            "intro_value": "`!stream sub help` • Subscribe to streams.\n`!stream unsub help` • Unsubscribe from streams.\n\nTo be able to send stream announcements of your own, you must be a %0",
+            "intro_value": "To subscribe to stream notifications, head to the self assigned roles channel. \nTo be able to send stream announcements, you must be a %0",
 
             "channel_missing": "The streaming channel is missing. Please add a channel first.",
             "channel_set": "Streaming channel set. Future stream announcements will appear here.",
             "add_success": "Role successfully added.",
-            "game_not_added": "%0 is not a streamable game on this server. Valid games include: %1",
-            "subscribe_no_games": "There are no games added to subscribe to.",
-            "subscribe_game_role_missing": "The role assigned to this game is not on this server. Somebody might have deleted it. Ask a moderator to `!stream addgame` the game again with the appropriate role.",
-            "subscribe_already_subbed": "You are already subscribed to %0!",
-            "subscribe_success": "You've now been subscribed to Knuckle Cracker community Discord streams for %0! You will be notified whenever any streamer in this Discord is streaming this game.\n\nIf you would like to unsubscribe from notifications for this game, write `!stream unsub %1`",
-            "unsubscribe_no_games": "There are no games added to unsubscribe from.",
-            "unsubscribe_not_subbed": "You are not subscribed to %0.",
-            "unsubscribe_success": "You've unsubscribed from Knuckle Cracker community Discord streams for %0 and will no longer receive notifications.\n\nYou can resubscribe to notifications for this game at any point by writing `!stream sub %1`",
-            "status_no_games": "There are no games registered for streaming purposes.",
+            "game_not_added": "%0 is not a streamable game on this server.",
             "start_already_streaming": "You are already streaming! Please end your current stream first.",
             "end_not_streaming": "You're not streaming.",
-            "status_no_streams": "No streams are currently running.",
-            "synchronize_ongoing": "A synchronization work is currently ongoing. Wait until it's finished first.",
-            "synchronize_ing": "Synchronizing...",
-            "synchronize_success": "All finished successfully!",
-            "cw4_fluff": "I don't believe you own this game quite yet. :wink:"
-        },
-        "smitelist": {
-            "err_user_mention_not_provided": "You must ping the user, or type their user ID.",
-            "err_user_mention_not_correct": "Incorrect user ID specified, or the mention/ping was typed incorrectly.",
-            "err_duration_not_provided": "You must provide a duration in a valid duration format. Examples: 7d, 3d5h10m",
-            "err_duration_not_valid": "The provided duration format is not valid. Examples of a valid one: 7d, 3d5h10m",
-
-            "user_not_member": "This user is not a part of this server.",
-            "forgive_clean_record": "There is nothing to forgive this user for.",
-            "muted_role_not_added": "The Muted role has not been added. Create a role for muted users and add it with `!role MUTED <role_id>`",
-            "muted_role_missing": "The Muted role was previously added but is missing and needs to be re-added. Add a role for muted users with `!role MUTED <role_id>`",
-            "already_muted_for_longer": "This user is already muted for a longer period"
+            "status_no_streams": "No streams are currently running."
         },
         "competition": {
             "err_game_name_not_provided": "You must provide the name of the game.",
@@ -154,7 +109,7 @@
             "unregister_not_registered": "This user is not registered for any game.",
             "unregister_success": "The specified user is now no longer registered in %0 games.",
             "info_title": ":trophy: Welcome to the Competition!",
-            "info_description": "Compete for the best score in numerous Particle Fleet, Creeper World 3, and Creeper World 2 maps. Your prize? Bragging rights... and points! Head over to the %0 channel and check the stickied messages for information on what maps we're currently competing in!\n\nYou're welcome to join any time. Simply type `!competition join` to receive your Competitor role and get cracking!\n\n:warning:**Make sure to submit your scores with the `specialevent` Group name, or your score won't be included!**:warning:\n\nFeel free to ask any questions you might have in %0.",
+            "info_description": "Compete for the best score in numerous Particle Fleet, Creeper World 3, and Creeper World 2 maps. Your prize? Bragging rights... and points! Head over to the %0 channel and check the stickied messages for information on what maps we're currently competing in!\n\nYou're welcome to join any time. Simply head on over to the self assigned roles channel and become a Competitor there!\n\n:warning:**Make sure to submit your scores with the `specialevent` Group name, or your score won't be included!**:warning:\n\nFeel free to ask any questions you might have in %0.",
             "info_inactive": "The competition is not active on this server. A competition channel needs to be set.",
             "channel_set": "Competition channel set. Competition reset.",
             "status_title": ":bar_chart: Competition status",
@@ -184,13 +139,6 @@
         }
     },
     "command": {
-        "log": {
-            "": [
-                "!%name% <days>",
-                "Get the log file from the current day.",
-                "%space%<days> - An optional amount of days in the past to post the log from. 0 by default."
-            ]
-        },
         "help": {
             "": [
                 "!%name%",
@@ -203,51 +151,6 @@
                 "Associate a string with a role ID for usage with commands.",
                 "%space%<string> - An internal string ID for the role.",
                 "%space%<id> - The role mention/ping, or the role ID."
-            ]
-        },
-        "channel": {
-            "persist": [
-                "!%name% <bool>",
-                "Toggle whether the current channel will delete non-permanent bot messages.",
-                "%space%<bool> - 0 or 1."
-            ],
-            "stream": [
-                "!%name%",
-                "Set this channel as the one to broadcast stream announcements."
-            ],
-            "competition": [
-                "!%name%",
-                "Set this channel as the one for the Competition."
-            ],
-            "eventlog": [
-                "!%name%",
-                "Set this channel as the event-log channel, where message edit and delete events will be logged."
-            ],
-            "imagelog": [
-                "!%name%",
-                "Set this channel as the image-log channel, where images upload by users will be stored. This channel will help the bot log images in event-log from messages that were deleted."
-            ],
-            "modlog": [
-                "!%name%",
-                "Set this channel as the moderation-log channel, where moderation actions will be logged - message deletions, kicks and bans."
-            ]
-        },
-        "windows": {
-            "": [
-                "!%name%",
-                "Use this if you run Windows! You will receive a special role."
-            ]
-        },
-        "linux": {
-            "": [
-                "!%name%",
-                "Use this if you run Linux! You will receive a special role."
-            ]
-        },
-        "mac": {
-            "": [
-                "!%name%",
-                "Use this if you run MacOS! You will receive a special role."
             ]
         },
         "roll": {
@@ -293,32 +196,6 @@
                 "%space%<emote> - The emote to use."
             ]
         },
-        "message": {
-            "arrivals": [
-                "!%name%",
-                "Spawn an autoupdating message displaying user arrival and departure statistics."
-            ],
-            "smite": [
-                "!%name%",
-                "Spawn an autoupdating message displaying the smitelist status."
-            ]
-        },
-        "smite": {
-            "": [
-                "!%name% <user> <duration> <reason>",
-                "Smite a fool.",
-                "%space%<user> - Either the user ID, or ping the user.",
-                "%space%<duration> - The duration of the smite in duration format. Example: 5d3h, 7d, 30s",
-                "%space%<reason> - The reason for the smite."
-            ]
-        },
-        "forgive": {
-            "": [
-                "!%name% <user>",
-                "Forgive the last issued smite.",
-                "%space%<user> - Either the user ID, or ping the user."
-            ]
-        },
         "exp": {
             "": [
                 "!%name%",
@@ -356,25 +233,15 @@
                 "!%name%",
                 "See the introduction to streaming!"
             ],
-            "sync": [
+            "setchannel": [
                 "!%name%",
-                "Check all subscribed users in the database. If any of those users do not have their subscriber role, give it to them."
+                "Set this channel as the one to broadcast stream announcements."
             ],
             "addgame": [
                 "!%name% <game> <role>",
                 "Associate a subscriber role with a Knuckle Cracker game. Users having this role by subscribing will be mentioned whenever a stream of said game goes live.",
                 "%space%<game> - cw4, pf, cw3, cw2.",
                 "%space%<role> - Role ID, or mention the role."
-            ],
-            "sub": [
-                "!%name% <game>",
-                "Subscribe to mentions of livestreams for the specified Knuckle Cracker game.",
-                "%space%<game> - cw4, pf, cw3, cw2."
-            ],
-            "unsub": [
-                "!%name% <game>",
-                "Unsubscribe from mentions of livestreams for the specified Knuckle Cracker game.",
-                "%space%<game> - cw4, pf, cw3, cw2."
             ],
             "start": [
                 "!%name% <game> <url>",
@@ -392,26 +259,14 @@
                 "Check if anyone is currently streaming."
             ]
         },
-        "kick": {
-            "": [
-                "!%name% <id> <reason>",
-                "Kick a user from the server.",
-                "%space%<id> - The user ID, or mention the user.",
-                "%space%<reason> - The reason for the kick."
-            ]
-        },
-        "ban": {
-            "": [
-                "!%name% <id> <reason>",
-                "Ban a user from the server.",
-                "%space%<id> - The user ID, or mention the user.",
-                "%space%<reason> - The reason for the ban."
-            ]
-        },
         "c": {
             "": [
                 "!%name%",
                 "See the introduction to the Competition!"
+            ],
+            "setchannel": [
+                "!%name%",
+                "Set this channel as the one for the Competition."
             ],
             "join": [
                 "!%name%",

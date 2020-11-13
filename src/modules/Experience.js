@@ -174,7 +174,7 @@ export default class Experience extends Bot.Module {
                 return;
             }
             documents.sort((a, b) => {
-                return b.cc.fin - a.cc.fin
+                return b.cc.fin.length - a.cc.fin.length
             });
             let docThisUser = await this.bot.tdb.findOne(session, m.guild, 'experience', 'data', { }, { g: game, u: m.member.id }, { });
             

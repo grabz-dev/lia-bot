@@ -208,68 +208,6 @@ export default class Competition extends Bot.Module {
     }
 
     /**
-    * Module Function: Give this user the competitor role.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {object} ext - Custom parameters provided to function call
-    * @param {KCGameMapManager} ext.kcgmm
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    join(m, args, arg, ext) {
-        let id = this.bot.getRoleId(m.guild.id, "COMPETITOR");
-        if(id == null) {
-            m.message.reply(this.bot.locale.category("competition", "competitor_role_no_setup")).catch(logger.error);
-            return;
-        }
-        let role = m.guild.roles.cache.get(id);
-        if(role == null) {
-            m.message.reply(this.bot.locale.category("competition", "competitor_role_missing")).catch(logger.error);
-            return;
-        }
-
-        if(m.member.roles.cache.get(id)) {
-            m.message.reply(this.bot.locale.category("competition", "competitor_role_already_owned")).catch(logger.error);
-            return;
-        }
-
-        m.member.roles.add(role, "joined competition").then(() => {
-            m.message.reply(this.bot.locale.category("competition", "join_success")).catch(logger.error);
-        }).catch(logger.error);
-    }
-
-    /**
-    * Module Function: Remove this user's competitor role.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {any} ext - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    leave(m, args, arg, ext) {
-        let id = this.bot.getRoleId(m.guild.id, "COMPETITOR");
-        if(id == null) {
-            m.message.reply(this.bot.locale.category("competition", "competitor_role_no_setup")).catch(logger.error);
-            return;
-        }
-
-        let role = m.guild.roles.cache.get(id);
-        if(role == null) {
-            m.message.reply(this.bot.locale.category("competition", "competitor_role_missing")).catch(logger.error);
-            return;
-        }
-
-        if(!m.member.roles.cache.get(id)) {
-            m.message.reply(this.bot.locale.category("competition", "competitor_role_not_owned")).catch(logger.error);
-            return;
-        }
-
-        m.member.roles.remove(role, "left competition").then(() => {
-            m.message.reply(this.bot.locale.category("competition", "leave_success")).catch(logger.error);
-        }).catch(logger.error);
-    }
-
-    /**
     * Module Function: Register this user for the competition.
     * @param {Bot.Message} m - Message of the user executing the command.
     * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
@@ -439,8 +377,6 @@ export default class Competition extends Bot.Module {
                 return;
             }
 
-            console.log(m.message.channel instanceof Discord.TextChannel);
-
             let channel = m.guild.channels.resolve(docMain.c);
             if(!channel || !(channel instanceof Discord.TextChannel)) {
                 await m.message.reply(this.bot.locale.category("competition", "channel_no_access"));
@@ -483,6 +419,14 @@ export default class Competition extends Bot.Module {
     * @returns {string | void} undefined if finished correctly, string if an error is thrown.
     */
     addMap(m, args, arg, ext) {
+        let game = args[0];
+        if(game == null)
+            return this.bot.locale.category("competition", "err_game_name_not_provided");
+
+        game = KCLocaleManager.getPrimaryAliasFromAlias("game", game) || "";
+        if(game.length === 0 || !this.games.includes(game))
+            return this.bot.locale.category("competition", "err_game_name_not_supported", args[0]);
+
         const _data = ext.kcgmm.getMapQueryObjectFromCommandParameters(args);
         if(_data.err) return _data.err;
         const mapQueryData = _data.data;
