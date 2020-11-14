@@ -49,14 +49,20 @@ async function fetcher(options, mapListByIds, mapListArray, page, mapListTemp) {
     let data = await HttpRequest.get(URL + "&page=" + page);
     let exit = true;
 
-    let obj = getCW2MapDataFromMapBrowser(data);
-    let mapData = obj.mapData;
-    data = obj.data;
+    let i = 0;
+    do {
+        let obj = getCW2MapDataFromMapBrowser(data);
+        var mapData = obj.mapData;
+        data = obj.data;
 
-    if(mapData) {
-        exit = false;
-        if(mapData.id) mapListTemp.set(mapData.id, mapData);
+        if(mapData && mapData.id) {
+            mapListTemp.set(mapData.id, mapData);
+            i++;
+        }
     }
+    while(mapData != null);
+
+    if(i > 0) exit = false;
 
     logger.info("[KCGameMapManager.fetchMapsCW2] Fetching from CW2 web browser. Page " + page + ".");
 

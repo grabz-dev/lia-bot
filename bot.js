@@ -10,7 +10,7 @@ const core = new Bot.Core('371018033298276353');
 core.on('ready', bot => {
     (async () => {
         let kcgmm = new KCGameMapManager({
-            disableCW2: true
+            disableCW2: false
         }, bot.locale);
 
         kcgmm.fetch('cw4').catch(logger.error);
