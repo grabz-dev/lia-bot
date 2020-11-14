@@ -211,7 +211,7 @@ async function bestof(m, game, date, maps) {
         if(e) emote = e.e;
     }).catch(logger.error);
 
-    let embed = getEmbedTemplate(game, emote);
+    let embed = getEmbedTemplate(game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''));
 
     let field = {
         name: `${KCLocaleManager.getDisplayNameFromAlias('map_mode_custom', `${game}_custom`)}: ${KCUtil.getMonthFromDate(date)}, ${date.getUTCFullYear()}`,
