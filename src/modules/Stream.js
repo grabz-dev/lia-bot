@@ -23,7 +23,8 @@ export default class Stream extends Bot.Module {
      * @param {Bot.Message} m - Message of the user executing the command.
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
-     * @param {{action: 'info'|'set-channel'|'add-game'|'start'|'end'|'status'}} ext - Custom parameters provided to function call.
+     * @param {object} ext
+     * @param {'info'|'set-channel'|'add-game'|'start'|'end'|'status'} ext.action - Custom parameters provided to function call.
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
@@ -31,7 +32,7 @@ export default class Stream extends Bot.Module {
         case 'info':
             if(arg.length > 0)
                 return;
-            info.call(this, m);
+            info.call(this, m).catch(logger.error);
             return;
         case 'set-channel':
             setChannel.call(this, m);

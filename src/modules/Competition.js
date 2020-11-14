@@ -164,7 +164,7 @@ export default class Competition extends Bot.Module {
                     if(map.type === "code")
                         fields.push(await getEmbedFieldFromMapData(guild, this.bot.locale, registeredMapLeaderboard, map, emote));
                     else {
-                        let mapList = kcgmm.getMapListByIds(map.game);
+                        let mapList = kcgmm.getMapListId(map.game);
                         if(mapList && map.id) {
                             let mapData = mapList.get(map.id);
                             if(mapData) 
@@ -586,7 +586,7 @@ export default class Competition extends Bot.Module {
                 
                 maps.set(docMaps, scores);
                 
-                const mapList = ext.kcgmm.getMapListByIds(map.game);
+                const mapList = ext.kcgmm.getMapListId(map.game);
                 const mapData = !mapList || map.id == null ? undefined : mapList.get(map.id);
 
                 const embed = getEmbedTemplate();

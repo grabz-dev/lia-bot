@@ -17,8 +17,8 @@
 
 /**
  * @typedef {object} MapData
- * @property {number=} id - The id of the map.
- * @property {string} game - cw2, cw3, pf
+ * @property {number} id - The id of the map.
+ * @property {string} game - cw2, cw3, pf, cw4
  * @property {string} author - The name of the author.
  * @property {string} title - The title of the map.
  * @property {number} width - The width of the map.
@@ -28,9 +28,10 @@
  * @property {number=} scores - The amount of scores submitted. CW2, CW3 and PF only.
  * @property {number=} rating - PF and CW3 only. The rating of the map.
  * @property {number=} ratings - PF and CW3 only. The amount of ratings submitted.
- * @property {number=} upvotes - CW2 only. The amount of times this map was rated up.
+ * @property {number=} upvotes - CW2 and CW4 only. The amount of times this map was rated up.
  * @property {number=} downvotes - CW2 only. The amount of times this map was rated down.
  * @property {string[]=} tags - CW4 only. The tags on this map.
+ * @property {number=} timestamp - Map upload unix timestamp. CW3, PF, CW4 only.
  */
 
 /**
@@ -71,10 +72,14 @@ import { fetchMapsCW2 } from './KCGameMapManager/fetch-maps-cw2.js';
  * @param {Core.Locale} locale
  */
 export function KCGameMapManager(options, locale) {
-    /** @type {Discord.Collection<String, ReadonlyArray<MapData>>} */
-    const mapListArray = new Discord.Collection();
-    /** @type {Discord.Collection<String, Discord.Collection<number, MapData>>} */
-    const mapListByIds = new Discord.Collection();
+    this._maps = Object.freeze({
+        /** @type {Discord.Collection<string, Discord.Collection<number, MapData>>} */
+        id: new Discord.Collection(),
+        /** @type {Discord.Collection<string, ReadonlyArray<MapData>>} */
+        array: new Discord.Collection(),
+        /** @type {Discord.Collection<string, Object.<number, MapData[]>>} */
+        month: new Discord.Collection(),
+    });
 
     const minFetchInterval = 1000 * 60;
     let lastFetchTimestamp = 0;
@@ -147,33 +152,36 @@ export function KCGameMapManager(options, locale) {
     }
     
     /**
-     * Get a freely modifiable copy of the map list, as an array of all maps.
-     * 
-     * `{ cw2: [{id: 1, ...}, ...], ...}`
+     * Returns map list array sorted by ID's
      * @param {string} game //cw2 cw3 pf cw4
      * @returns {MapData[] | null}
      */
     this.getMapListArray = function(game) {
-        let mapList = mapListArray.get(game);
-        if(!mapList)
-            return null;
-
-        return mapList.slice();
+        let mapList = this._maps.array.get(game);
+        return mapList ? mapList.slice() : null;
     }
 
     /**
-     * Get a freely modifiable copy of the map list, as a dictionary object mapped by map ID's.
-     * 
-     * `{ cw2: { 1: {id: 1, ...} ...} ...}`
+     * Returns map list collection mapped by ID's
      * @param {string} game //cw2 cw3 pf cw4
      * @returns {Discord.Collection<number, MapData> | null} Collection mapped by map ID
      */
-    this.getMapListByIds = function(game) {
-        let mapList = mapListByIds.get(game);
-        if(!mapList)
-            return null;
+    this.getMapListId = function(game) {
+        let mapList = this._maps.id.get(game);
+        return mapList ? mapList.clone() : null;
+    }
 
-        return mapList.clone();
+    /**
+     * Returns map list array for specific month sorted from best to worst
+     * @param {string} game //cw3 pf cw4
+     * @param {number} timestamp
+     * @returns {MapData[] | null}
+     */
+    this.getMapListMonth = function(game, timestamp) {
+        let mapList = this._maps.month.get(game);
+        if(!mapList) return null;
+        if(mapList[timestamp] == null) return [];
+        return mapList[timestamp].slice();
     }
 
     /**
@@ -191,7 +199,7 @@ export function KCGameMapManager(options, locale) {
         }
 
         try {
-            await fetchMapData(game);
+            await fetchMapData.call(this, game);
             logger.info(`[KCGameMapManager.fetch] Fetched map data for ${game}.`);
             lastFetchTimestamp = Date.now();
         }
@@ -291,13 +299,14 @@ export function KCGameMapManager(options, locale) {
 
     /**
      * Fetch map data.
+     * @this {KCGameMapManager}
      * @param {string} game //cw2 cw3 pf cw4
      */
     async function fetchMapData(game) {
         if(game === "cw2")
-            await fetchMapsCW2(options, mapListByIds, mapListArray);
+            await fetchMapsCW2.call(this, options);
         else
-            await fetchMapsDefault(mapListByIds, mapListArray, game);
+            await fetchMapsDefault.call(this, game);
     }
 
     /**

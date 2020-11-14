@@ -366,7 +366,7 @@ export default class Experience extends Bot.Module {
 
             //Get the array of every map in the game. Removed maps do not exist in this array.
             let mapListArray = kcgmm.getMapListArray(game);
-            let mapListByIds = kcgmm.getMapListByIds(game);
+            let mapListByIds = kcgmm.getMapListId(game);
 
             if(mapListArray == null || mapListByIds == null) {
                 m.channel.send(this.bot.locale.category('experience', 'map_processing_error', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);

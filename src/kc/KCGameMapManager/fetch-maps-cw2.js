@@ -1,4 +1,4 @@
-/** @typedef {import("../KCGameMapManager")} KCGameMapManager */
+/** @typedef {import("../KCGameMapManager").KCGameMapManager} KCGameMapManager */
 /** @typedef {import("../KCGameMapManager").KCGameMapManagerOptions} KCGameMapManagerOptions */
 /** @typedef {import("../KCGameMapManager").MapData} MapData */
 
@@ -14,11 +14,9 @@ const URL = "https://knucklecracker.com/creeperworld2/viewmaps.php?embedded=true
  * 
  * @this {KCGameMapManager}
  * @param {KCGameMapManagerOptions} options
- * @param {Discord.Collection<String, Discord.Collection<number, MapData>>} mapListByIds
- * @param {Discord.Collection<String, ReadonlyArray<MapData>>} mapListArray
  * @returns {Promise<void>}
  */
-export async function fetchMapsCW2(options, mapListByIds, mapListArray) {
+export async function fetchMapsCW2(options) {
     /** @type {Discord.Collection<number, MapData>} */
     const mapListTemp = new Discord.Collection();
     let currentPage = 0;
@@ -28,7 +26,7 @@ export async function fetchMapsCW2(options, mapListByIds, mapListArray) {
     }
 
     while(true) {
-        let finished = await fetcher(options, mapListByIds, mapListArray, currentPage, mapListTemp);
+        let finished = await fetcher.call(this, options, currentPage, mapListTemp);
         if(finished) break;
         currentPage++;
         await Bot.Util.Promise.sleep(1000);
@@ -37,14 +35,13 @@ export async function fetchMapsCW2(options, mapListByIds, mapListArray) {
 
 /**
  * Repeatedly run fetcher and increment the page until we reach a page with no more maps left, then quit.
+ * @this {KCGameMapManager}
  * @param {KCGameMapManagerOptions} options
- * @param {Discord.Collection<String, Discord.Collection<number, MapData>>} mapListByIds
- * @param {Discord.Collection<String, ReadonlyArray<MapData>>} mapListArray
  * @param {number} page 
  * @param {Discord.Collection<number, MapData>} mapListTemp
  * @returns {Promise<boolean>} true if finished, false if not
  */
-async function fetcher(options, mapListByIds, mapListArray, page, mapListTemp) {
+async function fetcher(options, page, mapListTemp) {
     //Fetch all maps from the current page.
     let data = await HttpRequest.get(URL + "&page=" + page);
     let exit = true;
@@ -67,19 +64,16 @@ async function fetcher(options, mapListByIds, mapListArray, page, mapListTemp) {
     logger.info("[KCGameMapManager.fetchMapsCW2] Fetching from CW2 web browser. Page " + page + ".");
 
     //If no maps were found on the current page, we finalize and quit.
-    if(exit || (options.disableCW2 && page >= 3)) {
-        mapListByIds.set("cw2", mapListTemp);
-
+    if(exit || (options.disableCW2 && page >= 1)) {
         /** @type {MapData[]} */
         let arr = [];
-        for(let obj of Array.from(mapListTemp.values()))
-            arr.push(Object.freeze(obj));
+        for(let obj of Array.from(mapListTemp.values())) arr.push(Object.freeze(obj));
 
-        //Additional safeguards...
-        if(!options.disableCW2 && arr.length < 1000)
-            throw "[KCGameMapManager.fetchMapsCW2] CW2 isn't disabled, but is finding less than a thousand maps.";
+        if(!options.disableCW2 && arr.length < 2500)
+            throw "[KCGameMapManager.fetchMapsCW2] CW2 isn't disabled, but is finding less than 2500 maps.";
 
-        mapListArray.set("cw2", Object.freeze(arr));
+        this._maps.id.set("cw2", mapListTemp);
+        this._maps.array.set("cw2", Object.freeze(arr));
 
         logger.info("[KCGameMapManager.fetchMapsCW2] End reached.");
 

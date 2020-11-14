@@ -45,10 +45,13 @@ core.on('ready', bot => {
             }
 
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'map', commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
-                return map.get(message, args, arg, { kcgmm: kcgmm });
+                return map.land(message, args, arg, { action: 'map', kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['score', 'scores'], commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
-                return map.score(message, args, arg, { kcgmm: kcgmm });
+                return map.land(message, args, arg, { action: 'score', kcgmm: kcgmm });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['bestof', 'month'], commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+                return map.land(message, args, arg, { action: 'bestof', kcgmm: kcgmm });
             });
         }).catch(logger.error);
 

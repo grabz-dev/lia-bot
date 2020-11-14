@@ -65,6 +65,8 @@
             "err_game_not_supported": "%0 is not supported.",
             "err_mapid_invalid": "The provided map ID is invalid.",
             "err_mapid_negative": "Map ID can't be negative.",
+            "err_date_invalid": "Invalid date provided.",
+            "err_bestof_not_supported": "%0 is not supported.",
 
             "searching_map": "Digging through the archives...",
             "searching_map_cw2_add": "For Creeper World 2, this might take a while. I'll need just a few minutes.",
@@ -183,9 +185,17 @@
         "map": {
             "": [
                 "!%name% <game> <id>",
-                "Display information about a custom map.",
-                "%space%<game> - pf, cw3, cw2.",
+                "Show information about a custom map.",
+                "%space%<game> - cw4, pf, cw3, cw2.",
                 "%space%<id> - The map ID number."
+            ]
+        },
+        "bestof": {
+            "": [
+                "!%name% <game> <date>",
+                "Show the best maps of the month.",
+                "%space%<game> - cw4, pf, cw3.",
+                "%space%<date> - Month and year, e.g. \"October 2020\"."
             ]
         },
         "emote": {

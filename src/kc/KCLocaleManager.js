@@ -90,6 +90,10 @@ const config = {
             "pf_custom" : {
                 "display": "Exchange",
                 "aliases": []
+            },
+            "cw4_custom" : {
+                "display": "Farsite Colonies",
+                "aliases": []
             }
         }
     },
