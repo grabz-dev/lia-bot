@@ -67,9 +67,6 @@ export async function fetchMapsDefault(game) {
             });
         }
 
-        if(j === 0 && game === 'cw4') console.log(obj);
-
-
         //Get month the map was uploaded in
         const date = KCUtil.getDateFlooredToMonth(new Date(obj.timestamp));
         const time = date.getTime();
