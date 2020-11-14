@@ -161,7 +161,7 @@ async function score(m, mapQueryData, kcgmm) {
         if(e) emote = e.e;
     }).catch(logger.error);
 
-    let embed = getEmbedTemplate.bind(this)(mapQueryData.game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''));
+    let embed = getEmbedTemplate.bind(this)(mapQueryData.game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), true);
     embed.fields = [];
     var field = {
         name: `${KCLocaleManager.getDisplayNameFromAlias('map_mode_custom', `${mapQueryData.game}_${mapQueryData.type}`)} Map`,
@@ -211,7 +211,7 @@ async function bestof(m, game, date, maps) {
         if(e) emote = e.e;
     }).catch(logger.error);
 
-    let embed = getEmbedTemplate(game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''));
+    let embed = getEmbedTemplate(game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), false);
 
     let field = {
         name: `${KCLocaleManager.getDisplayNameFromAlias('map_mode_custom', `${game}_custom`)}: ${KCUtil.getMonthFromDate(date)}, ${date.getUTCFullYear()}`,
@@ -279,7 +279,7 @@ function getMapMessageEmbed(mapData, emoteStr, guild, game) {
         }
     }
 
-    let embed = getEmbedTemplate.bind(this)(game, emote);
+    let embed = getEmbedTemplate.bind(this)(game, emote, true);
     embed.image = {
         url: thumbnailURL
     }
@@ -340,16 +340,17 @@ function getMapMessageEmbed(mapData, emoteStr, guild, game) {
  * @this Map
  * @param {string} game
  * @param {Discord.GuildEmoji|null} emote
+ * @param {boolean} thumbnail
  * @returns {Discord.MessageEmbed}
  */
-function getEmbedTemplate(game, emote) {
+function getEmbedTemplate(game, emote, thumbnail) {
     return new Discord.MessageEmbed({
         color: KCUtil.gameEmbedColors[game],
         author: {
             name: KCLocaleManager.getDisplayNameFromAlias('game', game) || '',
             icon_url: emote ? emote.url : undefined
         },
-        thumbnail: emote ? {url: emote.url} : undefined,
+        thumbnail: thumbnail ? (emote ? {url: emote.url} : undefined) : undefined,
         fields: [],
     });
 }
