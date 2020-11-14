@@ -35,8 +35,11 @@ export default class Map extends Bot.Module {
         case 'bestof':
             let game = args[0];
             //If game parameter is not provided, choose a random game.
-            if(ext.action === 'map' && game == null) {
-                game = this.games[Bot.Util.getRandomInt(0, this.games.length)];
+            if(game == null) {
+                if(ext.action === 'map')
+                    game = this.games[Bot.Util.getRandomInt(0, this.games.length)];
+                else
+                    return this.bot.locale.category('mapdata', 'err_game_name_not_provided'); 
             }
 
             //If the provided argument is not a Knuckle Cracker game.

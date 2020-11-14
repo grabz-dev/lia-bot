@@ -61,6 +61,7 @@
             "leaderboard_title": "%0 leaderboards!"
         },
         "mapdata": {
+            "err_game_name_not_provided": "You must provide the name of the game.",
             "err_game_not_correct": "The game you asked for is not a Knuckle Cracker game.",
             "err_game_not_supported": "%0 is not supported.",
             "err_mapid_invalid": "The provided map ID is invalid.",
