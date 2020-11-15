@@ -22,7 +22,7 @@ export default class Stream extends Bot.Module {
             await query(`CREATE TABLE IF NOT EXISTS stream_games (
                             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                             guild_id VARCHAR(64) NOT NULL,
-                            game VARCHAR(8) NOT NULL,
+                            game VARCHAR(16) NOT NULL,
                             role_id VARCHAR(64) NOT NULL
                          )`);
 
@@ -30,7 +30,7 @@ export default class Stream extends Bot.Module {
                             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                             guild_id VARCHAR(64) NOT NULL,
                             user_id VARCHAR(64) NOT NULL,
-                            game VARCHAR(8) NOT NULL,
+                            game VARCHAR(16) NOT NULL,
                             url VARCHAR(512) NOT NULL,
                             channel_id VARCHAR(64) NOT NULL,
                             message_id VARCHAR(64) NOT NULL

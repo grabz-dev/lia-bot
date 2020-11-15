@@ -15,7 +15,7 @@ export default class Emotes extends Bot.Module {
             await query(`CREATE TABLE IF NOT EXISTS emotes_game (
                             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                             guild_id VARCHAR(64) NOT NULL,
-                            game VARCHAR(8) NOT NULL,
+                            game VARCHAR(16) NOT NULL,
                             emote VARCHAR(64) NOT NULL
                          )`);
         }).catch(logger.error);
