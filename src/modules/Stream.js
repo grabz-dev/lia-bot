@@ -11,6 +11,31 @@ export default class Stream extends Bot.Module {
     /** @param {Core.Entry} bot */
     constructor(bot) {
         super(bot);
+
+        this.bot.sql.transaction(async query => {
+            await query(`CREATE TABLE IF NOT EXISTS stream_main (
+                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                            guild_id VARCHAR(64) NOT NULL,
+                            channel_id VARCHAR(64) NOT NULL
+                         )`);
+
+            await query(`CREATE TABLE IF NOT EXISTS stream_games (
+                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                            guild_id VARCHAR(64) NOT NULL,
+                            game VARCHAR(8) NOT NULL,
+                            role_id VARCHAR(64) NOT NULL
+                         )`);
+
+            await query(`CREATE TABLE IF NOT EXISTS stream_streams (
+                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                            guild_id VARCHAR(64) NOT NULL,
+                            user_id VARCHAR(64) NOT NULL,
+                            game VARCHAR(8) NOT NULL,
+                            url VARCHAR(512) NOT NULL,
+                            channel_id VARCHAR(64) NOT NULL,
+                            message_id VARCHAR(64) NOT NULL
+                         )`);
+        }).catch(logger.error);
     }
 
     /** @param {Discord.Guild} guild - Current guild. */
@@ -85,7 +110,7 @@ export default class Stream extends Bot.Module {
  */
 async function info(m) {
     let roleId = this.bot.getRoleId(m.guild.id, "STREAMER");
-    let role = roleId ? await m.guild.roles.fetch(roleId) : undefined;
+    let role = roleId ? await m.guild.roles.fetch(roleId).catch(() => {}) : undefined;
     let embed = new Discord.MessageEmbed({
         color: 4929148,
         title: this.bot.locale.category("stream", "intro_name"),
@@ -100,11 +125,20 @@ async function info(m) {
  * @param {Bot.Message} m
  */
 function setChannel(m) {
-    this.bot.tdb.session(m.guild, "stream", async session => {
-        await this.bot.tdb.update(session, m.guild, "stream", "main", { upsert: true }, { _id: 1 }, {
-            _id: 1,
-            channelId: m.channel.id
-        });
+    this.bot.sql.transaction(async query => {
+        /** @type {any[]} */
+        let results = (await query(`SELECT channel_id FROM stream_main
+                                    WHERE guild_id = '${m.guild.id}'
+                                    FOR UPDATE`)).results;
+        if(results.length > 0) {
+            await query(`UPDATE stream_main SET channel_id = '${m.channel.id}'
+                         WHERE guild_id = '${m.guild.id}'`);
+        }
+        else {
+            await query(`INSERT INTO stream_main (guild_id, channel_id)
+                         VALUES ('${m.guild.id}', '${m.channel.id}')`);
+        }
+
         m.message.reply(this.bot.locale.category("stream", "channel_set")).catch(logger.error);
     }).catch(logger.error);
 }
@@ -117,17 +151,25 @@ function setChannel(m) {
  * @param {Discord.Snowflake} roleId
  */
 function addGame(m, game, roleId) {
-    this.bot.tdb.session(m.guild, "stream", async session => {
-        let role = await m.guild.roles.fetch(roleId);
+    this.bot.sql.transaction(async query => {
+        let role = await m.guild.roles.fetch(roleId).catch(() => {});
         if(role == null) {
             m.message.reply(this.bot.locale.category("stream", "err_role_name_not_on_this_server")).catch(logger.error);
             return;
         }
 
-        await this.bot.tdb.update(session, m.guild, "stream", "games", { upsert: true }, { _id: game }, {
-            _id: game,
-            r: roleId
-        });
+        /** @type {any[]} */
+        let results = (await query(`SELECT role_id FROM stream_games
+                                    WHERE guild_id = '${m.guild.id}' AND game = '${game}'
+                                    FOR UPDATE`)).results;
+        if(results.length > 0) {
+            await query(`UPDATE stream_games SET role_id = '${role.id}'
+                         WHERE guild_id = '${m.guild.id}' AND game = '${game}'`);
+        }
+        else {
+            await query(`INSERT INTO stream_games (guild_id, game, role_id)
+                         VALUES ('${m.guild.id}', '${game}', '${role.id}')`);
+        }
 
         m.message.reply(this.bot.locale.category("stream", "add_success")).catch(logger.error);
     }).catch(logger.error);
@@ -141,36 +183,41 @@ function addGame(m, game, roleId) {
  * @param {string} url
  */
 function start(m, game, url) {
-    this.bot.tdb.session(m.guild, "stream", async session => {
-        let docMain = await this.bot.tdb.findOne(session, m.guild, "stream", "main", { }, { _id: 1 }, { channelId: 1 });
+    this.bot.sql.transaction(async query => {
+        /** @type {any} */
+        let resultMain = (await query(`SELECT * FROM stream_main WHERE guild_id = '${m.guild.id}'`)).results[0];
 
-        let channel = (!docMain || !docMain.channelId ? undefined : m.guild.channels.resolve(docMain.channelId));
+        let channel = (!resultMain || !resultMain.channel_id ? undefined : m.guild.channels.resolve(resultMain.channel_id));
         if(!(channel instanceof Discord.TextChannel)) {
             m.message.reply(this.bot.locale.category("stream", "channel_missing")).catch(logger.error);
             return;
         }
 
-        let docGame = await this.bot.tdb.findOne(session, m.guild, "stream", "games", { }, { _id: game }, { r: 1 });
-        if(!docGame) {
+        /** @type {any} */
+        let resultGames = (await query(`SELECT * FROM stream_games 
+                                        WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
+        if(!resultGames) {
             m.message.reply(this.bot.locale.category("stream", "game_not_added", game)).catch(logger.error);
             return;
         }
 
-        let docStream = await this.bot.tdb.findOne(session, m.guild, "stream", "streams", { }, { _id: m.member.id }, { });
-        if(docStream) {
+        /** @type {any} */
+        let resultStreams = (await query(`SELECT * FROM stream_streams
+                                          WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}'`)).results[0];
+        if(resultStreams) {
             m.message.reply(this.bot.locale.category("stream", "start_already_streaming")).catch(logger.error);
             return;
         }
 
-        let emote = ":game_die:";
-        await this.bot.tdb.session(m.guild, "emotes", async session => {
-            let documents = await this.bot.tdb.find(session, m.guild, "emotes", "game", { }, {_id: game}, {e: 1});
-            let e = documents.find(v => v._id === game);
-            if(e) emote = e.e;
+        let emote = ':game_die:';
+        await this.bot.sql.transaction(async query => {
+            let result = (await query(`SELECT * FROM emotes_game
+                                        WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
+            if(result) emote = result.emote;
         }).catch(logger.error);
 
         let str = ":movie_camera: <@" + m.member.id + "> is now streaming\n" + emote + " " + KCLocaleManager.getDisplayNameFromAlias("game", game) + "\n:clapper: at " + url + " !\n\n";
-        let role = await m.guild.roles.fetch(docGame.r);
+        let role = await m.guild.roles.fetch(resultGames.role_id).catch(() => {});
         if(role) str += "<@&" + role.id + ">";
 
         str += "\n------------------------------------";
@@ -188,12 +235,8 @@ function start(m, game, url) {
         }
         else messageStream = await channel.send(str);
 
-        await this.bot.tdb.update(session, m.guild, "stream", "streams", { upsert: true }, { _id: m.member.id }, {
-            g: game,
-            u: url,
-            m: messageStream.id,
-            c: channel.id
-        });
+        await query(`INSERT INTO stream_streams (guild_id, user_id, game, url, channel_id, message_id)
+                     VALUES ('${m.guild.id}', '${m.member.id}', '${game}', '${url}', '${channel.id}', '${messageStream.id}')`);
     }).catch(logger.error);
 }
 
@@ -205,34 +248,39 @@ function start(m, game, url) {
  */
 function end(m, url) {
     const now = Date.now();
-    this.bot.tdb.session(m.guild, "stream", async session => {
-        let docStream = await this.bot.tdb.findOne(session, m.guild, "stream", "streams", { }, { _id: m.member.id }, { });
-        if(!docStream) {
+
+    this.bot.sql.transaction(async query => {
+        /** @type {any} */
+        let resultStreams = (await query(`SELECT * FROM stream_streams
+                                          WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}'`)).results[0];
+        if(!resultStreams) {
             m.message.reply(this.bot.locale.category("stream", "end_not_streaming")).catch(logger.error);
             return;
         }
-        let game = docStream.g;
-        
-        let emote = ":game_die:";
-        await this.bot.tdb.session(m.guild, "emotes", async session => {
-            let documents = await this.bot.tdb.find(session, m.guild, "emotes", "game", { }, {_id: game}, {e: 1});
-            let e = documents.find(v => v._id === game);
-            if(e) emote = e.e;
+
+        let game = resultStreams.game;
+
+        let emote = ':game_die:';
+        await this.bot.sql.transaction(async query => {
+            let result = (await query(`SELECT * FROM emotes_game
+                                        WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
+            if(result) emote = result.emote;
         }).catch(logger.error);
 
-        await this.bot.tdb.remove(session, m.guild, "stream", "streams", { }, { _id: m.member.id });
+        await query(`DELETE FROM stream_streams WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}'`);
 
-        let channel = m.guild.channels.resolve(docStream.c);
+        let channel = m.guild.channels.resolve(resultStreams.channel_id);
         if(channel instanceof Discord.TextChannel) {
-            let message = await channel.messages.fetch(docStream.m);
+            let message = await channel.messages.fetch(resultStreams.message_id).catch(() => {});
 
             let str = ":calendar_spiral: [" + Bot.Util.getFormattedDate(now, true) + "]\n";
             str += emote + " " + KCLocaleManager.getDisplayNameFromAlias("game", game);
             str += " stream by <@" + m.member.id + "> ended.\n";
             str += url == null ? ":x: VOD not saved." : ":clapper: VOD: <" + url + ">";
 
-            await message.edit(str);
+            if(message) await message.edit(str);
         }
+
     }).catch(logger.error);
 }
 
@@ -242,9 +290,11 @@ function end(m, url) {
  * @param {Bot.Message} m
  */
 function status(m) {
-    this.bot.tdb.session(m.guild, "stream", async session => {
-        let docsStream = await this.bot.tdb.find(session, m.guild, "stream", "streams", { }, { _id: m.member.id }, { });
-        if(docsStream.length === 0) {
+    this.bot.sql.transaction(async query => {
+        /** @type {any[]} */
+        let resultsStreams = (await query(`SELECT * FROM stream_streams
+                                          WHERE guild_id = '${m.guild.id}'`)).results;
+        if(resultsStreams.length <= 0) {
             m.message.reply(this.bot.locale.category("stream", "status_no_streams")).catch(logger.error);
             return;
         }
@@ -252,8 +302,8 @@ function status(m) {
         let message = await m.channel.send("...");
         var str = "Currently live: \n\n";
         
-        for(let document of docsStream)
-            str += KCLocaleManager.getDisplayNameFromAlias("game", document.g) + " <@" + document._id + "> at <" + document.u + ">\n";
+        for(let result of resultsStreams)
+            str += KCLocaleManager.getDisplayNameFromAlias("game", result.game) + " <@" + result.user_id + "> at <" + result.url + ">\n";
         
         message.edit(str).catch(e => logger.error(e));
     }).catch(logger.error);

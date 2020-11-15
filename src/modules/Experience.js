@@ -31,6 +31,59 @@ export default class Experience extends Bot.Module {
     /** @param {Discord.Guild} guild - Current guild. */
     init(guild) {
         super.init(guild);
+
+        this.bot.sql.transaction(async query => {
+            await query(`CREATE TABLE IF NOT EXISTS experience_users (
+                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                            user_id VARCHAR(64) NOT NULL,
+                            user_name VARCHAR(128) NOT NULL,
+                            game VARCHAR(8) NOT NULL,
+                            maps_current JSON NOT NULL
+                         )`);
+            await query(`CREATE TABLE IF NOT EXISTS experience_maps (
+                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                            id_experience_users INT UNSIGNED NOT NULL,
+                            map_id MEDIUMINT UNSIGNED NOT NULL
+                         )`);
+        }).then(() => {
+            /** @type {any[]} */
+            var documents;
+            this.bot.tdb.session(guild, 'experience', async session => {
+                documents = await this.bot.tdb.find(session, guild, 'experience', 'data', {}, {}, {});
+            }).then(() => {
+                this.bot.sql.transaction(async query => {
+                    for(let document of documents) {
+                        /** @type {any[]} */
+                        let resultsUsers = (await query(`SELECT * FROM experience_users
+                                                    WHERE user_id = '${document.u}' AND game = '${document.g}'`)).results;
+                        if(resultsUsers.length <= 0) {
+                            await query(`INSERT INTO experience_users (user_id, user_name, game, maps_current)
+                                         VALUES ('${document.u}', '${document.n}', '${document.g}', '${JSON.stringify(document.cc.cur)}')`);
+
+                            resultsUsers = (await query(`SELECT * FROM experience_users
+                                                         WHERE user_id = '${document.u}' AND game = '${document.g}'`)).results;
+                        }
+
+
+
+                        for(let i = 0; i < document.cc.fin.length; i++) {
+                            let id = document.cc.fin[i];
+
+                            /** @type {any[]} */
+                            let results = (await query(`SELECT * FROM experience_maps em
+                                                        JOIN experience_users eu ON eu.id = em.id_experience_users
+                                                        WHERE eu.user_id = '${document.u}' 
+                                                            AND eu.game = '${document.g}'
+                                                            AND em.map_id = '${id}'`)).results;
+                            if(results.length <= 0) {
+                                await query(`INSERT INTO experience_maps (id_experience_users, map_id)
+                                             VALUES ('${resultsUsers[0].id}', '${id}')`);
+                            } 
+                        }
+                    }
+                }).catch(logger.error);
+            }).catch(logger.error);
+        }).catch(logger.error);
     }
 
     /**
@@ -81,9 +134,23 @@ export default class Experience extends Bot.Module {
         if(snowflake == null) {
             return this.bot.locale.category('experience', 'err_user_mention_not_correct');
         }
+        let id = snowflake;
 
-        this.bot.tdb.session(m.guild, 'experience', async session => {
-            await this.bot.tdb.remove(session, m.guild, 'experience', 'data', { }, { g: game, u: snowflake });
+        this.bot.sql.transaction(async query => {
+            /** @type {any} */
+            var resultUsers = (await query(`SELECT * FROM experience_users
+                                            WHERE game = '${game}' AND user_id = '${id}'`)).results[0];
+
+            if(!resultUsers) {
+                m.message.reply(this.bot.locale.category('experience', 'wipe_failed_not_registered')).catch(logger.error);
+                return;
+            }
+
+            await query(`DELETE FROM experience_users
+                         WHERE game = '${game}' AND user_id = '${id}'`);
+            await query (`DELETE FROM experience_maps
+                          WHERE id_experience_users = '${resultUsers.id}'`);
+            
             m.channel.send(this.bot.locale.category('experience', 'wipe_successful')).catch(logger.error);
         }).catch(logger.error);
     }
@@ -114,38 +181,40 @@ export default class Experience extends Bot.Module {
 
         let name = arg;
 
-        this.bot.tdb.session(m.guild, 'experience', async session => {
-            var docUserRegistry = await this.bot.tdb.findOne(session, m.guild, 'experience', 'data', { }, { g: game, u: m.member.id, n: name }, { n: 1 });
-            if(docUserRegistry != null) {
-                m.message.reply(this.bot.locale.category('experience', 'already_registered_with_this_name', docUserRegistry.n, KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown')).catch(logger.error);
+        this.bot.sql.transaction(async query => {
+            /** @type {any} */
+            var resultUsers = (await query(`SELECT * FROM experience_users
+                                            WHERE game = '${game}' AND user_id = '${m.member.id}' AND user_name = '${name}'`)).results[0];
+            if(resultUsers != null) {
+                m.message.reply(this.bot.locale.category('experience', 'already_registered_with_this_name', resultUsers.user_name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
                 return;
             }
-            var docUserRegistry = await this.bot.tdb.findOne(session, m.guild, 'experience', 'data', { }, { g: game, n: name }, { n: 1 });
-            if(docUserRegistry != null) {
-                m.message.reply(this.bot.locale.category('experience', 'name_taken', docUserRegistry.n, KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown')).catch(logger.error);
+
+            /** @type {any} */
+            var resultUsers = (await query(`SELECT * FROM experience_users
+                                            WHERE game = '${game}' AND user_name = '${name}'`)).results[0];
+            if(resultUsers != null) {
+                m.message.reply(this.bot.locale.category('experience', 'name_taken', resultUsers.user_name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
                 return;
             }
-            var docUserRegistry = await this.bot.tdb.findOne(session, m.guild, 'experience', 'data', { }, { g: game, u: m.member.id }, { n: 1 });
-            if(docUserRegistry != null) {
-                m.message.reply(this.bot.locale.category('experience', 'already_registered_with_other_name', docUserRegistry.n, KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown')).catch(logger.error);
+
+            /** @type {any} */
+            var resultUsers = (await query(`SELECT * FROM experience_users
+                                            WHERE game = '${game}' AND user_id = '${m.member.id}'`)).results[0];
+            if(resultUsers != null) {
+                m.message.reply(this.bot.locale.category('experience', 'already_registered_with_other_name', resultUsers.user_name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
                 return;
             }
 
             if(this.cache.get(m.guild.id, 'pendingRegistration.' + m.guild.id) === name) {
-                await this.bot.tdb.insert(session, m.guild, 'experience', 'data', { }, {
-                    g: game,
-                    u: m.member.id,
-                    n: name,
-                    cc: {
-                        cur: [],
-                        fin: []
-                    }
-                });
-                m.message.reply(this.bot.locale.category('experience', 'register_success', name, KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown', game)).catch(logger.error);
+                await query(`INSERT INTO experience_users (user_id, user_name, game, maps_current)
+                             VALUES ('${m.member.id}', '${name}', '${game}', '[]')`);
+
+                m.message.reply(this.bot.locale.category('experience', 'register_success', name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown', game)).catch(logger.error);
             }
             else {
                 this.cache.set(m.guild.id, 'pendingRegistration.' + m.guild.id, name);
-                m.message.reply(this.bot.locale.category('experience', 'register_confirm', name, KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown')).catch(logger.error);
+                m.message.reply(this.bot.locale.category('experience', 'register_confirm', name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
             }
         }).catch(logger.error);
     }
@@ -167,29 +236,49 @@ export default class Experience extends Bot.Module {
         if(game.length === 0 || !this.games.includes(game))
             return this.bot.locale.category('experience', 'err_game_name_not_supported', args[0]);
 
-        this.bot.tdb.session(m.guild, 'experience', async session => {
-            let documents = await this.bot.tdb.find(session, m.guild, 'experience', 'data', { }, { g: game }, { });
-            if(documents.length === 0) {
+        this.bot.sql.transaction(async query => {
+            /** @type {any[]} */
+            let resultsUsers = (await query(`SELECT * FROM experience_users
+                                             WHERE game = '${game}'`)).results;
+
+            if(resultsUsers.length <= 0) {
                 m.channel.send(this.bot.locale.category('experience', 'leaderboard_empty')).catch(logger.error);
                 return;
             }
-            documents.sort((a, b) => {
-                return b.cc.fin.length - a.cc.fin.length
-            });
-            let docThisUser = await this.bot.tdb.findOne(session, m.guild, 'experience', 'data', { }, { g: game, u: m.member.id }, { });
+
+            /** @type {{resultUser: any, total: number}[]} */
+            let leaders = [];
+            for(let resultUser of resultsUsers) {
+                if(!m.guild.members.cache.get(resultUser.user_id)) continue;
+
+                /** @type {any[]} */
+                let resultsMaps = (await query(`SELECT * FROM experience_maps
+                                                WHERE id_experience_users = '${resultUser.id}'`)).results;
+                
+                leaders.push({
+                    resultUser: resultUser,
+                    total: resultsMaps.length
+                });
+            }
+            leaders.sort((a, b) => b.total - a.total);
+
+
+            /** @type {any} */
+            let resultUsers = (await query(`SELECT * FROM experience_users
+                                             WHERE game = '${game}' and user_id = '${m.member.id}'`)).results[0];
             
             let emote = ':game_die:';
-            await this.bot.tdb.session(m.guild, 'emotes', async session => {
-                let documents = await this.bot.tdb.find(session, m.guild, 'emotes', 'game', { }, {_id: game}, {e: 1});
-                let e = documents.find(v => v._id === game);
-                if(e) emote = e.e;
+            await this.bot.sql.transaction(async query => {
+                let result = (await query(`SELECT * FROM emotes_game
+                                           WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
+                if(result) emote = result.emote;
             }).catch(logger.error);
 
             let msgStr = emote + ' ' + this.bot.locale.category('experience', 'leaderboard_title', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown') + '\n\n';
 
             let selfFound = false;
-            for(let i = 0; i < Math.min(10, documents.length); i++) {
-                let document = documents[i];
+            for(let i = 0; i < Math.min(10, leaders.length); i++) {
+                let leader = leaders[i];
 
                 switch(i) {
                     case 0: msgStr += ':first_place: '; break;
@@ -199,23 +288,27 @@ export default class Experience extends Bot.Module {
                     default: msgStr += ':small_blue_diamond: ';
                 }
 
-                let expData = getExpDataFromMapsBeaten(document.cc.fin.length);
+                let expData = getExpDataFromMapsBeaten(leader.total);
                 msgStr += (i + 1) < 10 ? '  ' : '';
                 msgStr += '`#' + (i + 1) + '` - ';
                 msgStr += getFormattedXPBarString('', expData, this.expBarLength);
-                msgStr += ' - <@' + document.u + '>\n';
+                msgStr += ' - <@' + leader.resultUser.user_id + '>\n';
 
-                if(docThisUser && document.u === docThisUser.u)
+                if(resultUsers && leader.resultUser.user_id === resultUsers.user_id)
                     selfFound = true;
             }
 
-            if(docThisUser && !selfFound) {
+            if(resultUsers && !selfFound) {
+                /** @type {any[]} */
+                let resultsMaps = (await query(`SELECT * FROM experience_maps
+                                                WHERE id_experience_users = '${resultUsers.id}'`)).results;
+
                 msgStr += '\n:small_blue_diamond: ';
 
-                let expData = getExpDataFromMapsBeaten(docThisUser.cc.fin.length);
-                msgStr += '`#' + (documents.findIndex(v => v.u === docThisUser.u) + 1) + '` - ';
+                let expData = getExpDataFromMapsBeaten(resultsMaps.length);
+                msgStr += '`#' + (leaders.findIndex(v => v.resultUser.user_id === resultUsers.user_id) + 1) + '` - ';
                 msgStr += getFormattedXPBarString('', expData, this.expBarLength);
-                msgStr += ' - <@' + docThisUser.u + '>\n';
+                msgStr += ' - <@' + resultUsers.user_id + '>\n';
             }
 
             m.channel.send('...').then(message => {
@@ -243,41 +336,56 @@ export default class Experience extends Bot.Module {
         for(let i = 0; i < this.games.length; i++)
             projection['game.' + this.games[i] + '.user.' + m.member.id] = 1;
 
-        this.bot.tdb.session(m.guild, 'experience', async session => {
+        this.bot.sql.transaction(async query => {
             embed.fields = [];
 
-            /** @type {any} */
+            /** @type {Object.<string, string>} */
             let emotes = {};
-            await this.bot.tdb.session(m.guild, 'emotes', async session => {
-                let documents = await this.bot.tdb.find(session, m.guild, 'emotes', 'game', { }, { }, {e: 1});
-                emotes = documents.reduce((a, v) => { a[v._id] = v.e; return a; }, {});
+            await this.bot.sql.transaction(async query => {
+                /** @type {any[]} */
+                let results = (await query(`SELECT * FROM emotes_game
+                                           WHERE guild_id = '${m.guild.id}'`)).results;
+                emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
             }).catch(logger.error);
 
             for(let game of this.games) {
-                var document = await this.bot.tdb.findOne(session, m.guild, 'experience', 'data', { }, { g: game, u: m.member.id }, { });
-                let expData = getExpDataFromMapsBeaten(document ? document.cc.fin.length : 0);
-
                 let field = {
-                    name: getFormattedXPBarString(emotes[game]||':game_die:', expData, this.expBarLength),
+                    name: '...',
                     value: '...',
                     inline: false,
                 }
 
-                if(document == null) {
+                /** @type {any} */
+                let resultUsers = (await query(`SELECT * FROM experience_users
+                                                WHERE user_id = '${m.member.id}' AND game = '${game}'`)).results[0];
+
+                if(resultUsers == null) {
+                    let expData = getExpDataFromMapsBeaten(0);
+                    field.name = getFormattedXPBarString(emotes[game]||':game_die:', expData, this.expBarLength);
+
                     field.value = Bot.Util.getSpecialWhitespace(3);
                     field.value += this.bot.locale.category('experience', 'embed_not_registered_1', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown');
                     field.value = Bot.Util.getSpecialWhitespace(3);
                     field.value += this.bot.locale.category('experience', 'embed_not_registered_2', KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown');
                 }
                 else {
+                    /** @type {any[]} */
+                    let resultsMaps = (await query(`SELECT * FROM experience_maps
+                                                    WHERE id_experience_users = '${resultUsers.id}'`)).results;
+
+                    let expData = getExpDataFromMapsBeaten(resultsMaps.length);
+                    field.name = getFormattedXPBarString(emotes[game]||':game_die:', expData, this.expBarLength);
+
+                    let mapsCurrent = JSON.parse(resultUsers.maps_current);
+
                     let finished = [];
                     let unfinished = [];
                     let completed = [];
-                    for(let id of document.cc.cur)
-                        completed.push(kcgmm.getMapCompleted({game: game, type: 'custom', id: id}, document.n));
+                    for(let id of mapsCurrent)
+                        completed.push(kcgmm.getMapCompleted({game: game, type: 'custom', id: id}, resultUsers.user_name));
                     for(let i = 0; i < completed.length; i++) {
                         completed[i] = await completed[i];
-                        completed[i] ? finished.push(document.cc.cur[i]) : unfinished.push(document.cc.cur[i]);
+                        completed[i] ? finished.push(mapsCurrent[i]) : unfinished.push(mapsCurrent[i]);
                     }
 
                     let str = '';
@@ -291,7 +399,7 @@ export default class Experience extends Bot.Module {
                         str += '`#' + finished[j] + '` ';
 
                     field.value = str;
-                    field.name += ' ' + document.n;
+                    field.name += ' ' + resultUsers.user_name;
                 }
 
                 embed.fields.push(field);
@@ -327,64 +435,57 @@ export default class Experience extends Bot.Module {
         if(game.length === 0 || !this.games.includes(game))
             return this.bot.locale.category('experience', 'err_game_name_not_supported', args[0]);
 
-        let guild = m.guild;
-        let member = m.member;
-        const kcgmm = ext.kcgmm;
+        this.bot.sql.transaction(async query => {
+            await query(`SELECT maps_current FROM experience_users
+                         WHERE user_id = '${m.member.id}' AND game = '${game}'
+                         FOR UPDATE`);
 
-        this.bot.tdb.session(guild, 'experience', async session => {
             let emote = ':game_die:';
-            await this.bot.tdb.session(guild, 'emotes', async session => {
-                let documents = await this.bot.tdb.find(session, guild, 'emotes', 'game', { }, {_id: game}, {e: 1});
-                let e = documents.find(v => v._id === game);
-                if(e) emote = e.e;
+            await this.bot.sql.transaction(async query => {
+                let result = (await query(`SELECT * FROM emotes_game
+                                           WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
+                if(result) emote = result.emote;
             }).catch(logger.error);
 
-            let document = await this.bot.tdb.findOne(session, guild, 'experience', 'data', { }, { g: game, u: member.id }, { });
-            if(document == null) {
+            /** @type {any} */
+            let resultUsers = (await query(`SELECT * FROM experience_users
+                                            WHERE user_id = '${m.member.id}' AND game = '${game}'`)).results[0];
+            if(resultUsers == null) {
                 m.message.reply(this.bot.locale.category('experience', 'not_registered', KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown')).catch(logger.error);
                 return;
             }
 
-            let expDataOld = getExpDataFromMapsBeaten(document.cc.fin.length);
+            let mapsCurrent = JSON.parse(resultUsers.maps_current);
+
+            /** @type {any[]} */
+            let resultsMaps = (await query(`SELECT * FROM experience_maps
+                                            WHERE id_experience_users = '${resultUsers.id}'`)).results;
+
+            let expDataOld = getExpDataFromMapsBeaten(resultsMaps.length);
             let xpOld = getFormattedXPBarString(null, expDataOld, this.expBarLength, true);
 
+            //Find out which maps from current maps are completed.
+            let newlyFinishedMaps = [];
             { let promises = [];
-            for(let i = 0; i < document.cc.cur.length; i++)
-                promises[i] = kcgmm.getMapCompleted({game: game, type: 'custom', id: document.cc.cur[i]}, document.n);
+            for(let i = 0; i < mapsCurrent.length; i++)
+                promises[i] = ext.kcgmm.getMapCompleted({game: game, type: 'custom', id: mapsCurrent[i]}, resultUsers.user_name);
             for(let i = 0; i < promises.length; i++) {
                 promises[i] = await promises[i];
-                let id = document.cc.cur[i];
+                let id = mapsCurrent[i];
                 //Find which maps generated last time were completed.
                 //Add them to the finished maps array.
-                if(promises[i] && !document.cc.fin.includes(id)) {
-                    document.cc.fin.push(document.cc.cur[i]);
+                
+                if(promises[i] && !resultsMaps.find(v => v.map_id === id)) {
+                    newlyFinishedMaps.push(id);
                 }
             } }
-            
-            //Sort finished maps.
-            document.cc.fin.sort(/** @param {number} a * @param {number} b */ function(a, b){ return a - b });
 
             //Get the array of every map in the game. Removed maps do not exist in this array.
-            let mapListArray = kcgmm.getMapListArray(game);
-            let mapListByIds = kcgmm.getMapListId(game);
-
+            let mapListArray = ext.kcgmm.getMapListArray(game);
+            let mapListByIds = ext.kcgmm.getMapListId(game);
             if(mapListArray == null || mapListByIds == null) {
                 m.channel.send(this.bot.locale.category('experience', 'map_processing_error', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
                 return;
-            }
-
-            //Go over all finished maps.
-            //Compare each entry to all maps in the map list.
-            //If any of the maps has been removed from the game, remove the ID from finished maps.
-            //This way we deduct XP if a map has been removed, to prevent users racing for completion of to-be-deleted maps.
-            for(let i = 0; i < document.cc.fin.length; i++) {
-                let id = document.cc.fin[i];
-                
-                //If we finished a removed map, remove it.
-                if(mapListByIds.get(id) == null) {
-                    document.cc.fin.splice(i, 1);
-                    i--;
-                }
             }
 
             //Random an index from the array.
@@ -402,34 +503,36 @@ export default class Experience extends Bot.Module {
                     continue;
                     
                 //If we've already finished this map, don't include it.
-                if(document.cc.fin.includes(map.id)) 
+                if(resultsMaps.find(v => v.map_id === map.id))
                     continue;
                 
                 selectedIds.push(map.id);
             }
 
-            await this.bot.tdb.update(session, guild, 'experience', 'data', { upsert: true }, { g: game, u: member.id }, {
-                ['cc.cur']: selectedIds,
-                ['cc.fin']: document.cc.fin 
-            });
-
-            let embed = getEmbedTemplate(member);
+            await query(`UPDATE experience_users SET maps_current = '${JSON.stringify(selectedIds)}'
+                         WHERE user_id = '${m.member.id}' AND game = '${game}'`);
+            for(let id of newlyFinishedMaps) {
+                await query(`INSERT INTO experience_maps (id_experience_users, map_id)
+                             VALUES ('${resultUsers.id}', '${id}')`);
+            }
+            
+            let embed = getEmbedTemplate(m.member);
             embed.fields = [];
 
-            let expDataNew = getExpDataFromMapsBeaten(document.cc.fin.length);
+            let expDataNew = getExpDataFromMapsBeaten(resultsMaps.length + newlyFinishedMaps.length);
 
             let finished = [];
             let unfinished = [];
 
             { let promises = [];
             for(let i = 0; i < selectedIds.length; i++)
-                promises[i] = kcgmm.getMapCompleted({game: game, type: 'custom', id: selectedIds[i]}, document.n);
+                promises[i] = ext.kcgmm.getMapCompleted({game: game, type: 'custom', id: selectedIds[i]}, resultUsers.user_name);
             for(let i = 0; i < promises.length; i++) {
                 promises[i] = await promises[i];
                 let id = selectedIds[i];
                 promises[i] ? finished.push(selectedIds[i]) : unfinished.push(selectedIds[i]);
             } }
-            
+
             let fieldXp = {
                 name: emote + ' ' + this.bot.locale.category('experience', 'embed_results_title_1'),
                 value: Bot.Util.getSpecialWhitespace(1),

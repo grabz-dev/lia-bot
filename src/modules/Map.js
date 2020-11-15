@@ -105,10 +105,10 @@ export default class Map extends Bot.Module {
 */
 async function map(m, game, id, kcgmm) {
     let emote = ':game_die:';
-    await this.bot.tdb.session(m.guild, 'emotes', async session => {
-        let documents = await this.bot.tdb.find(session, m.guild, 'emotes', 'game', { }, {_id: game}, {e: 1});
-        let e = documents.find(v => v._id === game);
-        if(e) emote = e.e;
+    await this.bot.sql.transaction(async query => {
+        let result = (await query(`SELECT * FROM emotes_game
+                                   WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
+        if(result) emote = result.emote;
     }).catch(logger.error);
 
     let mapList = kcgmm.getMapListId(game);
@@ -154,11 +154,12 @@ async function map(m, game, id, kcgmm) {
 * @param {KCGameMapManager} kcgmm
 */
 async function score(m, mapQueryData, kcgmm) {
+    /** @type {null|string} */
     let emote = null;
-    await this.bot.tdb.session(m.guild, 'emotes', async session => {
-        let documents = await this.bot.tdb.find(session, m.guild, 'emotes', 'game', { }, {_id: mapQueryData.game}, {e: 1});
-        let e = documents.find(v => v._id === mapQueryData.game);
-        if(e) emote = e.e;
+    await this.bot.sql.transaction(async query => {
+        let result = (await query(`SELECT * FROM emotes_game
+                                   WHERE guild_id = '${m.guild.id}' AND game = '${mapQueryData.game}'`)).results[0];
+        if(result) emote = result.emote;
     }).catch(logger.error);
 
     let embed = getEmbedTemplate.bind(this)(mapQueryData.game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), true);
@@ -204,11 +205,12 @@ async function score(m, mapQueryData, kcgmm) {
 * @param {KCGameMapManager.MapData[]} maps
 */
 async function bestof(m, game, date, maps) {
+    /** @type {null|string} */
     let emote = null;
-    await this.bot.tdb.session(m.guild, 'emotes', async session => {
-        let documents = await this.bot.tdb.find(session, m.guild, 'emotes', 'game', { }, {_id: game}, {e: 1});
-        let e = documents.find(v => v._id === game);
-        if(e) emote = e.e;
+    await this.bot.sql.transaction(async query => {
+        let result = (await query(`SELECT * FROM emotes_game
+                                   WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
+        if(result) emote = result.emote;
     }).catch(logger.error);
 
     let embed = getEmbedTemplate(game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), false);

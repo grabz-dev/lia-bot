@@ -10,6 +10,15 @@ export default class Emotes extends Bot.Module {
     /** @param {Core.Entry} bot */
     constructor(bot) {
         super(bot);
+
+        this.bot.sql.transaction(async query => {
+            await query(`CREATE TABLE IF NOT EXISTS emotes_game (
+                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                            guild_id VARCHAR(64) NOT NULL,
+                            game VARCHAR(8) NOT NULL,
+                            emote VARCHAR(64) NOT NULL
+                         )`);
+        }).catch(logger.error);
     }
 
     /** @param {Discord.Guild} guild - Current guild. */
@@ -37,8 +46,32 @@ export default class Emotes extends Bot.Module {
         if(emote == null)
             return this.bot.locale.category("emotes", "err_emote_not_provided");
 
-        this.bot.tdb.session(m.guild, "emotes", async session => {
-            await this.bot.tdb.update(session, m.guild, "emotes", "game", { upsert: true }, { _id: game }, { _id: game, e: emote });
+        let snowflake = Bot.Util.getSnowflakeFromDiscordPing(args[1]);
+        if(snowflake == null)
+            return this.bot.locale.category('emotes', 'err_emote_not_correct');
+
+        let id = snowflake;
+
+        this.bot.sql.transaction(async query => {
+            let emoji = m.guild.emojis.resolve(id);
+            if(!emoji) {
+                m.channel.send(this.bot.locale.category('emotes', 'err_emote_not_on_server')).catch(logger.error);
+                return;
+            }
+
+            /** @type {any[]} */
+            let results = (await query(`SELECT game, emote FROM emotes_game
+                                        WHERE guild_id = '${m.guild.id}' AND game = '${game}'
+                                        FOR UPDATE`)).results;
+            if(results.length > 0) {
+                await query(`UPDATE emotes_game SET emote = '${emote}'
+                             WHERE guild_id = '${m.guild.id}' AND game = '${game}'`);
+            }
+            else {
+                await query(`INSERT INTO emotes_game (guild_id, game, emote)
+                             VALUES ('${m.guild.id}', '${game}', '${emote}')`);
+            }
+
             m.message.reply(this.bot.locale.category("emotes", "success")).catch(logger.error);
         }).catch(logger.error);
     }

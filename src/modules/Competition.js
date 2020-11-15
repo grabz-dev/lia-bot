@@ -708,7 +708,7 @@ async function buildScoreTally(guild, channel, session) {
         field.value += `\`${weeks} weeks left\` <@${snowflake}>\n`;
 
         if(role) {
-            let member = await guild.members.fetch(snowflake);
+            let member = await guild.members.fetch(snowflake).catch(() => {});
             if(member) member.roles.add(role).catch(logger.error);
         }
     }
@@ -835,7 +835,7 @@ function getEmbedScores(color, timeRemaining) {
         description: "",
         timestamp: new Date(),
         footer: {
-            text: "Ends in " + Bot.Util.getFormattedTimeRemaining(timeRemaining)
+            text: "Time left: " + (timeRemaining > 0 ? Bot.Util.getFormattedTimeRemaining(timeRemaining) : "OVERTIME")
         }
     });
 }
@@ -886,7 +886,9 @@ async function getEmbedFieldFromMapData(guild, locale, mapLeaderboard, mapScoreQ
         value += "#" + Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true);
         value += Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 7, "⠀", false);
 
-        let member = await guild.members.fetch(entry.user);
+        /** @type {void|Discord.GuildMember} */
+        let member = await guild.members.fetch(entry.user).catch(() => {});
+
         value += " " + (member ? member.nickname || member.user.username : entry.user).substring(0, 17) + "\n";
     }
     if(mapLeaderboard.entries.length === 0)
@@ -958,7 +960,9 @@ async function getMapLeaderboardWithOnlyRegisteredUsers(session, guild, game, ma
         let docReg = await this.bot.tdb.findOne(session, guild, "competition", "register", { }, { n: entry.user }, { });
         if(docReg == null) continue;
 
-        let member = await guild.members.fetch(docReg.u);
+        /** @type {void|Discord.GuildMember} */
+        let member = await guild.members.fetch(docReg.u).catch(() => {});
+
         if(member == null) continue;
 
         let newEntry = { ...entry };
