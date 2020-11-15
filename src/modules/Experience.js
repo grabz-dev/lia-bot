@@ -13,6 +13,7 @@ import Discord from 'discord.js';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
+import { KCUtil } from '../kc/KCUtil.js';
 
 export default class Experience extends Bot.Module {
     /**
@@ -517,6 +518,8 @@ export default class Experience extends Bot.Module {
             }
             
             let embed = getEmbedTemplate(m.member);
+            embed.color = KCUtil.gameEmbedColors[game];
+            
             embed.fields = [];
 
             let expDataNew = getExpDataFromMapsBeaten(resultsMaps.length + newlyFinishedMaps.length);
@@ -653,7 +656,7 @@ function getExpDataFromMapsBeaten(number) {
  */
 function getEmbedTemplate(member) {
     let embed = new Discord.MessageEmbed({
-        color: 5555924,
+        color: 5559447,
     });
     if(member) {
         embed.author = {
