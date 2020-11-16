@@ -118,14 +118,7 @@ export default class Competition extends Bot.Module {
                 complexity TINYINT UNSIGNED,
                 name VARCHAR(128)
              )`);
-        }).catch(logger.error);
-    }
 
-    /** @param {Discord.Guild} guild - Current guild. */
-    init(guild) {
-        super.init(guild);
-
-        this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS competition_history_competitions (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 guild_id VARCHAR(64) NOT NULL,
@@ -160,65 +153,12 @@ export default class Competition extends Bot.Module {
                 game VARCHAR(16) NOT NULL,
                 user_name VARCHAR(128) NOT NULL
              )`);
-        }).then(() => {
-            /** @type {any[]} */ var docsComps;
-            /** @type {any[]} */ var docsMaps;
-            /** @type {any[]} */ var docsScores;
-            /** @type {any[]} */ var docsRegister;
-            this.bot.tdb.session(guild, 'competition', async session => {
-                docsComps = await this.bot.tdb.find(session, guild, 'competition', 'history.competitions', {}, {}, {});
-                docsMaps = await this.bot.tdb.find(session, guild, 'competition', 'history.maps', {}, {}, {});
-                docsScores = await this.bot.tdb.find(session, guild, 'competition', 'history.scores', {}, {}, {});
-                docsRegister = await this.bot.tdb.find(session, guild, 'competition', 'register', {}, {}, {});
-            }).then(() => {
-                this.bot.sql.transaction(async query => {
-                    for(let docComps of docsComps) {
-                        /** @type {Db.competition_history_competitions[]} */
-                        let resultsHistoryComps = (await query(`SELECT * FROM competition_history_competitions
-                            WHERE id = ${docComps._id}`)).results;
-                        if(resultsHistoryComps.length <= 0) {
-                            await query(`INSERT INTO competition_history_competitions (id, guild_id, time_end)
-                                VALUES ('${docComps._id}', '${guild.id}', '${docComps.t}')`);
-                        }
-                    }
-
-                    for(let docMaps of docsMaps) {
-                        /** @type {Db.competition_history_maps[]} */
-                        let resultsHistoryMaps = (await query(`SELECT * FROM competition_history_maps
-                            WHERE id = ${docMaps._id}`)).results;
-                        if(resultsHistoryMaps.length <= 0) {
-                            await query(`INSERT INTO competition_history_maps (id, id_competition_history_competitions, game, type, map_id, size, complexity, name)
-                                VALUES ('${docMaps._id}', '${docMaps._cid}', '${docMaps.g}', '${docMaps.t}',
-                                ${docMaps.i != null ? `'${docMaps.i}'` : 'NULL'},
-                                ${docMaps.s2 != null ? `'${docMaps.s2}'` : 'NULL'},
-                                ${docMaps.c2 != null ? `'${docMaps.c2}'` : 'NULL'},
-                                ${docMaps.n2 != null ? `'${docMaps.n2}'` : 'NULL'})`);
-                        }
-                    }
-
-                    for(let docScores of docsScores) {
-                        /** @type {Db.competition_history_maps[]} */
-                        let resultsHistoryScores = (await query(`SELECT * FROM competition_history_scores
-                            WHERE id = ${docScores._id}`)).results;
-                        if(resultsHistoryScores.length <= 0) {
-                            await query(`INSERT INTO competition_history_scores (id, id_competition_history_maps, user_rank, user_id, time, plays, score)
-                                VALUES ('${docScores._id}', '${docScores._mid}', '${docScores.r}', '${docScores.u}', '${docScores.t}', '${docScores.p}', ${docScores.s != null ? `'${docScores.s}'` : 'NULL'})`);
-                        }
-                    }
-
-                    for(let docRegister of docsRegister) {
-                        /** @type {Db.competition_history_maps[]} */
-                        let resultsRegister = (await query(`SELECT * FROM competition_register
-                            WHERE id = ${docRegister._id}`)).results;
-                        if(resultsRegister.length <= 0) {
-                            await query(`INSERT INTO competition_register (id, guild_id, user_id, game, user_name)
-                                VALUES ('${docRegister._id}', '${guild.id}', '${docRegister.u}', '${docRegister.g}', '${docRegister.n}')`);
-                        }
-                        
-                    }
-                }).catch(logger.error);
-            }).catch(logger.error);
         }).catch(logger.error);
+    }
+
+    /** @param {Discord.Guild} guild - Current guild. */
+    init(guild) {
+        super.init(guild);
     }
 
     /**

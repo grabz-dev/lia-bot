@@ -27,64 +27,26 @@ export default class Experience extends Bot.Module {
         //KCGameMapManager.getScoreQueryURL
         this.games = ['pf', 'cw3', 'cw2'];
         this.expBarLength = 15;
+
+        this.bot.sql.transaction(async query => {
+            await query(`CREATE TABLE IF NOT EXISTS experience_users (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(64) NOT NULL,
+                user_name VARCHAR(128) NOT NULL,
+                game VARCHAR(16) NOT NULL,
+                maps_current JSON NOT NULL
+             )`);
+            await query(`CREATE TABLE IF NOT EXISTS experience_maps (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                id_experience_users INT UNSIGNED NOT NULL,
+                map_id MEDIUMINT UNSIGNED NOT NULL
+             )`);
+        }).catch(logger.error);
     }
 
     /** @param {Discord.Guild} guild - Current guild. */
     init(guild) {
         super.init(guild);
-
-        this.bot.sql.transaction(async query => {
-            await query(`CREATE TABLE IF NOT EXISTS experience_users (
-                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                            user_id VARCHAR(64) NOT NULL,
-                            user_name VARCHAR(128) NOT NULL,
-                            game VARCHAR(16) NOT NULL,
-                            maps_current JSON NOT NULL
-                         )`);
-            await query(`CREATE TABLE IF NOT EXISTS experience_maps (
-                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                            id_experience_users INT UNSIGNED NOT NULL,
-                            map_id MEDIUMINT UNSIGNED NOT NULL
-                         )`);
-        }).then(() => {
-            /** @type {any[]} */
-            var documents;
-            this.bot.tdb.session(guild, 'experience', async session => {
-                documents = await this.bot.tdb.find(session, guild, 'experience', 'data', {}, {}, {});
-            }).then(() => {
-                this.bot.sql.transaction(async query => {
-                    for(let document of documents) {
-                        /** @type {any[]} */
-                        let resultsUsers = (await query(`SELECT * FROM experience_users
-                                                    WHERE user_id = '${document.u}' AND game = '${document.g}'`)).results;
-                        if(resultsUsers.length <= 0) {
-                            await query(`INSERT INTO experience_users (user_id, user_name, game, maps_current)
-                                         VALUES ('${document.u}', '${document.n}', '${document.g}', '${JSON.stringify(document.cc.cur)}')`);
-
-                            resultsUsers = (await query(`SELECT * FROM experience_users
-                                                         WHERE user_id = '${document.u}' AND game = '${document.g}'`)).results;
-                        }
-
-
-
-                        for(let i = 0; i < document.cc.fin.length; i++) {
-                            let id = document.cc.fin[i];
-
-                            /** @type {any[]} */
-                            let results = (await query(`SELECT * FROM experience_maps em
-                                                        JOIN experience_users eu ON eu.id = em.id_experience_users
-                                                        WHERE eu.user_id = '${document.u}' 
-                                                            AND eu.game = '${document.g}'
-                                                            AND em.map_id = '${id}'`)).results;
-                            if(results.length <= 0) {
-                                await query(`INSERT INTO experience_maps (id_experience_users, map_id)
-                                             VALUES ('${resultsUsers[0].id}', '${id}')`);
-                            } 
-                        }
-                    }
-                }).catch(logger.error);
-            }).catch(logger.error);
-        }).catch(logger.error);
     }
 
     /**
