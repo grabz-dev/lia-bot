@@ -113,45 +113,45 @@ core.on('ready', bot => {
                 categoryNames: [':trophy: Competition', 'competition', 'c']
             }
 
-            core.addLoop(1000 * 60 * 30, (guild) => {
-                competition.loop(guild, { kcgmm: kcgmm });
+            core.addLoop(1000 * 60 * 30, guild => {
+                competition.loop(guild, kcgmm);
             });
 
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
-                return competition.info(message, args, arg, {});
+                return competition.land(message, args, arg, { action: 'info' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'setchannel', authorityLevel: null}), (message, args, arg) => {
-                return competition.setChannel(message, args, arg, {});
+                return competition.land(message, args, arg, { action: 'set-channel' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'register', authorityLevel: 'COMPETITOR'}), (message, args, arg) => {
-                return competition.register(message, args, arg, {});
+                return competition.land(message, args, arg, { action: 'register' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'update', authorityLevel: 'COMPETITOR'}), (message, args, arg) => {
-                return competition.update(message, args, arg, {kcgmm: kcgmm});
+                return competition.land(message, args, arg, { action: 'update', kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'status', authorityLevel: 'COMPETITOR'}), (message, args, arg) => {
-                return competition.status(message, args, arg, {});
+                return competition.land(message, args, arg, { action: 'status' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'start', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.start(message, args, arg, {});
+                return competition.land(message, args, arg, { action: 'start' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['addmap', 'add'], authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.addMap(message, args, arg, {type: 'add', kcgmm: kcgmm});
+                return competition.land(message, args, arg, { action: 'add-map', kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['removemap', 'remove'], authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.addMap(message, args, arg, {type: 'remove', kcgmm: kcgmm});
+                return competition.land(message, args, arg, { action: 'remove-map', kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'end', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.end(message, args, arg, {kcgmm: kcgmm});
+                return competition.land(message, args, arg, { action: 'end', kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'buildtally', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.buildTally(message, args, arg, {});
+                return competition.land(message, args, arg, { action: 'build-tally' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'destroy', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.destroy(message, args, arg, {});
+                return competition.land(message, args, arg, { action: 'destroy' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'wipe', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.unregister(message, args, arg, {});
+                return competition.land(message, args, arg, { action: 'unregister' });
             });
         }).catch(logger.error);
 

@@ -1,7 +1,6 @@
-"use strict";
 'use strict';
 /** @typedef {import('discord-bot-core/src/Core').Entry} Core.Entry */
-/** @typedef {import('discord-bot-core/src/structures/MongoWrapper').Session} MongoWrapper.Session */
+/** @typedef {import('discord-bot-core/src/structures/SQLWrapper').Query} SQLWrapper.Query */
 /** @typedef {import('../kc/KCGameMapManager.js').KCGameMapManager} KCGameMapManager */
 /** @typedef {import("../kc/KCGameMapManager").MapData} KCGameMapManager.MapData} */
 /** @typedef {import("../kc/KCGameMapManager").MapScoreQueryData} KCGameMapManager.MapScoreQueryData} */
@@ -15,64 +14,70 @@ import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
 
 /**
- * @typedef {object} Db.Competition.Main
- * @property {object} _id - Record ID.
- * @property {Discord.Snowflake|null} c - Competition channel ID.
- * @property {number|null} ts - Start timestamp.
- * @property {number|null} te - End timestamp.
+ * @typedef {object} Db.competition_main
+ * @property {number} id - Primary key
+ * @property {Discord.Snowflake|null} channel_id - Competition channel ID.
+ * @property {number|null} time_start - Start timestamp.
+ * @property {number|null} time_end - End timestamp.
  */
 
 /**
- * @typedef {object} Db.Competition.Maps
- * @property {object} _id - Record ID.
- * @property {string} g - Game.
- * @property {string} t - Map type.
- * @property {number=} i - Map ID. Not applicable to CW2 code map.
- * @property {number=} s2 - CW2 code map size.
- * @property {number=} c2 - CW2 code map complexity.
- * @property {string=} n2 - CW2 code map name.
+ * @typedef {object} Db.competition_maps
+ * @property {object} id - Primary key
+ * @property {Discord.Snowflake} guild_id
+ * @property {string} game - Game.
+ * @property {string} type - Map type.
+ * @property {number|null} map_id - Map ID. Not applicable to CW2 code map.
+ * @property {number|null} size - CW2 code map size.
+ * @property {number|null} complexity - CW2 code map complexity.
+ * @property {string|null} name - CW2 code map name.
  */
 
  /**
- * @typedef {object} Db.Competition.History.Competitions
- * @property {object} _id - Record ID.
- * @property {number} t - End timestamp.
+ * @typedef {object} Db.competition_history_competitions
+ * @property {number} id - Primary key
+ * @property {Discord.Snowflake} guild_id
+ * @property {number} time_end - End timestamp.
  */
 
  /**
- * @typedef {object} Db.Competition.History.Maps
- * @property {object} _id - Record ID.
- * @property {object} _cid - Competition record ID.
- * @property {string} g - Game.
- * @property {string} t - Map type.
- * @property {number=} i - Map ID. Not applicable to CW2 code map.
- * @property {number=} s2 - CW2 code map size.
- * @property {number=} c2 - CW2 code map complexity.
- * @property {string=} n2 - CW2 code map name.
+ * @typedef {object} Db.competition_history_maps
+ * @property {number} id - Primary key
+ * @property {number} id_competition_history_competitions - competition_history_competitions key ID.
+ * @property {string} game - Game.
+ * @property {string} type - Map type.
+ * @property {number|null} map_id - Map ID. Not applicable to CW2 code map.
+ * @property {number|null} size - CW2 code map size.
+ * @property {number|null} complexity - CW2 code map complexity.
+ * @property {string|null} name - CW2 code map name.
  */
 
  /**
- * @typedef {object} Db.Competition.History.Scores
- * @property {object} _id - Record ID.
- * @property {object} _mid - Map record ID.
- * @property {number} r - Player rank.
- * @property {Discord.Snowflake} u - User snowflake.
- * @property {number} t - User time.
- * @property {number} p - User plays.
- * @property {number=} s - User score. Not applicable for Particle Fleet.
+ * @typedef {object} Db.competition_history_scores
+ * @property {number} id - Primary key
+ * @property {number} id_competition_history_maps - competition_history_maps key ID.
+ * @property {number} user_rank - Player rank.
+ * @property {Discord.Snowflake} user_id - User snowflake.
+ * @property {number} time - User time.
+ * @property {number} plays - User plays.
+ * @property {number|null} score - User score. Not applicable for Particle Fleet.
  */
 
  /**
- * @typedef {object} Db.Competition.Register
- * @property {Discord.Snowflake} u - User snowflake.
- * @property {string} g - Game.
- * @property {string} n - Leaderboard name.
+ * @typedef {object} Db.competition_register
+ * @property {number} id - Primary key
+ * @property {Discord.Snowflake} guild_id
+ * @property {Discord.Snowflake} user_id
+ * @property {string} game
+ * @property {string} user_name
  */
 
  /**
- * @typedef {object} Db.Competition.Messages
- * @property {string} g - Game.
- * @property {Discord.Snowflake} m - Message snowflake.
+ * @typedef {object} Db.competition_messages
+ * @property {number} id - Primary key
+ * @property {Discord.Snowflake} guild_id
+ * @property {string} game - Game.
+ * @property {Discord.Snowflake} message_id - Message snowflake.
  */
 
 export default class Competition extends Bot.Module {
@@ -84,575 +89,730 @@ export default class Competition extends Bot.Module {
         super(bot);
 
         this.games = ["pf", "cw3", "cw2"];
+
+        this.bot.sql.transaction(async query => {
+            await query(`CREATE TABLE IF NOT EXISTS competition_register (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(64) NOT NULL,
+                user_id VARCHAR(64) NOT NULL,
+                game VARCHAR(16) NOT NULL,
+                user_name VARCHAR(128) NOT NULL
+             )`);
+
+            await query(`CREATE TABLE IF NOT EXISTS competition_main (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(64) NOT NULL,
+                channel_id VARCHAR(64),
+                time_start BIGINT,
+                time_end BIGINT
+             )`);
+
+            await query(`CREATE TABLE IF NOT EXISTS competition_messages (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(64) NOT NULL,
+                game VARCHAR(16) NOT NULL,
+                message_id VARCHAR(64) NOT NULL
+             )`);
+
+            await query(`CREATE TABLE IF NOT EXISTS competition_maps (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(64) NOT NULL,
+                game VARCHAR(16) NOT NULL,
+                type VARCHAR(16) NOT NULL,
+                map_id MEDIUMINT UNSIGNED,
+                size TINYINT UNSIGNED,
+                complexity TINYINT UNSIGNED,
+                name VARCHAR(128)
+             )`);
+        }).catch(logger.error);
     }
 
     /** @param {Discord.Guild} guild - Current guild. */
     init(guild) {
         super.init(guild);
-    }
 
-    /** 
-     * @param {Discord.Guild} guild 
-     * @param {object} ext - Custom parameters provided to function call
-     * @param {KCGameMapManager} ext.kcgmm
-     * @param {MongoWrapper.Session=} session
-     * @returns {Promise<void>}
-     */
-    loop(guild, ext, session) {
-        return new Promise(async (resolve, reject) => {
-            /**
-             * @param {MongoWrapper.Session} session 
-             */
-            const _loop = async session => {
-                const now = Date.now();
+        this.bot.sql.transaction(async query => {
+            await query(`CREATE TABLE IF NOT EXISTS competition_history_competitions (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(64) NOT NULL,
+                time_end BIGINT NOT NULL
+             )`);
 
-                /** @type {Object<string, any>} */
-                let emotes = {};
-                await this.bot.tdb.session(guild, "emotes", async session => {
-                    let documents = await this.bot.tdb.find(session, guild, "emotes", "game", { }, { }, {e: 1});
-                    emotes = documents.reduce((a, v) => { a[v._id] = v.e; return a; }, {});
-                }).catch(logger.error);
+            await query(`CREATE TABLE IF NOT EXISTS competition_history_maps (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                id_competition_history_competitions INT UNSIGNED NOT NULL,
+                game VARCHAR(16) NOT NULL,
+                type VARCHAR(16) NOT NULL,
+                map_id MEDIUMINT UNSIGNED,
+                size TINYINT UNSIGNED,
+                complexity TINYINT UNSIGNED,
+                name VARCHAR(128)
+             )`);
 
-                const kcgmm = ext.kcgmm;
-                /** @type {Db.Competition.Main|null} */
-                const docMain = await this.bot.tdb.findOne(session, guild, "competition", "main", { }, { _id: 1 }, { });
-                /** @type {Db.Competition.Maps[]} */
-                const docsMaps = await this.bot.tdb.find(session, guild, "competition", "maps", { }, { }, { });
-                /** @type {Db.Competition.Messages[]} */
-                const docsMessages = await this.bot.tdb.find(session, guild, "competition", "messages", { }, { }, { });
-
-                if(docMain == null || docMain.c == null || docMain.ts == null || docsMaps.length === 0)
-                    return;
-
-                const channel = guild.channels.resolve(docMain.c);
-                if(channel == null || !(channel instanceof Discord.TextChannel))
-                    return;
-                
-                /** @type {Discord.Collection<string, Discord.Message>} */
-                const messages = new Discord.Collection();
-                for(let docMessages of docsMessages) {
-                    let message = await channel.messages.fetch(docMessages.m).catch(() => {});
-                    if(message != null) messages.set(docMessages.g, message);
-                }
-
-                /** @type {Discord.Collection<string, Discord.MessageEmbed>} */
-                const embeds = new Discord.Collection();
-
-                //Ensure proper order of messages.
-                docsMaps.sort((a, b) => this.games.indexOf(a.g) - this.games.indexOf(b.g));
-                const timeLeft = (docMain.te != null) ? Math.max(0, docMain.te - now) : 0;
-                for(let docMaps of docsMaps) {
-                    /** @type KCGameMapManager.MapScoreQueryData */
-                    let map = {
-                        game: docMaps.g,
-                        type: docMaps.t,
-                        id: docMaps.i,
-                        size: docMaps.s2,
-                        complexity: docMaps.c2,
-                        name: docMaps.n2
-                    }
-                    const fullMapLeaderboard = await ext.kcgmm.getMapScores(map, "specialevent");
-                    const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(session, guild, map.game, fullMapLeaderboard);
-                    const emote = (emotes && map.game && emotes[map.game]) ? emotes[map.game] : ":map:";
-                    let embed = embeds.get(map.game);
-                    if(!embed) {
-                        embed = getEmbedScores(KCUtil.gameEmbedColors[map.game], timeLeft);
-                        embeds.set(map.game, embed);
-                    }
-                    let fields = embed.fields;
-                    if(!fields) fields = [];
-                    if(map.type === "code")
-                        fields.push(await getEmbedFieldFromMapData(guild, this.bot.locale, registeredMapLeaderboard, map, emote));
-                    else {
-                        let mapList = kcgmm.getMapListId(map.game);
-                        if(mapList && map.id) {
-                            let mapData = mapList.get(map.id);
-                            if(mapData) 
-                                fields.push(await getEmbedFieldFromMapData(guild, this.bot.locale, registeredMapLeaderboard, map, emote, mapData));
-                            else fields.push({name: "err_map_not_found", value: "err_map_not_found", inline: false});
+            await query(`CREATE TABLE IF NOT EXISTS competition_history_scores (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                id_competition_history_maps INT UNSIGNED NOT NULL,
+                user_rank SMALLINT UNSIGNED NOT NULL,
+                user_id VARCHAR(64) NOT NULL,
+                time BIGINT UNSIGNED NOT NULL,
+                plays SMALLINT UNSIGNED NOT NULL,
+                score MEDIUMINT UNSIGNED
+             )`);
+        }).then(() => {
+            /** @type {any[]} */ var docsComps;
+            /** @type {any[]} */ var docsMaps;
+            /** @type {any[]} */ var docsScores;
+            this.bot.tdb.session(guild, 'competition', async session => {
+                docsComps = await this.bot.tdb.find(session, guild, 'competition', 'history.competitions', {}, {}, {});
+                docsMaps = await this.bot.tdb.find(session, guild, 'competition', 'history.maps', {}, {}, {});
+                docsScores = await this.bot.tdb.find(session, guild, 'competition', 'history.scores', {}, {}, {});
+            }).then(() => {
+                this.bot.sql.transaction(async query => {
+                    for(let docComps of docsComps) {
+                        /** @type {Db.competition_history_competitions[]} */
+                        let resultsHistoryComps = (await query(`SELECT * FROM competition_history_competitions
+                            WHERE id = ${docComps._id}`)).results;
+                        if(resultsHistoryComps.length <= 0) {
+                            await query(`INSERT INTO competition_history_competitions (id, guild_id, time_end)
+                                VALUES ('${docComps._id}', '${guild.id}', '${docComps.t}')`);
                         }
-                        else
-                            fields.push({name: "err_map_invalid", value: "err_map_invalid", inline: false});
                     }
 
-                    let message = messages.get(map.game);
-                    if(!message) {
-                        message = await channel.send("...");
-                        messages.set(map.game, message);
-                        await this.bot.tdb.update(session, guild, "competition", "messages", { upsert: true }, { g: map.game, t: "scores" }, {
-                            g: map.game,
-                            t: "scores",
-                            m: message.id
-                        });
+                    for(let docMaps of docsMaps) {
+                        /** @type {Db.competition_history_maps[]} */
+                        let resultsHistoryMaps = (await query(`SELECT * FROM competition_history_maps
+                            WHERE id = ${docMaps._id}`)).results;
+                        if(resultsHistoryMaps.length <= 0) {
+                            await query(`INSERT INTO competition_history_maps (id, id_competition_history_competitions, game, type, map_id, size, complexity, name)
+                                VALUES ('${docMaps._id}', '${docMaps._cid}', '${docMaps.g}', '${docMaps.t}',
+                                ${docMaps.i ? `'${docMaps.i}'` : 'NULL'},
+                                ${docMaps.s2 ? `'${docMaps.s2}'` : 'NULL'},
+                                ${docMaps.c2 ? `'${docMaps.c2}'` : 'NULL'},
+                                ${docMaps.n2 ? `'${docMaps.n2}'` : 'NULL'})`);
+                        }
                     }
-                }
 
-                messages.forEach((message, game) => {
-                    let content = "";
-                    if(emotes && emotes[game])
-                        content += emotes[game] + " ";
-                    content += KCLocaleManager.getDisplayNameFromAlias("game", game) || game;
-                    
-                    let embed = embeds.get(game);
-                    if(embed == null)
-                        message.edit(content, {embed: getEmbedScores(KCUtil.gameEmbedColors[game], timeLeft)}).catch(logger.error);
-                    else
-                        message.edit(content, {embed: embed}).catch(logger.error);
-                });
-                resolve();
-            };
-
-            if(session) await _loop(session);
-            else this.bot.tdb.session(guild, "competition", async session => await _loop(session));
-        });
+                    for(let docScores of docsScores) {
+                        /** @type {Db.competition_history_maps[]} */
+                        let resultsHistoryScores = (await query(`SELECT * FROM competition_history_scores
+                            WHERE id = ${docScores._id}`)).results;
+                        if(resultsHistoryScores.length <= 0) {
+                            await query(`INSERT INTO competition_history_scores (id, id_competition_history_maps, user_rank, user_id, time, plays, score)
+                                VALUES ('${docScores._id}', '${docScores._mid}', '${docScores.r}', '${docScores.u}', '${docScores.t}', '${docScores.p}', ${docScores.s ? `'${docScores.s}'` : 'NULL'})`);
+                        }
+                    }
+                }).catch(logger.error);
+            }).catch(logger.error);
+        }).catch(logger.error);
     }
 
     /**
-    * Module Function: Register this user for the competition.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {any} ext - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    register(m, args, arg, ext) {
-        let game = args[0];
-        if(game == null)
-            return this.bot.locale.category("competition", "err_game_name_not_provided");
+     * Module Function
+     * @param {Bot.Message} m - Message of the user executing the command.
+     * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
+     * @param {string} arg - The full string written by the user after the command.
+     * @param {object} ext
+     * @param {'register'|'unregister'|'set-channel'|'info'|'status'|'start'|'destroy'|'add-map'|'remove-map'|'update'|'build-tally'|'end'} ext.action - Custom parameters provided to function call.
+     * @param {KCGameMapManager} ext.kcgmm
+     * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
+     */
+    land(m, args, arg, ext) {
+        switch(ext.action) {
+        case 'register':
+        case 'add-map':
+        case 'remove-map':
+            let game = args[0];
+            if(game == null)
+                return this.bot.locale.category("competition", "err_game_name_not_provided");
+            
+            game = KCLocaleManager.getPrimaryAliasFromAlias("game", game) || "";
+            if(game.length === 0 || !this.games.includes(game))
+                return this.bot.locale.category("competition", "err_game_name_not_supported", args[0]);
 
-        game = KCLocaleManager.getPrimaryAliasFromAlias("game", game) || "";
-        if(game.length === 0 || !this.games.includes(game))
-            return this.bot.locale.category("competition", "err_game_name_not_supported", args[0]);
+            switch(ext.action) {
+            case 'register':
+                while(arg[0] === " ")
+                    arg = arg.substring(1);
+                if(arg.indexOf(" ") < 0)
+                    return this.bot.locale.category("competition", "err_leaderboard_name_not_provided");
 
-        while(arg[0] === " ")
-            arg = arg.substring(1);
-        if(arg.indexOf(" ") < 0)
-            return this.bot.locale.category("competition", "err_leaderboard_name_not_provided");
-        
-        arg = arg.substring(arg.indexOf(" ") + 1);
-        let name = arg;
+                arg = arg.substring(arg.indexOf(" ") + 1);
+                let name = arg;
 
-        this.bot.tdb.session(m.guild, "competition", async session => {
-            let gameName = KCLocaleManager.getDisplayNameFromAlias("game", game) || "unknown";
+                register.call(this, m, game, name);
+                return;
+            case 'add-map':
+            case 'remove-map':
+                const _data = ext.kcgmm.getMapQueryObjectFromCommandParameters(args);
+                if(_data.err) return _data.err;
+                const mapQueryData = _data.data;
 
-            /** @type Db.Competition.Register */
-            var docReg = await this.bot.tdb.findOne(session, m.guild, "competition", "register", { }, { g: game, u: m.member.id, n: name }, { });
-            if(docReg) {
-                m.message.reply(this.bot.locale.category("competition", "already_registered_with_this_name", name, gameName)).catch(logger.error);
+                addMap.call(this, m, ext.action, game, mapQueryData, ext.kcgmm);
                 return;
             }
-            /** @type Db.Competition.Register */
-            var docReg = await this.bot.tdb.findOne(session, m.guild, "competition", "register", { }, { g: game, n: name }, { });
-            if(docReg) {
-                m.message.reply(this.bot.locale.category("competition", "name_taken", name, gameName)).catch(logger.error);
+        case 'unregister':
+            let snowflake = args[0];
+            if(snowflake == null)
+                return this.bot.locale.category("competition", "err_user_mention_not_provided");
+
+            snowflake = Bot.Util.getSnowflakeFromDiscordPing(snowflake) || "";
+            if(snowflake.length === 0)
+                return this.bot.locale.category("competition", "err_user_mention_not_correct");
+
+            unregister.call(this, m, snowflake);
+            return;
+        case 'set-channel':
+            setChannel.call(this, m);
+            return;
+        case 'info':
+            if(arg.length > 0) return;
+            info.call(this, m);
+            return;
+        case 'status':
+            status.call(this, m);
+            return;
+        case 'start':
+            const now = Date.now();
+            let date = Date.parse(arg);
+            if(Number.isNaN(date)) return this.bot.locale.category("competition", "err_end_date_invalid");
+            if(now > date) {
+                m.message.reply(this.bot.locale.category("competition", "end_date_in_past")).catch(logger.error);
                 return;
             }
-            /** @type Db.Competition.Register */
-            var docReg = await this.bot.tdb.findOne(session, m.guild, "competition", "register", { }, { g: game, u: m.member.id }, { });
-            if(docReg) {
-                await this.bot.tdb.update(session, m.guild, "competition", "register", { }, { g: game, u: m.member.id }, { n: name });
-                m.message.reply(this.bot.locale.category("competition", "register_name_changed", docReg.n, name, gameName)).catch(logger.error);
-            }
-            else {
-                await this.bot.tdb.insert(session, m.guild, "competition", "register", { }, { u: m.member.id, g: game, n: name });
-                m.message.reply(this.bot.locale.category("competition", "register_success", name, gameName)).catch(logger.error);
-            }
-        }).catch(logger.error);
-    }
-
-    /**
-    * Module Function: Remove a user's registration.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {any} ext - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    unregister(m, args, arg, ext) {
-        let snowflake = args[0];
-        if(snowflake == null)
-            return this.bot.locale.category("competition", "err_user_mention_not_provided");
-
-        snowflake = Bot.Util.getSnowflakeFromDiscordPing(snowflake) || "";
-        if(snowflake.length === 0)
-            return this.bot.locale.category("competition", "err_user_mention_not_correct");
-
-        this.bot.tdb.session(m.guild, "competition", async session => {
-            /** @type Db.Competition.Register[] */
-            let docsReg = await this.bot.tdb.find(session, m.guild, "competition", "register", { }, { u: snowflake }, { });
-            if(docsReg.length === 0) {
-                m.message.reply(this.bot.locale.category("competition", "unregister_not_registered")).catch(logger.error);
-                return;
-            }
-
-            await this.bot.tdb.remove(session, m.guild, "competition", "register", { }, { u: snowflake });
-            m.message.reply(this.bot.locale.category("competition", "unregister_success", docsReg.length+"")).catch(logger.error);
-        }).catch(logger.error);
-    }
-
-    /**
-    * Module Function: Set the current channel as the competition channel.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {any} ext - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    setChannel(m, args, arg, ext) {
-        this.bot.tdb.session(m.guild, "competition", async session => {
-            await this.bot.tdb.update(session, m.guild, "competition", "main", { upsert: true }, { _id: 1 }, { _id: 1, c: m.channel.id });
-            await this.bot.tdb.drop(session, m.guild, "competition", "messages");
-            m.message.reply(this.bot.locale.category("competition", "channel_set")).catch(logger.error);
-        }).catch(logger.error);
-    }
-
-    /**
-    * Module Function: Post competition info.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {any} ext - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    info(m, args, arg, ext) {
-        if(arg.length > 0) return;
-
-        this.bot.tdb.session(m.guild, "competition", async session => {
-            /** @type Db.Competition.Main|null */
-            const docMain = await this.bot.tdb.findOne(session, m.guild, "competition", "main", { }, { _id: 1 }, { });
-
-            if(docMain == null || docMain.c == null) {
-                m.message.reply(this.bot.locale.category("competition", "info_inactive")).catch(logger.error);
-                return;
-            }
-
-            m.channel.send({ embed:getEmbedInfo.bind(this)(docMain.c) }).catch(logger.error);
-        }).catch(logger.error);
-    }
-
-    /**
-    * Module Function: Post competition status.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {any} ext - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    status(m, args, arg, ext) {
-        this.bot.tdb.session(m.guild, "competition", async session => {
-            /** @type Db.Competition.Main|null */
-            const docMain = await this.bot.tdb.findOne(session, m.guild, "competition", "main", { }, { _id: 1 }, { });
-            /** @type Db.Competition.Maps[] */
-            const docsMaps = await this.bot.tdb.find(session, m.guild, "competition", "maps", { }, { }, { });
-
-            m.channel.send({ embed:getEmbedStatus.bind(this)(m.guild, docMain, docsMaps) }).catch(logger.error);
-        }).catch(logger.error);
-    }
-
-    /**
-    * Module Function: Start a new competition.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {any} ext - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    start(m, args, arg, ext) {
-        const now = Date.now();
-
-        let date = Date.parse(arg);
-        if(Number.isNaN(date)) return this.bot.locale.category("competition", "err_end_date_invalid");
-
-        if(now > date) {
-            m.message.reply(this.bot.locale.category("competition", "end_date_in_past")).catch(logger.error);
+            start.call(this, m, now, date);
+            return;
+        case 'destroy':
+            destroy.call(this, m);
+            return;
+        case 'update':
+            update.call(this, m, ext.kcgmm);
+            return;
+        case 'build-tally':
+            buildTally.call(this, m);
+            return;
+        case 'end':
+            end.call(this, m, ext.kcgmm);
             return;
         }
-        
-        this.bot.tdb.session(m.guild, "competition", async session => {
-            /** @type Db.Competition.Main|null */
-            const docMain = await this.bot.tdb.findOne(session, m.guild, "competition", "main", { }, { _id: 1 }, { });
-
-            if(!docMain || docMain.c == null) {
-                await m.message.reply(this.bot.locale.category("competition", "no_channel"));
-                return;
-            }
-
-            let channel = m.guild.channels.resolve(docMain.c);
-            if(!channel || !(channel instanceof Discord.TextChannel)) {
-                await m.message.reply(this.bot.locale.category("competition", "channel_no_access"));
-                return;
-            }
-
-            await this.bot.tdb.update(session, m.guild, "competition", "main", { upsert: true }, { _id: 1 }, { _id: 1, ts: now, te: date });
-
-            channel.send(this.bot.locale.category("competition", "start_message")).catch(logger.error);
-            m.message.reply(this.bot.locale.category("competition", "start_success")).catch(logger.error);
-        }).catch(logger.error);
     }
-
-    /**
-    * Module Function: Clear the current competition.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {any} ext - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    destroy(m, args, arg, ext) {
-        this.bot.tdb.session(m.guild, "competition", async session => {
-            await this.bot.tdb.remove(session, m.guild, "competition", "messages", { }, { t: "scores" });
-            await this.bot.tdb.update(session, m.guild, "competition", "main", { upsert: true }, { _id: 1 }, { _id: 1, ts: null, te: null });
-            await this.bot.tdb.drop(session, m.guild, "competition", "maps");
-
-            m.message.reply(this.bot.locale.category("competition", "erased")).catch(logger.error);
-        }).catch(logger.error);
-    }
-
-    /**
-    * Module Function: Add or delete a map from the current competition.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {object} ext - Custom parameters provided to function call.
-    * @param {"add"|"remove"} ext.type
-    * @param {KCGameMapManager} ext.kcgmm - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    addMap(m, args, arg, ext) {
-        let game = args[0];
-        if(game == null)
-            return this.bot.locale.category("competition", "err_game_name_not_provided");
-
-        game = KCLocaleManager.getPrimaryAliasFromAlias("game", game) || "";
-        if(game.length === 0 || !this.games.includes(game))
-            return this.bot.locale.category("competition", "err_game_name_not_supported", args[0]);
-
-        const _data = ext.kcgmm.getMapQueryObjectFromCommandParameters(args);
-        if(_data.err) return _data.err;
-        const mapQueryData = _data.data;
-
-        this.bot.tdb.session(m.guild, "competition", async session => {
-            /** @type Db.Competition.Main|null */
-            const docMain = await this.bot.tdb.findOne(session, m.guild, "competition", "main", { }, { _id: 1 }, { });
-
-            if(!docMain || !docMain.c) {
-                await m.message.reply(this.bot.locale.category("competition", "no_channel"));
-                return;
-            }
-
-            if(docMain.ts == null || docMain.ts <= 0) {
-                await m.message.reply(this.bot.locale.category("competition", "addmap_not_started"));
-                return;
-            }
-
-            /** @type {Object<string, any>} */
-            let query = {
-                g: mapQueryData.game,
-                t: mapQueryData.type,
-                i: mapQueryData.id,
-                s2: mapQueryData.size,
-                c2: mapQueryData.complexity,
-                n2: mapQueryData.name
-            }
-            Object.keys(query).forEach(key => typeof query[key] === "undefined" ? delete query[key] : '');
-
-            switch(ext.type) {
-            case "remove":
-                /** @type Db.Competition.Maps */
-                var docMaps = await this.bot.tdb.findOne(session, m.guild, "competition", "maps", { }, query, { });
-                if(!docMaps) {
-                    await m.message.reply(this.bot.locale.category("competition", "removemap_not_added"));
-                    return;
-                }
-
-                await this.bot.tdb.remove(session, m.guild, "competition", "maps", { }, query);
-                await m.message.reply(this.bot.locale.category("competition", "removemap_success"));
-                break;
-            case "add":
-            default:
-                /** @type Db.Competition.Maps */
-                var docMaps = await this.bot.tdb.findOne(session, m.guild, "competition", "maps", { }, query, { });
-                if(docMaps) {
-                    await m.message.reply(this.bot.locale.category("competition", "addmap_already_added"));
-                    return;
-                }
-
-                /** @type Db.Competition.History.Maps */
-                var docHistoryMaps = await this.bot.tdb.findOne(session, m.guild, "competition", "history.maps", { }, query, { });
-                if(docHistoryMaps) {
-                    await m.message.reply(this.bot.locale.category("competition", "addmap_already_in_history"));
-                    return;
-                }
-
-                await this.bot.tdb.insert(session, m.guild, "competition", "maps", { }, query);
-                await m.message.reply(this.bot.locale.category("competition", "addmap_success"));
-                break;
-            }
-
-            await this.loop(m.guild, {kcgmm: ext.kcgmm}, session);
-        }).catch(logger.error);
-    }
-
-    /**
-    * Module Function: Force update the scores.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {object} ext - Custom parameters provided to function call.
-    * @param {KCGameMapManager} ext.kcgmm - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    update(m, args, arg, ext) {
-        this.loop(m.guild, {kcgmm: ext.kcgmm}).catch(logger.error);
-        m.message.reply(this.bot.locale.category("competition", "scores_updated")).catch(logger.error);
-    }
-
-    /**
-    * Module Function: End the current competition, save it to history, tally up scores and post all related messages.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {object} ext - Custom parameters provided to function call.
-    * @param {KCGameMapManager} ext.kcgmm - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    end(m, args, arg, ext) {
+    
+    /** 
+     * @param {Discord.Guild} guild 
+     * @param {KCGameMapManager} kcgmm
+     * @returns {Promise<void>}
+     */
+    async loop(guild, kcgmm) {
         const now = Date.now();
 
-        this.bot.tdb.session(m.guild, "competition", async session => {
-            await m.message.reply(this.bot.locale.category("competition", "end_in_progress"));
+        /** @type {Object.<string, string>} */
+        let emotes = {};
+        await this.bot.sql.transaction(async query => {
+            /** @type {any[]} */
+            let results = (await query(`SELECT * FROM emotes_game
+                                       WHERE guild_id = '${guild.id}'`)).results;
+            emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
+        }).catch(logger.error);
 
-            /** @type {Object.<string, any>} */
-            let emotes = {};
-            await this.bot.tdb.session(m.guild, "emotes", async session => {
-                let documents = await this.bot.tdb.find(session, m.guild, "emotes", "game", { }, { }, {e: 1});
-                emotes = documents.reduce((a, v) => { a[v._id] = v.e; return a; }, {});
-            }).catch(logger.error);
+        await this.bot.sql.transaction(async query => {
+            /** @type {Db.competition_main|null} */
+            let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}'`)).results[0];
+            /** @type {Db.competition_maps[]} */
+            let resultsMaps = (await query(`SELECT * FROM competition_maps WHERE guild_id = '${guild.id}'`)).results;
+            /** @type {Db.competition_messages[]} */
+            let resultsMessages = (await query(`SELECT * FROM competition_messages WHERE guild_id = '${guild.id}'`)).results;
 
-            /** @type Db.Competition.Main|null */
-            const docMain = await this.bot.tdb.findOne(session, m.guild, "competition", "main", { }, { _id: 1 }, { });
-            /** @type Db.Competition.Maps[] */
-            const docsMaps = await this.bot.tdb.find(session, m.guild, "competition", "maps", { }, { }, { _id: 0 });
-
-            if(!docMain || docMain.c == null) {
-                await m.message.reply(this.bot.locale.category("competition", "no_channel"));
+            if(resultMain == null || resultMain.channel_id == null || 
+            resultMain.time_start == null || resultsMaps.length <= 0)
                 return;
-            }
-            const channel = m.guild.channels.resolve(docMain.c);
-            if(!channel || !(channel instanceof Discord.TextChannel)) {
-                await m.message.reply(this.bot.locale.category("competition", "channel_no_access"));
+            
+            const channel = guild.channels.resolve(resultMain.channel_id);
+            if(channel == null || !(channel instanceof Discord.TextChannel))
                 return;
-            }
-            if(!docMain.ts) {
-                await m.message.reply(this.bot.locale.category("competition", "not_running"));
-                return;
-            }
-            if(docsMaps.length === 0) {
-                await m.message.reply(this.bot.locale.category("competition", "cant_end_no_maps"));
-                return;
+                
+            /** @type {Discord.Collection<string, Discord.Message>} */
+            const messages = new Discord.Collection();
+            for(let resultMessages of resultsMessages) {
+                let message = await channel.messages.fetch(resultMessages.message_id).catch(() => {});
+                if(message != null) messages.set(resultMessages.game, message);
             }
 
-            await this.loop(m.guild, { kcgmm: ext.kcgmm }, session);
-
-            await Bot.Util.Promise.sleep(1000);
-            await channel.send(this.bot.locale.category("competition", "end_channel_ended"));
-
-            const maps = new Discord.Collection();
+            /** @type {Discord.Collection<string, Discord.MessageEmbed>} */
+            const embeds = new Discord.Collection();
 
             //Ensure proper order of messages.
-            docsMaps.sort((a, b) => this.games.indexOf(a.g) - this.games.indexOf(b.g));
-            for(let docMaps of docsMaps) {
-                /** @type {KCGameMapManager.MapScoreQueryData} */
-                let map = {
-                    game: docMaps.g,
-                    type: docMaps.t,
-                    id: docMaps.i,
-                    size: docMaps.s2,
-                    complexity: docMaps.c2,
-                    name: docMaps.n2
-                }
-                /** @type {{ r: number; u: string; t: number; p: number; s: number | undefined; }[]} */
-                let scores = [];
+            resultsMaps.sort((a, b) => this.games.indexOf(a.game) - this.games.indexOf(b.game));
+            const timeLeft = (resultMain.time_end != null) ? Math.max(0, resultMain.time_end - now) : 0;
 
-                const fullMapLeaderboard = await ext.kcgmm.getMapScores(map, "specialevent");
-                const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(session, m.guild, map.game, fullMapLeaderboard);
-                registeredMapLeaderboard.entries.forEach(score => scores.push({
-                    r: score.rank,
-                    u: score.user,
-                    t: score.time,
-                    p: score.plays,
-                    s: score.score
-                }));
-                
-                maps.set(docMaps, scores);
-                
-                const mapList = ext.kcgmm.getMapListId(map.game);
-                const mapData = !mapList || map.id == null ? undefined : mapList.get(map.id);
+            for(let resultMaps of resultsMaps) {
+                let map = getMapScoreQueryDataFromDatabase(resultMaps);
 
-                const embed = getEmbedTemplate();
-                const field = await getEmbedFieldFromMapData(m.guild, this.bot.locale, registeredMapLeaderboard, map, emotes[map.game], mapData);
-                embed.title = field.name;
-                embed.description = field.value;
-                embed.footer = {
-                    text: Bot.Util.getFormattedDate(docMain.ts || 0, true) + " - " + Bot.Util.getFormattedDate(now, true),
+                const fullMapLeaderboard = await kcgmm.getMapScores(map, "specialevent");
+                const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(query, guild, map.game, fullMapLeaderboard);
+                const emote = (emotes && map.game && emotes[map.game]) ? emotes[map.game] : ":map:";
+                let embed = embeds.get(map.game);
+                if(!embed) {
+                    embed = getEmbedScores(KCUtil.gameEmbedColors[map.game], timeLeft);
+                    embeds.set(map.game, embed);
                 }
-                
-                await channel.send({embed: embed});
+                let fields = embed.fields;
+                if(!fields) fields = [];
+                if(map.type === "code")
+                    fields.push(await getEmbedFieldFromMapData(guild, this.bot.locale, registeredMapLeaderboard, map, emote));
+                else {
+                    let mapList = kcgmm.getMapListId(map.game);
+                    if(mapList && map.id) {
+                        let mapData = mapList.get(map.id);
+                        if(mapData) 
+                            fields.push(await getEmbedFieldFromMapData(guild, this.bot.locale, registeredMapLeaderboard, map, emote, mapData));
+                        else fields.push({name: "err_map_not_found", value: "err_map_not_found", inline: false});
+                    }
+                    else
+                        fields.push({name: "err_map_invalid", value: "err_map_invalid", inline: false});
+                }
+
+                let message = messages.get(map.game);
+                if(!message) {
+                    message = await channel.send("...");
+                    messages.set(map.game, message);
+                    
+                    await query(`INSERT INTO competition_messages (guild_id, game, message_id)
+                        VALUES ('${guild.id}', '${map.game}', '${message.id}')`);
+                }
             }
 
-            /** @type Db.Competition.History.Competitions */
-            let docCompNew = await this.bot.tdb.insert(session, m.guild, "competition", "history.competitions", { }, {
-                t: now,
+            messages.forEach((message, game) => {
+                let content = "";
+                if(emotes && emotes[game])
+                    content += emotes[game] + " ";
+                content += KCLocaleManager.getDisplayNameFromAlias("game", game) || game;
+                
+                let embed = embeds.get(game);
+                if(embed == null)
+                    message.edit(content, {embed: getEmbedScores(KCUtil.gameEmbedColors[game], timeLeft)}).catch(logger.error);
+                else
+                    message.edit(content, {embed: embed}).catch(logger.error);
             });
-
-            for(let map of maps.keys()) {
-                /** @type Db.Competition.History.Maps */
-                let docMapsNew = await this.bot.tdb.insert(session, m.guild, "competition", "history.maps", { }, Object.assign({
-                    _cid: docCompNew._id
-                }, map));
-
-                let scores = maps.get(map);
-                for(let score of scores) {
-                    /** @type Db.Competition.History.Scores */
-                    let docScoresNew = await this.bot.tdb.insert(session, m.guild, "competition", "history.scores", { }, Object.assign({
-                        _mid: docMapsNew._id
-                    }, score));
-                }
-            }
-
-            await this.bot.tdb.remove(session, m.guild, "competition", "messages", { }, { t: "scores" });
-            await this.bot.tdb.update(session, m.guild, "competition", "main", { upsert: true }, { _id: 1 }, { _id: 1, ts: null, te: null });
-            await this.bot.tdb.drop(session, m.guild, "competition", "maps");
-
-            await m.message.reply(this.bot.locale.category("competition", "end_success"));
-            await buildScoreTally.bind(this)(m.guild, channel, session);
-        }).catch(logger.error);
-    }
-
-    /**
-    * Module Function: Rebuild the competition tally.
-    * @param {Bot.Message} m - Message of the user executing the command.
-    * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-    * @param {string} arg - The full string written by the user after the command.
-    * @param {object} ext - Custom parameters provided to function call.
-    * @param {KCGameMapManager} ext.kcgmm - Custom parameters provided to function call.
-    * @returns {string | void} undefined if finished correctly, string if an error is thrown.
-    */
-    buildTally(m, args, arg, ext) {
-        this.bot.tdb.session(m.guild, "competition", async session => {
-            await buildScoreTally.bind(this)(m.guild, m.channel, session);
         }).catch(logger.error);
     }
 }
 
 /**
+ * Register this user for the competition.
+ * @this {Competition}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {string} game
+ * @param {string} name
+ */
+function register(m, game, name) {
+    this.bot.sql.transaction(async query => {
+        await query(`SELECT user_name FROM competition_register
+            WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}' AND game = '${game}'
+            FOR UPDATE`);
+
+        let gameName = KCLocaleManager.getDisplayNameFromAlias("game", game) || "unknown";
+
+        /** @type {Db.competition_register} */
+        var resultRegister = (await query(`SELECT * FROM competition_register
+            WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}' AND game = '${game}' AND user_name = '${name}'`)).results[0];
+        if(resultRegister) {
+            m.message.reply(this.bot.locale.category("competition", "already_registered_with_this_name", name, gameName)).catch(logger.error);
+            return;
+        }
+
+        /** @type {Db.competition_register} */
+        var resultRegister = (await query(`SELECT * FROM competition_register
+            WHERE guild_id = '${m.guild.id}' AND game = '${game}' AND user_name = '${name}'`)).results[0];
+        if(resultRegister) {
+            m.message.reply(this.bot.locale.category("competition", "name_taken", name, gameName)).catch(logger.error);
+            return;
+        }
+
+        /** @type {Db.competition_register} */
+        var resultRegister = (await query(`SELECT * FROM competition_register
+            WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}' AND game = '${game}'`)).results[0];
+        if(resultRegister) {
+            await query(`UPDATE competition_register SET user_name = '${name}'
+                WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}' AND game = '${game}'`);
+
+            m.message.reply(this.bot.locale.category("competition", "register_name_changed", resultRegister.user_name, name, gameName)).catch(logger.error);
+        }
+        else {
+            await query(`INSERT INTO competition_register (guild_id, user_id, game, user_name)
+                VALUES ('${m.guild.id}', '${m.member.id}', '${game}', '${name}')`);
+    
+            m.message.reply(this.bot.locale.category("competition", "register_success", name, gameName)).catch(logger.error);
+        }
+    }).catch(logger.error);
+}
+
+/**
+ * Remove a user's registration.
+ * @this {Competition}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {Discord.Snowflake} snowflake
+ */
+function unregister(m, snowflake) {
+    this.bot.sql.transaction(async query => {
+        /** @type {Db.competition_register[]} */
+        var resultsRegister = (await query(`SELECT * FROM competition_register
+            WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}'`)).results;
+
+        if(resultsRegister.length <= 0) {
+            m.message.reply(this.bot.locale.category("competition", "unregister_not_registered")).catch(logger.error);
+            return;
+        }
+
+        await query(`DELETE FROM competition_register
+            WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}'`);
+
+        m.message.reply(this.bot.locale.category("competition", "unregister_success", resultsRegister.length+"")).catch(logger.error);
+    }).catch(logger.error);
+}
+
+/**
+ * Set the current channel as the competition channel.
+ * @this {Competition}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ */
+function setChannel(m) {
+    this.bot.sql.transaction(async query => {
+        /** @type {Db.competition_main|null} */
+        let resultMain = (await query(`SELECT channel_id FROM competition_main WHERE guild_id = '${m.guild.id}'
+            FOR UPDATE`)).results[0];
+
+        if(resultMain)
+            await query(`UPDATE competition_main SET channel_id = '${m.channel.id}' WHERE guild_id = '${m.guild.id}'`);
+        else
+            await query(`INSERT INTO competition_main (guild_id, channel_id) VALUES ('${m.guild.id}', '${m.channel.id}')`);
+            
+        await query(`DELETE FROM competition_messages WHERE guild_id = '${m.guild.id}'`)
+
+        m.message.reply(this.bot.locale.category("competition", "channel_set")).catch(logger.error);
+    }).catch(logger.error);
+}
+
+/**
+ * Post competition info.
+ * @this {Competition}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ */
+function info(m) {
+    this.bot.sql.transaction(async query => {
+        /** @type {Db.competition_main|null} */
+        let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}'`)).results[0];
+
+        if(resultMain == null || resultMain.channel_id == null) {
+            m.message.reply(this.bot.locale.category("competition", "info_inactive")).catch(logger.error);
+            return;
+        }
+
+        m.channel.send({ embed:getEmbedInfo.bind(this)(resultMain.channel_id) }).catch(logger.error);
+    }).catch(logger.error);
+}
+
+/**
+ * Post competition status.
+ * @this {Competition}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ */
+function status(m) {
+    this.bot.sql.transaction(async query => {
+        /** @type {Db.competition_main|null} */
+        let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}'`)).results[0];
+        m.channel.send({ embed:getEmbedStatus.bind(this)(m.guild, resultMain) }).catch(logger.error);
+    }).catch(logger.error);
+}
+
+/**
+ * Start a new competition.
+ * @this {Competition}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {number} startTime
+ * @param {number} endTime
+ */
+function start(m, startTime, endTime) {
+    this.bot.sql.transaction(async query => {
+        /** @type {Db.competition_main|null} */
+        let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}'
+            FOR UPDATE`)).results[0];
+
+        if(resultMain && resultMain.time_start != null) {
+            await m.message.reply(this.bot.locale.category("competition", "already_started"));
+            return;
+        }
+
+        if(!resultMain || resultMain.channel_id == null) {
+            await m.message.reply(this.bot.locale.category("competition", "no_channel"));
+            return;
+        }
+
+        let channel = m.guild.channels.resolve(resultMain.channel_id);
+        if(!channel || !(channel instanceof Discord.TextChannel)) {
+            await m.message.reply(this.bot.locale.category("competition", "channel_no_access"));
+            return;
+        }
+
+        await query(`UPDATE competition_main SET time_start = '${startTime}', time_end = '${endTime}'
+            WHERE guild_id = '${m.guild.id}'`);
+
+        channel.send(this.bot.locale.category("competition", "start_message")).catch(logger.error);
+        m.message.reply(this.bot.locale.category("competition", "start_success")).catch(logger.error);
+    }).catch(logger.error);
+}
+
+/**
+ * Clear the current competition.
+ * @this {Competition}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ */
+function destroy(m) {
+    this.bot.sql.transaction(async query => {
+        await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}' FOR UPDATE`);
+
+        await query(`DELETE FROM competition_messages WHERE guild_id = '${m.guild.id}'`);
+        await query(`UPDATE competition_main SET time_start = NULL, time_end = NULL WHERE guild_id = '${m.guild.id}'`);
+        await query(`DELETE FROM competition_maps WHERE guild_id = '${m.guild.id}'`);
+
+        m.message.reply(this.bot.locale.category("competition", "erased")).catch(logger.error);
+    }).catch(logger.error);
+}
+
+/**
+ * Add or delete a map from the current competition.
+ * @this {Competition}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {'remove-map'|'add-map'} type
+ * @param {string} game
+ * @param {KCGameMapManager.MapScoreQueryData} msqd
+ * @param {KCGameMapManager} kcgmm
+ */
+function addMap(m, type, game, msqd, kcgmm) {
+    this.bot.sql.transaction(async query => {
+        /** @type {Db.competition_main|null} */
+        let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}'`)).results[0];
+
+        if(!resultMain || !resultMain.channel_id) {
+            await m.message.reply(this.bot.locale.category("competition", "no_channel"));
+            return;
+        }
+        if(resultMain.time_start == null) {
+            await m.message.reply(this.bot.locale.category("competition", "addmap_not_started"));
+            return;
+        }
+
+        const sqlWhere = `WHERE guild_id = '${m.guild.id}'
+        AND game = '${game}'
+        AND type = '${msqd.type}'
+        AND map_id ${msqd.id == null ? 'IS NULL' : `= '${msqd.id}'`}
+        AND size ${msqd.size == null ? 'IS NULL' : `= '${msqd.size}'`}
+        AND complexity ${msqd.complexity == null ? 'IS NULL' : `= '${msqd.complexity}'`}
+        AND name ${msqd.name == null ? 'IS NULL' : `= '${msqd.name}'`}`;
+
+        switch(type) {
+        case "remove-map":
+            /** @type {Db.competition_maps[]} */
+            var resultsMaps = (await query(`SELECT * FROM competition_maps ${sqlWhere}`)).results;
+
+            console.log(resultsMaps, `SELECT * FROM competition_maps ${sqlWhere}`);
+
+            if(resultsMaps.length <= 0) {
+                await m.message.reply(this.bot.locale.category("competition", "removemap_not_added"));
+                return;
+            }
+
+            await query(`DELETE FROM competition_maps ${sqlWhere}`);
+            
+            await m.message.reply(this.bot.locale.category("competition", "removemap_success"));
+            break;
+        case "add-map":
+        default:
+            /** @type {Db.competition_maps[]} */
+            var resultsMaps = (await query(`SELECT * FROM competition_maps ${sqlWhere}`)).results;
+            if(resultsMaps.length > 0) {
+                await m.message.reply(this.bot.locale.category("competition", "addmap_already_added"));
+                return;
+            }
+
+            /** @type {Db.competition_history_maps[]} */
+            var resultsHistoryMaps = (await query(`SELECT * FROM competition_history_maps chm JOIN competition_history_competitions chc ON chc.id = chm.id_competition_history_competitions
+                WHERE chc.guild_id = '${m.guild.id}'
+                AND chm.game = '${game}'
+                AND chm.type = '${msqd.type}'
+                AND chm.map_id ${msqd.id == null ? 'IS NULL' : `= '${msqd.id}'`}
+                AND chm.size ${msqd.size == null ? 'IS NULL' : `= '${msqd.size}'`}
+                AND chm.complexity ${msqd.complexity == null ? 'IS NULL' : `= '${msqd.complexity}'`}
+                AND chm.name ${msqd.name == null ? 'IS NULL' : `= '${msqd.name}'`}`)).results;
+            if(resultsHistoryMaps.length > 0) {
+                await m.message.reply(this.bot.locale.category("competition", "addmap_already_in_history"));
+                return;
+            }
+
+            await query(`INSERT INTO competition_maps (guild_id, game, type, map_id, size, complexity, name)
+                VALUES('${m.guild.id}', '${game}', '${msqd.type}', 
+                    ${msqd.id == null ? 'NULL' : `'${msqd.id}'`}, 
+                    ${msqd.size == null ? 'NULL' : `'${msqd.size}'`}, 
+                    ${msqd.complexity == null ? 'NULL' : `'${msqd.complexity}'`}, 
+                    ${msqd.name == null ? 'NULL' : `'${msqd.name}'`}
+                )`);
+
+            await m.message.reply(this.bot.locale.category("competition", "addmap_success"));
+            break;
+        }
+    }).then(() => {
+        this.loop(m.guild, kcgmm);
+    }).catch(logger.error);
+}
+
+/**
+ * Force update the scores.
+ * @this {Competition}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {KCGameMapManager} kcgmm
+ */
+function update(m, kcgmm) {
+    this.loop(m.guild, kcgmm).then(() => {
+        m.message.reply(this.bot.locale.category("competition", "scores_updated")).catch(logger.error);
+    }).catch(e => {
+        m.message.reply(this.bot.locale.category("competition", "score_update_failed")).catch(logger.error);
+        logger.error(e);
+    });
+    
+}
+
+/**
+ * Rebuild the competition tally.
+ * @this Competition
+ * @param {Bot.Message} m - Message of the user executing the command.
+ */
+function buildTally(m) {
+    this.bot.sql.transaction(async query => {
+        await buildScoreTally.bind(this)(m.guild, m.channel, query);
+    }).catch(logger.error);
+}
+
+/**
+ * End the current competition, save it to history, tally up scores and post all related messages.
+ * @this Competition
+ * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {KCGameMapManager} kcgmm
+ */
+function end(m, kcgmm) {
+    const now = Date.now();
+
+    this.bot.sql.transaction(async query => {
+        await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}' FOR UPDATE`);
+
+        await m.message.reply(this.bot.locale.category("competition", "end_in_progress"));
+
+        /** @type {Object.<string, string>} */
+        let emotes = {};
+        await this.bot.sql.transaction(async query => {
+            /** @type {any[]} */
+            let results = (await query(`SELECT * FROM emotes_game
+                                       WHERE guild_id = '${m.guild.id}'`)).results;
+            emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
+        }).catch(logger.error);
+
+        /** @type {Db.competition_main|null} */
+        let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}'`)).results[0];
+        /** @type {Db.competition_maps[]} */
+        let resultsMaps = (await query(`SELECT * FROM competition_maps WHERE guild_id = '${m.guild.id}'`)).results;
+
+        if(!resultMain || resultMain.channel_id == null) {
+            await m.message.reply(this.bot.locale.category("competition", "no_channel"));
+            return;
+        }
+        const channel = m.guild.channels.resolve(resultMain.channel_id);
+        if(!channel || !(channel instanceof Discord.TextChannel)) {
+            await m.message.reply(this.bot.locale.category("competition", "channel_no_access"));
+            return;
+        }
+        if(!resultMain.time_start) {
+            await m.message.reply(this.bot.locale.category("competition", "not_running"));
+            return;
+        }
+        if(resultsMaps.length <= 0) {
+            await m.message.reply(this.bot.locale.category("competition", "cant_end_no_maps"));
+            return;
+        }
+
+        await this.loop(m.guild, kcgmm);
+
+        await Bot.Util.Promise.sleep(1000);
+        await channel.send(this.bot.locale.category("competition", "end_channel_ended"));
+
+        /** @type {Discord.Collection<Db.competition_maps, KCGameMapManager.MapLeaderboard>} */
+        const maps = new Discord.Collection();
+
+        //Ensure proper order of messages.
+        resultsMaps.sort((a, b) => this.games.indexOf(a.game) - this.games.indexOf(b.game));
+        for(let resultMaps of resultsMaps) {
+            let map = getMapScoreQueryDataFromDatabase(resultMaps);
+
+            const fullMapLeaderboard = await kcgmm.getMapScores(map, "specialevent");
+            const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(query, m.guild, map.game, fullMapLeaderboard);
+            
+            maps.set(resultMaps, registeredMapLeaderboard);
+            
+            const mapList = kcgmm.getMapListId(map.game);
+            const mapData = !mapList || map.id == null ? undefined : mapList.get(map.id);
+
+            const embed = getEmbedTemplate();
+            const field = await getEmbedFieldFromMapData(m.guild, this.bot.locale, registeredMapLeaderboard, map, emotes[map.game], mapData);
+            embed.title = field.name;
+            embed.description = field.value;
+            embed.footer = {
+                text: Bot.Util.getFormattedDate(resultMain.time_start || 0, true) + " - " + Bot.Util.getFormattedDate(now, true),
+            }
+            
+            await channel.send({embed: embed});
+        }
+
+        let insertComps = (await query(`INSERT INTO competition_history_competitions (guild_id, time_end)
+            VALUES ('${m.guild.id}', '${now}')`)).results;
+
+        for(let map of maps.keys()) {
+            let insertMaps = (await query(`INSERT INTO competition_history_maps (id_competition_history_competitions, game, type, map_id, size, complexity, name)
+            VALUES ('${insertComps.insertId}', '${map.game}', '${map.type}',
+            ${map.map_id ? `'${map.map_id}'` : 'NULL'},
+            ${map.size ? `'${map.size}'` : 'NULL'},
+            ${map.complexity ? `'${map.complexity}'` : 'NULL'},
+            ${map.name ? `'${map.name}'` : 'NULL'})`)).results;
+
+            let scores = /** @type {KCGameMapManager.MapLeaderboard} */(maps.get(map));
+            for(let score of scores.entries) {
+                let insertScores = (await query(`INSERT INTO competition_history_scores (id_competition_history_maps, user_rank, user_id, time, plays, score)
+                VALUES ('${insertMaps.insertId}', '${score.rank}', '${score.user}', '${score.time}', '${score.plays}', ${score.score ? `'${score.score}'` : 'NULL'})`)).results;
+            }
+        }
+
+        await query(`DELETE FROM competition_messages WHERE guild_id = '${m.guild.id}'`);
+        await query(`UPDATE competition_main SET time_start = NULL, time_end = NULL WHERE guild_id = '${m.guild.id}'`);
+        await query(`DELETE FROM competition_maps WHERE guild_id = '${m.guild.id}'`);
+
+        await m.message.reply(this.bot.locale.category("competition", "end_success"));
+        await buildScoreTally.bind(this)(m.guild, channel, query);
+    }).catch(logger.error);
+}
+
+
+
+
+
+
+
+
+
+
+
+/**
  * @this Competition
  * @param {Discord.Guild} guild 
  * @param {Discord.TextChannel} channel
- * @param {MongoWrapper.Session} session
+ * @param {SQLWrapper.Query} query
  * @returns {Promise<Discord.Message>}
  */
-async function buildScoreTally(guild, channel, session) {
+async function buildScoreTally(guild, channel, query) {
     const roleId = this.bot.getRoleId(guild.id, "CHAMPION_OF_KC");
     const role = roleId ? guild.roles.cache.get(roleId) : undefined;
 
@@ -662,20 +822,25 @@ async function buildScoreTally(guild, channel, session) {
     let weeks = 2;
     let i = 1;
 
-    /** @type {Db.Competition.History.Competitions[]} */
-    var docsComps = await this.bot.tdb.find(session, guild, "competition", "history.competitions", { }, { }, { });
-    docsComps = docsComps.slice(docsComps.length - weeks, docsComps.length);
+    /** @type {Db.competition_history_competitions[]} */
+    let resultsComps = (await query(`SELECT * FROM competition_history_competitions WHERE guild_id = '${guild.id}'`)).results;
     
-    for(let docComps of docsComps) {
-        /** @type {Db.Competition.History.Maps[]} */
-        let docsMaps = await this.bot.tdb.find(session, guild, "competition", "history.maps", { }, { _cid: docComps._id }, { });
-        for(let docMaps of docsMaps) {
-            /** @type {Db.Competition.History.Scores[]} */
-            let docsScores = await this.bot.tdb.find(session, guild, "competition", "history.scores", { }, { _mid: docMaps._id }, { });
-            for(let docScores of docsScores) {
-                if(docScores.r !== 1) continue;
+    resultsComps = resultsComps.slice(resultsComps.length - weeks, resultsComps.length);
+    
+    for(let resultComps of resultsComps) {
+        /** @type {Db.competition_history_maps[]} */
+        let resultsMaps = (await query(`SELECT * FROM competition_history_maps 
+            WHERE id_competition_history_competitions = '${resultComps.id}'`)).results;
+
+        for(let resultMaps of resultsMaps) {
+            /** @type {Db.competition_history_scores[]} */
+            let resultsScores = (await query(`SELECT * FROM competition_history_scores 
+                WHERE id_competition_history_maps = '${resultMaps.id}'`)).results;
+
+            for(let resultScores of resultsScores) {
+                if(resultScores.user_rank !== 1) continue;
                 
-                champions.set(docScores.u, i);
+                champions.set(resultScores.user_id, i);
             }
         }
         i++;
@@ -724,11 +889,10 @@ async function buildScoreTally(guild, channel, session) {
  * @this Competition
  * Get the status embed
  * @param {Discord.Guild} guild
- * @param {Db.Competition.Main|null} docMain
- * @param {Db.Competition.Maps[]} docMaps
+ * @param {Db.competition_main|null} resultMain
  * @returns {Discord.MessageEmbed}
  */
-function getEmbedStatus(guild, docMain, docMaps) {
+function getEmbedStatus(guild, resultMain) {
     const locale = this.bot.locale;
 
     let embed = new Discord.MessageEmbed({
@@ -739,16 +903,16 @@ function getEmbedStatus(guild, docMain, docMaps) {
     embed.fields = [];
 
     embed.description += "Channel: "; 
-    if(docMain && docMain.c != null) {
-        let channel = guild.channels.resolve(docMain.c);
+    if(resultMain && resultMain.channel_id != null) {
+        let channel = guild.channels.resolve(resultMain.channel_id);
         embed.description += channel ? "<#" + channel.id + ">" : "no access";
     }
     else embed.description += "unset";
     
     embed.description += "\n";
     embed.description += "Status: ";
-    if(docMain) {
-        embed.description += docMain.ts ? "Started " + Bot.Util.getFormattedDate(docMain.ts, true) : "Not started";
+    if(resultMain) {
+        embed.description += resultMain.time_start ? "Started " + Bot.Util.getFormattedDate(resultMain.time_start, true) : "Not started";
     }
     else embed.description += "-";
 
@@ -943,25 +1107,26 @@ function getDifficultyEmoteFromMapData(mapData) {
 
 /**
  * @this Competition
- * @param {MongoWrapper.Session} session
+ * @param {SQLWrapper.Query} query
  * @param {Discord.Guild} guild
  * @param {string} game
  * @param {KCGameMapManager.MapLeaderboard} mapLeaderboard 
  * @returns {Promise<KCGameMapManager.MapLeaderboard>} New leaderboard without users that haven't registered on Discord.
  */
-async function getMapLeaderboardWithOnlyRegisteredUsers(session, guild, game, mapLeaderboard) {
+async function getMapLeaderboardWithOnlyRegisteredUsers(query, guild, game, mapLeaderboard) {
     /** @type {KCGameMapManager.MapLeaderboard} */
     const newLeaderboard = { ...mapLeaderboard }
     newLeaderboard.entries = [];
 
     let rank = 1;
     for(let entry of mapLeaderboard.entries) {
-        /** @type {Db.Competition.Register} */
-        let docReg = await this.bot.tdb.findOne(session, guild, "competition", "register", { }, { n: entry.user }, { });
-        if(docReg == null) continue;
+        /** @type {Db.competition_register} */
+        let resultRegister = (await query(`SELECT * FROM competition_register 
+            WHERE guild_id = '${guild.id}' AND user_name = '${entry.user}'`)).results[0];
+        if(resultRegister == null) continue;
 
         /** @type {void|Discord.GuildMember} */
-        let member = await guild.members.fetch(docReg.u).catch(() => {});
+        let member = await guild.members.fetch(resultRegister.user_id).catch(() => {});
 
         if(member == null) continue;
 
@@ -975,3 +1140,18 @@ async function getMapLeaderboardWithOnlyRegisteredUsers(session, guild, game, ma
 
     return newLeaderboard;
 };
+
+/**
+ * @param {Db.competition_maps|Db.competition_history_maps} resultMaps
+ * @returns {KCGameMapManager.MapScoreQueryData}
+ */
+function getMapScoreQueryDataFromDatabase(resultMaps) {
+    return {
+        game: resultMaps.game,
+        type: resultMaps.type,
+        id: resultMaps.map_id ?? undefined,
+        size: resultMaps.size ?? undefined,
+        complexity: resultMaps.complexity ?? undefined,
+        name: resultMaps.name ?? undefined
+    }
+}
