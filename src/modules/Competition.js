@@ -185,10 +185,10 @@ export default class Competition extends Bot.Module {
                         if(resultsHistoryMaps.length <= 0) {
                             await query(`INSERT INTO competition_history_maps (id, id_competition_history_competitions, game, type, map_id, size, complexity, name)
                                 VALUES ('${docMaps._id}', '${docMaps._cid}', '${docMaps.g}', '${docMaps.t}',
-                                ${docMaps.i ? `'${docMaps.i}'` : 'NULL'},
-                                ${docMaps.s2 ? `'${docMaps.s2}'` : 'NULL'},
-                                ${docMaps.c2 ? `'${docMaps.c2}'` : 'NULL'},
-                                ${docMaps.n2 ? `'${docMaps.n2}'` : 'NULL'})`);
+                                ${docMaps.i != null ? `'${docMaps.i}'` : 'NULL'},
+                                ${docMaps.s2 != null ? `'${docMaps.s2}'` : 'NULL'},
+                                ${docMaps.c2 != null ? `'${docMaps.c2}'` : 'NULL'},
+                                ${docMaps.n2 != null ? `'${docMaps.n2}'` : 'NULL'})`);
                         }
                     }
 
@@ -198,7 +198,7 @@ export default class Competition extends Bot.Module {
                             WHERE id = ${docScores._id}`)).results;
                         if(resultsHistoryScores.length <= 0) {
                             await query(`INSERT INTO competition_history_scores (id, id_competition_history_maps, user_rank, user_id, time, plays, score)
-                                VALUES ('${docScores._id}', '${docScores._mid}', '${docScores.r}', '${docScores.u}', '${docScores.t}', '${docScores.p}', ${docScores.s ? `'${docScores.s}'` : 'NULL'})`);
+                                VALUES ('${docScores._id}', '${docScores._mid}', '${docScores.r}', '${docScores.u}', '${docScores.t}', '${docScores.p}', ${docScores.s != null ? `'${docScores.s}'` : 'NULL'})`);
                         }
                     }
                 }).catch(logger.error);
