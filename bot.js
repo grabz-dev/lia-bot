@@ -155,5 +155,22 @@ core.on('ready', bot => {
             });
         }).catch(logger.error);
 
+        (() => {
+            const strings = [
+                'Under gel maintenance',
+                'Drifting through space',
+                'Looking over Skars'
+            ]
+            let update = () => {
+                if(core.client.user == null) return;
+    
+                core.client.user.setActivity({
+                    type: 'PLAYING',
+                    name: `| ${strings[Bot.Util.getRandomInt(0, strings.length)]}`
+                }).catch(logger.error);
+            }
+            update();
+            core.client.setTimeout(update, 1000 * 60 * 30);
+        })();
     })().catch(logger.error);
 });
