@@ -91,13 +91,7 @@ export default class Competition extends Bot.Module {
         this.games = ["pf", "cw3", "cw2"];
 
         this.bot.sql.transaction(async query => {
-            await query(`CREATE TABLE IF NOT EXISTS competition_register (
-                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                guild_id VARCHAR(64) NOT NULL,
-                user_id VARCHAR(64) NOT NULL,
-                game VARCHAR(16) NOT NULL,
-                user_name VARCHAR(128) NOT NULL
-             )`);
+            
 
             await query(`CREATE TABLE IF NOT EXISTS competition_main (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -158,14 +152,24 @@ export default class Competition extends Bot.Module {
                 plays SMALLINT UNSIGNED NOT NULL,
                 score MEDIUMINT UNSIGNED
              )`);
+
+            await query(`CREATE TABLE IF NOT EXISTS competition_register (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(64) NOT NULL,
+                user_id VARCHAR(64) NOT NULL,
+                game VARCHAR(16) NOT NULL,
+                user_name VARCHAR(128) NOT NULL
+             )`);
         }).then(() => {
             /** @type {any[]} */ var docsComps;
             /** @type {any[]} */ var docsMaps;
             /** @type {any[]} */ var docsScores;
+            /** @type {any[]} */ var docsRegister;
             this.bot.tdb.session(guild, 'competition', async session => {
                 docsComps = await this.bot.tdb.find(session, guild, 'competition', 'history.competitions', {}, {}, {});
                 docsMaps = await this.bot.tdb.find(session, guild, 'competition', 'history.maps', {}, {}, {});
                 docsScores = await this.bot.tdb.find(session, guild, 'competition', 'history.scores', {}, {}, {});
+                docsRegister = await this.bot.tdb.find(session, guild, 'competition', 'register', {}, {}, {});
             }).then(() => {
                 this.bot.sql.transaction(async query => {
                     for(let docComps of docsComps) {
@@ -200,6 +204,17 @@ export default class Competition extends Bot.Module {
                             await query(`INSERT INTO competition_history_scores (id, id_competition_history_maps, user_rank, user_id, time, plays, score)
                                 VALUES ('${docScores._id}', '${docScores._mid}', '${docScores.r}', '${docScores.u}', '${docScores.t}', '${docScores.p}', ${docScores.s != null ? `'${docScores.s}'` : 'NULL'})`);
                         }
+                    }
+
+                    for(let docRegister of docsRegister) {
+                        /** @type {Db.competition_history_maps[]} */
+                        let resultsRegister = (await query(`SELECT * FROM competition_register
+                            WHERE id = ${docRegister._id}`)).results;
+                        if(resultsRegister.length <= 0) {
+                            await query(`INSERT INTO competition_register (id, guild_id, user_id, game, user_name)
+                                VALUES ('${docRegister._id}', '${guild.id}', '${docRegister.u}', '${docRegister.g}', '${docRegister.n}')`);
+                        }
+                        
                     }
                 }).catch(logger.error);
             }).catch(logger.error);
