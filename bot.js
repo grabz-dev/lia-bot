@@ -33,13 +33,9 @@ core.on('ready', bot => {
             m.message.reply(`[:game_die: D${sides}] rolled \`${roll}\`!`).catch(logger.error);
         });
 
-        core.getModule((await import('./src/modules/Emotes.js')).default).then(emotes => {
-            core.addCommand({baseNames: 'emote', commandNames: null, categoryNames: [':diamond_shape_with_a_dot_inside: Core', 'core'], authorityLevel: 'MODERATOR'}, (message, args, arg) => {
-                return emotes.emote(message, args, arg, {});
-            });
-        }).catch(logger.error);
-
-        core.getModule((await import('./src/modules/Map.js')).default).then(map => {
+        /** @type {import('./src/modules/Map.js').default} */
+        const map = await core.getModule((await import('./src/modules/Map.js')).default);
+        (() => {
             const obj = {
                 categoryNames: [':game_die: Miscellaneous', 'miscellaneous', 'misc']
             }
@@ -52,6 +48,13 @@ core.on('ready', bot => {
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['bestof', 'month'], commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                 return map.land(message, args, arg, { action: 'bestof', kcgmm: kcgmm });
+            });
+        })();
+
+
+        core.getModule((await import('./src/modules/Emotes.js')).default).then(emotes => {
+            core.addCommand({baseNames: 'emote', commandNames: null, categoryNames: [':diamond_shape_with_a_dot_inside: Core', 'core'], authorityLevel: 'MODERATOR'}, (message, args, arg) => {
+                return emotes.emote(message, args, arg, {});
             });
         }).catch(logger.error);
 
@@ -152,6 +155,9 @@ core.on('ready', bot => {
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'wipe', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'unregister' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'map', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
+                return competition.land(message, args, arg, { action: 'map', kcgmm: kcgmm, map: map });
             });
         }).catch(logger.error);
 

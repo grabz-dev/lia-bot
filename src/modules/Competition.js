@@ -167,8 +167,9 @@ export default class Competition extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'register'|'unregister'|'set-channel'|'info'|'status'|'start'|'destroy'|'add-map'|'remove-map'|'update'|'build-tally'|'end'} ext.action - Custom parameters provided to function call.
+     * @param {'register'|'unregister'|'set-channel'|'info'|'status'|'start'|'destroy'|'add-map'|'remove-map'|'update'|'build-tally'|'end'|'map'} ext.action - Custom parameters provided to function call.
      * @param {KCGameMapManager} ext.kcgmm
+     * @param {import('./Map.js').default} ext.map
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
@@ -176,6 +177,7 @@ export default class Competition extends Bot.Module {
         case 'register':
         case 'add-map':
         case 'remove-map':
+        case 'map':
             let game = args[0];
             if(game == null)
                 return this.bot.locale.category("competition", "err_game_name_not_provided");
@@ -203,6 +205,9 @@ export default class Competition extends Bot.Module {
                 const mapQueryData = _data.data;
 
                 addMap.call(this, m, ext.action, game, mapQueryData, ext.kcgmm);
+                return;
+            case 'map':
+                map.call(this, m, ext.kcgmm, game, ext.map);
                 return;
             }
         case 'unregister':
@@ -248,6 +253,7 @@ export default class Competition extends Bot.Module {
         case 'end':
             end.call(this, m, ext.kcgmm);
             return;
+        case 'map':
         }
     }
     
@@ -750,10 +756,40 @@ function end(m, kcgmm) {
     }).catch(logger.error);
 }
 
+/**
+ * Get a random map that has not been featured yet in a previous competition.
+ * @this Competition
+ * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {KCGameMapManager} kcgmm
+ * @param {string} game
+ * @param {import('./Map.js').default} map
+ */
+function map(m, kcgmm, game, map) {
+    this.bot.sql.transaction(async query => {
+        let mapList = kcgmm.getMapListId(game);
+        if(!mapList) {
+            m.channel.send(this.bot.locale.category('competition', 'game_not_supported')).catch(logger.error);
+            return;
+        }
 
+        /** @type {Db.competition_history_maps[]} */
+        let resultsMaps = (await query(`SELECT * FROM competition_history_maps chm 
+            JOIN competition_history_competitions chc ON chc.id = chm.id_competition_history_competitions
+            WHERE chc.guild_id = '${m.guild.id}'
+            AND chm.game = '${game}'
+            AND chm.type = 'custom'`)).results;
 
+        for(let resultMaps of resultsMaps) {
+            if(resultMaps.map_id) mapList.delete(resultMaps.map_id);
+        }
 
+        let arr = [...mapList.keys()];
+        let id = arr[Bot.Util.getRandomInt(0, arr.length)];
 
+        let err = map.land(m, ['cw3', `${id}`], `cw3 ${id}`, { action: 'map', kcgmm: kcgmm });
+        if(err) m.channel.send(err).catch(logger.error);
+    }).catch(logger.error);
+}
 
 
 
