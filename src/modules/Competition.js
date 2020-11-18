@@ -786,7 +786,7 @@ function map(m, kcgmm, game, map) {
         let arr = [...mapList.keys()];
         let id = arr[Bot.Util.getRandomInt(0, arr.length)];
 
-        let err = map.land(m, ['cw3', `${id}`], `cw3 ${id}`, { action: 'map', kcgmm: kcgmm });
+        let err = map.land(m, [`${game}`, `${id}`], `${game} ${id}`, { action: 'map', kcgmm: kcgmm });
         if(err) m.channel.send(err).catch(logger.error);
     }).catch(logger.error);
 }

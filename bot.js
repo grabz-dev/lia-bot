@@ -176,7 +176,7 @@ core.on('ready', bot => {
                 }).catch(logger.error);
             }
             update();
-            core.client.setTimeout(update, 1000 * 60 * 30);
+            core.client.setInterval(update, 1000 * 60 * 30);
         })();
     })().catch(logger.error);
 });
