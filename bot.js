@@ -163,11 +163,17 @@ core.on('ready', bot => {
 
         (() => {
             const strings = [
-                'Under gel maintenance',
+                '[Gel maintenance]',
                 'Drifting through space',
-                'Looking over Skars'
+                'Looking over Skars',
+                'Maintaining ship',
+                'Installing OS updates',
+                'Anticipating destiny',
+                'Monitoring Earth'
             ]
             let update = () => {
+                core.client.setTimeout(update, Bot.Util.getRandomInt(1000 * 60 * 15, 1000 * 60 * 45));
+
                 if(core.client.user == null) return;
     
                 core.client.user.setActivity({
@@ -176,7 +182,6 @@ core.on('ready', bot => {
                 }).catch(logger.error);
             }
             update();
-            core.client.setInterval(update, 1000 * 60 * 30);
         })();
     })().catch(logger.error);
 });
