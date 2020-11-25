@@ -16,7 +16,7 @@ core.on('ready', bot => {
         kcgmm.fetch('cw4').catch(logger.error);
         kcgmm.fetch('pf').catch(logger.error);
         kcgmm.fetch('cw3').catch(logger.error);
-        //kcgmm.fetch('cw2').catch(logger.error);
+        kcgmm.fetch('cw2').catch(logger.error);
         
         setInterval(() => {
             kcgmm.fetch('cw4').catch(logger.error);
