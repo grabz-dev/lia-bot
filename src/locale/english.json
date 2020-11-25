@@ -19,7 +19,9 @@
             "bad_cw2_code_size": "The size parameter of this CW2 code map is not correct.",
             "no_cw2_code_complexity": "The complexity parameter of this CW2 code map wasn't specified.",
             "bad_cw2_code_complexity": "The complexity parameter of this CW2 code map is not correct.",
-            "no_cw2_code_name": "You must specify the name of the CW2 code map."
+            "no_cw2_code_name": "You must specify the name of the CW2 code map.",
+            "no_objective": "The map objective wasn't specified.",
+            "bad_objective": "Incorrect objective specified."
         },
         "emotes": {
             "err_game_name_not_provided": "You must provide the name of the game.",
@@ -171,11 +173,12 @@
         },
         "score": {
             "": [
-                "<n>!%name% <game> <type> <id>",
+                "<n>!%name% <game> <type> <id> <objective>",
                 "<v>Show score for a map.",
                 "<v>%space%<game> - pf, cw3, cw2",
                 "<v>%space%<type> - custom, dmd, code. If none is specified, assumes custom.",
                 "<v>%space%<id> - The map ID.",
+                "<v>%space%<objective> - CW4 only. The objective that must be completed.",
                 "<n>!%name% cw2 code <size> <complexity> <name>",
                 "<v>Show score for a CW2 code map.",
                 "<v>%space%<size> - The map size parameter.",
@@ -320,11 +323,11 @@
                 "%space%<id> - The user ID, or mention the user."
             ],
             "addmap": [
-                "!%name% <game> <type> <id>\n!%name% cw2 code <size> <complexity> <name>",
+                "!%name% <game> <type> <id> <objective>\n!%name% cw2 code <size> <complexity> <name>",
                 "Add a map to the current Competition. See `!help score`"
             ],
             "removemap": [
-                "!%name% <game> <type> <id>\n!%name% cw2 code <size> <complexity> <name>",
+                "!%name% <game> <type> <id> <objective>\n!%name% cw2 code <size> <complexity> <name>",
                 "Remove a map from the current Competition. See `!help score`"
             ],
             "buildtally": [

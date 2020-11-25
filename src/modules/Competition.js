@@ -23,7 +23,7 @@ import { KCUtil } from '../kc/KCUtil.js';
 
 /**
  * @typedef {object} Db.competition_maps
- * @property {object} id - Primary key
+ * @property {number} id - Primary key
  * @property {Discord.Snowflake} guild_id
  * @property {string} game - Game.
  * @property {string} type - Map type.
@@ -31,6 +31,7 @@ import { KCUtil } from '../kc/KCUtil.js';
  * @property {number|null} size - CW2 code map size.
  * @property {number|null} complexity - CW2 code map complexity.
  * @property {string|null} name - CW2 code map name.
+ * @property {number|null} objective - CW4 objective
  */
 
  /**
@@ -50,6 +51,7 @@ import { KCUtil } from '../kc/KCUtil.js';
  * @property {number|null} size - CW2 code map size.
  * @property {number|null} complexity - CW2 code map complexity.
  * @property {string|null} name - CW2 code map name.
+ * @property {number|null} objective - CW4 objective
  */
 
  /**
@@ -59,8 +61,11 @@ import { KCUtil } from '../kc/KCUtil.js';
  * @property {number} user_rank - Player rank.
  * @property {Discord.Snowflake} user_id - User snowflake.
  * @property {number} time - User time.
- * @property {number} plays - User plays.
+ * @property {number|null} plays - User plays.
  * @property {number|null} score - User score. Not applicable for Particle Fleet.
+ * @property {number|null} eco - CW4 eco.
+ * @property {number|null} unitsBuilt - CW4 unitsBuilt.
+ * @property {number|null} unitsLost - CW4 unitsLost.
  */
 
  /**
@@ -80,6 +85,13 @@ import { KCUtil } from '../kc/KCUtil.js';
  * @property {Discord.Snowflake} message_id - Message snowflake.
  */
 
+//ALTER TABLE competition_maps ADD objective TINYINT UNSIGNED;
+//ALTER TABLE competition_history_maps ADD objective TINYINT UNSIGNED;
+//ALTER TABLE competition_history_scores MODIFY plays SMALLINT UNSIGNED;
+//ALTER TABLE competition_history_scores ADD eco INT;
+//ALTER TABLE competition_history_scores ADD unitsBuilt INT;
+//ALTER TABLE competition_history_scores ADD unitsLost INT;
+
 export default class Competition extends Bot.Module {
     /**
      * @constructor
@@ -88,7 +100,7 @@ export default class Competition extends Bot.Module {
     constructor(bot) {
         super(bot);
 
-        this.games = ["pf", "cw3", "cw2"];
+        this.games = ["cw4", "pf", "cw3", "cw2"];
 
         this.bot.sql.transaction(async query => {
             
@@ -116,7 +128,8 @@ export default class Competition extends Bot.Module {
                 map_id MEDIUMINT UNSIGNED,
                 size TINYINT UNSIGNED,
                 complexity TINYINT UNSIGNED,
-                name VARCHAR(128)
+                name VARCHAR(128),
+                objective TINYINT UNSIGNED
              )`);
 
             await query(`CREATE TABLE IF NOT EXISTS competition_history_competitions (
@@ -133,7 +146,8 @@ export default class Competition extends Bot.Module {
                 map_id MEDIUMINT UNSIGNED,
                 size TINYINT UNSIGNED,
                 complexity TINYINT UNSIGNED,
-                name VARCHAR(128)
+                name VARCHAR(128),
+                objective TINYINT UNSIGNED
              )`);
 
             await query(`CREATE TABLE IF NOT EXISTS competition_history_scores (
@@ -142,8 +156,11 @@ export default class Competition extends Bot.Module {
                 user_rank SMALLINT UNSIGNED NOT NULL,
                 user_id VARCHAR(64) NOT NULL,
                 time BIGINT UNSIGNED NOT NULL,
-                plays SMALLINT UNSIGNED NOT NULL,
-                score MEDIUMINT UNSIGNED
+                plays SMALLINT UNSIGNED,
+                score MEDIUMINT UNSIGNED,
+                eco INT,
+                unitsBuilt INT,
+                unitsLost INT
              )`);
 
             await query(`CREATE TABLE IF NOT EXISTS competition_register (
@@ -307,7 +324,7 @@ export default class Competition extends Bot.Module {
             for(let resultMaps of resultsMaps) {
                 let map = getMapScoreQueryDataFromDatabase(resultMaps);
 
-                const fullMapLeaderboard = await kcgmm.getMapScores(map, "specialevent");
+                const fullMapLeaderboard = await kcgmm.getMapScores(map, undefined, "specialevent");
                 const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(query, guild, map.game, fullMapLeaderboard);
                 const emote = (emotes && map.game && emotes[map.game]) ? emotes[map.game] : ":map:";
                 let embed = embeds.get(map.game);
@@ -567,14 +584,13 @@ function addMap(m, type, game, msqd, kcgmm) {
         AND map_id ${msqd.id == null ? 'IS NULL' : `= '${msqd.id}'`}
         AND size ${msqd.size == null ? 'IS NULL' : `= '${msqd.size}'`}
         AND complexity ${msqd.complexity == null ? 'IS NULL' : `= '${msqd.complexity}'`}
-        AND name ${msqd.name == null ? 'IS NULL' : `= '${msqd.name}'`}`;
+        AND name ${msqd.name == null ? 'IS NULL' : `= '${msqd.name}'`}
+        AND objective ${msqd.objective == null ? 'IS NULL' : `= '${msqd.objective}'`}`;
 
         switch(type) {
         case "remove-map":
             /** @type {Db.competition_maps[]} */
             var resultsMaps = (await query(`SELECT * FROM competition_maps ${sqlWhere}`)).results;
-
-            console.log(resultsMaps, `SELECT * FROM competition_maps ${sqlWhere}`);
 
             if(resultsMaps.length <= 0) {
                 await m.message.reply(this.bot.locale.category("competition", "removemap_not_added"));
@@ -602,18 +618,20 @@ function addMap(m, type, game, msqd, kcgmm) {
                 AND chm.map_id ${msqd.id == null ? 'IS NULL' : `= '${msqd.id}'`}
                 AND chm.size ${msqd.size == null ? 'IS NULL' : `= '${msqd.size}'`}
                 AND chm.complexity ${msqd.complexity == null ? 'IS NULL' : `= '${msqd.complexity}'`}
-                AND chm.name ${msqd.name == null ? 'IS NULL' : `= '${msqd.name}'`}`)).results;
+                AND chm.name ${msqd.name == null ? 'IS NULL' : `= '${msqd.name}'`}
+                AND chm.objective ${msqd.objective == null ? 'IS NULL' : `= '${msqd.objective}'`}`)).results;
             if(resultsHistoryMaps.length > 0) {
                 await m.message.reply(this.bot.locale.category("competition", "addmap_already_in_history"));
                 return;
             }
 
-            await query(`INSERT INTO competition_maps (guild_id, game, type, map_id, size, complexity, name)
+            await query(`INSERT INTO competition_maps (guild_id, game, type, map_id, size, complexity, name, objective)
                 VALUES('${m.guild.id}', '${game}', '${msqd.type}', 
                     ${msqd.id == null ? 'NULL' : `'${msqd.id}'`}, 
                     ${msqd.size == null ? 'NULL' : `'${msqd.size}'`}, 
                     ${msqd.complexity == null ? 'NULL' : `'${msqd.complexity}'`}, 
-                    ${msqd.name == null ? 'NULL' : `'${msqd.name}'`}
+                    ${msqd.name == null ? 'NULL' : `'${msqd.name}'`},
+                    ${msqd.objective == null ? 'NULL' : `'${msqd.objective}'`}
                 )`);
 
             await m.message.reply(this.bot.locale.category("competition", "addmap_success"));
@@ -710,7 +728,7 @@ function end(m, kcgmm) {
         for(let resultMaps of resultsMaps) {
             let map = getMapScoreQueryDataFromDatabase(resultMaps);
 
-            const fullMapLeaderboard = await kcgmm.getMapScores(map, "specialevent");
+            const fullMapLeaderboard = await kcgmm.getMapScores(map, undefined, "specialevent");
             const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(query, m.guild, map.game, fullMapLeaderboard);
             
             maps.set(resultMaps, registeredMapLeaderboard);
@@ -733,17 +751,22 @@ function end(m, kcgmm) {
             VALUES ('${m.guild.id}', '${now}')`)).results;
 
         for(let map of maps.keys()) {
-            let insertMaps = (await query(`INSERT INTO competition_history_maps (id_competition_history_competitions, game, type, map_id, size, complexity, name)
+            let insertMaps = (await query(`INSERT INTO competition_history_maps (id_competition_history_competitions, game, type, map_id, size, complexity, name, objective)
             VALUES ('${insertComps.insertId}', '${map.game}', '${map.type}',
-            ${map.map_id ? `'${map.map_id}'` : 'NULL'},
-            ${map.size ? `'${map.size}'` : 'NULL'},
-            ${map.complexity ? `'${map.complexity}'` : 'NULL'},
-            ${map.name ? `'${map.name}'` : 'NULL'})`)).results;
+            ${map.map_id != null ? `'${map.map_id}'` : 'NULL'},
+            ${map.size != null ? `'${map.size}'` : 'NULL'},
+            ${map.complexity != null ? `'${map.complexity}'` : 'NULL'},
+            ${map.name != null ? `'${map.name}'` : 'NULL'},
+            ${map.objective != null ? `'${map.objective}'` : 'NULL'})`)).results;
 
-            let scores = /** @type {KCGameMapManager.MapLeaderboard} */(maps.get(map));
-            for(let score of scores.entries) {
-                let insertScores = (await query(`INSERT INTO competition_history_scores (id_competition_history_maps, user_rank, user_id, time, plays, score)
-                VALUES ('${insertMaps.insertId}', '${score.rank}', '${score.user}', '${score.time}', '${score.plays}', ${score.score ? `'${score.score}'` : 'NULL'})`)).results;
+            let leaderboard = /** @type {KCGameMapManager.MapLeaderboard} */(maps.get(map));
+            let entries = leaderboard.entries[map.objective == null ? 0 : map.objective];
+            if(entries) {
+                for(let score of entries) {
+                    console.log(score);
+                    let insertScores = (await query(`INSERT INTO competition_history_scores (id_competition_history_maps, user_rank, user_id, time, plays, score, eco, unitsBuilt, unitsLost)
+                    VALUES ('${insertMaps.insertId}', '${score.rank}', '${score.user}', '${score.time}', ${score.plays != null ? `'${score.plays}'` : 'NULL'}, ${score.score != null ? `'${score.score}'` : 'NULL'}, ${score.eco != null ? `'${score.eco}'` : 'NULL'}, ${score.unitsBuilt != null ? `'${score.unitsBuilt}'` : 'NULL'}, ${score.unitsLost != null ? `'${score.unitsLost}'` : 'NULL'})`)).results;
+                }
             }
         }
 
@@ -1025,30 +1048,34 @@ async function getEmbedFieldFromMapData(guild, locale, mapLeaderboard, mapScoreQ
                 break;
             }
             name += `: #${mapData.id}`;
-            value = `${mapData.title} (by ${mapData.author})\n`;
+            value = `${mapData.title} __by ${mapData.author}__\n`;
             value += `${getDifficultyStringFromMapData(mapData)}, ${mapData.width}x${mapData.height}`;
             break;
     }
 
-    value += "```";
-    for(let i = 0; i < mapLeaderboard.entries.length; i++) {
-        const entry = mapLeaderboard.entries[i];
-        if(i > 9) {
-            value += (mapLeaderboard.entries.length - i + 1) + " more scores...";
-            break;
+    
+    const entries = mapScoreQueryData.objective == null ? mapLeaderboard.entries[0] : mapLeaderboard.entries[mapScoreQueryData.objective];
+    if(entries != null) {
+        value += "```";
+        for(let i = 0; i < entries.length; i++) {
+            let entry = entries[i];
+            if(i > 9) {
+                value += (mapLeaderboard.entries.length - i + 1) + " more scores...";
+                break;
+            }
+
+            value += "#" + Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true);
+            value += Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 7, "⠀", false);
+
+            /** @type {void|Discord.GuildMember} */
+            let member = await guild.members.fetch(entry.user).catch(() => {});
+
+            value += " " + (member ? member.nickname || member.user.username : entry.user).substring(0, 17) + "\n";
         }
-
-        value += "#" + Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true);
-        value += Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 7, "⠀", false);
-
-        /** @type {void|Discord.GuildMember} */
-        let member = await guild.members.fetch(entry.user).catch(() => {});
-
-        value += " " + (member ? member.nickname || member.user.username : entry.user).substring(0, 17) + "\n";
-    }
-    if(mapLeaderboard.entries.length === 0)
-        value += "No scores yet!";
-    value += "```";
+        if(entries.length <= 0)
+            value += "No scores yet!";
+        value += "```";
+    }    
 
     value = value.substring(0, KCUtil.embedLimits.fieldValue);
 
@@ -1065,14 +1092,17 @@ async function getEmbedFieldFromMapData(guild, locale, mapLeaderboard, mapScoreQ
  * @returns {string}
  */
 function getDifficultyStringFromMapData(mapData) {
-    if(mapData.scores) {
+    if(mapData.scores && mapData.downloads) {
         let ratio = mapData.scores / mapData.downloads;
         let percentage = Math.floor(ratio * 100) + "%";
         let str = `${percentage} clears`;
         return str;
     }
-    
-    return `{${mapData.downloads}} downloads`;
+
+    if(mapData.upvotes)
+        return `${mapData.upvotes} thumbsup`;
+
+    return 'difficulty indeterminable';
 }
 
 /**
@@ -1081,7 +1111,7 @@ function getDifficultyStringFromMapData(mapData) {
  * @returns {string}
  */
 function getDifficultyEmoteFromMapData(mapData) {
-    if(mapData.scores == null)
+    if(mapData.scores == null || mapData.downloads == null)
         return `:book:`;
 
     let ratio = mapData.scores / mapData.downloads;
@@ -1105,31 +1135,38 @@ function getDifficultyEmoteFromMapData(mapData) {
  * @returns {Promise<KCGameMapManager.MapLeaderboard>} New leaderboard without users that haven't registered on Discord.
  */
 async function getMapLeaderboardWithOnlyRegisteredUsers(query, guild, game, mapLeaderboard) {
-    /** @type {KCGameMapManager.MapLeaderboard} */
-    const newLeaderboard = { ...mapLeaderboard }
-    newLeaderboard.entries = [];
+    /** @type {KCGameMapManager.MapLeaderboardEntry[][]} */
+    const newEntries = [];
 
-    let rank = 1;
-    for(let entry of mapLeaderboard.entries) {
-        /** @type {Db.competition_register} */
-        let resultRegister = (await query(`SELECT * FROM competition_register 
-            WHERE guild_id = '${guild.id}' AND user_name = '${entry.user}'`)).results[0];
-        if(resultRegister == null) continue;
+    for(let i = 0; i < mapLeaderboard.entries.length; i++) {
+        let oldEntries = mapLeaderboard.entries[i];
+        if(oldEntries == null) continue;
+        newEntries[i] = [];
 
-        /** @type {void|Discord.GuildMember} */
-        let member = await guild.members.fetch(resultRegister.user_id).catch(() => {});
+        let rank = 1;
+        for(let entry of oldEntries) {
+            /** @type {Db.competition_register} */
+            let resultRegister = (await query(`SELECT * FROM competition_register 
+            WHERE guild_id = '${guild.id}' AND user_name = '${entry.user}' AND game = '${game}'`)).results[0];
+            if(resultRegister == null) continue;
 
-        if(member == null) continue;
+            /** @type {void|Discord.GuildMember} */
+            let member = await guild.members.fetch(resultRegister.user_id).catch(() => {});
 
-        let newEntry = { ...entry };
-        newEntry.user = member.id;
-        newEntry.rank = rank;
-        rank++;
+            if(member == null) continue;
 
-        newLeaderboard.entries.push(newEntry);
+            let newEntry = { ...entry };
+            newEntry.user = member.id;
+            newEntry.rank = rank;
+            rank++;
+
+            newEntries[i].push(newEntry);
+        }
     }
 
-    return newLeaderboard;
+    return {
+        entries: newEntries
+    }
 };
 
 /**
@@ -1143,6 +1180,7 @@ function getMapScoreQueryDataFromDatabase(resultMaps) {
         id: resultMaps.map_id ?? undefined,
         size: resultMaps.size ?? undefined,
         complexity: resultMaps.complexity ?? undefined,
-        name: resultMaps.name ?? undefined
+        name: resultMaps.name ?? undefined,
+        objective: resultMaps.objective ?? undefined,
     }
 }

@@ -6,7 +6,6 @@ import Discord from 'discord.js';
 import xml2js from 'xml2js';
 import { HttpRequest } from '../../utils/HttpRequest.js';
 import { KCLocaleManager } from '../../kc/KCLocaleManager.js';
-import { KCUtil } from '../KCUtil.js';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 
@@ -45,7 +44,6 @@ export async function fetchMapsDefault(game) {
             title: map.l[0],
             width: +map.w[0],
             height: +map.h[0],
-            downloads: +map.o[0],
             timestamp: +(map.t[0]+'000')
         }
 
@@ -54,7 +52,8 @@ export async function fetchMapsDefault(game) {
         if(game === 'cw4') {
             obj = Object.assign(Object.assign({}, shared), {
                 upvotes: +map.b[0],
-                tags: (map.s[0]+'').split(',')
+                tags: (map.s[0]+'').split(','),
+                objectives: +map.o[0],
             });
         }
         //Fill CW3 and PF game properties
@@ -64,11 +63,12 @@ export async function fetchMapsDefault(game) {
                 scores: +map.s[0],
                 rating: +map.r[0],
                 ratings: +map.n[0],
+                downloads: +map.o[0]
             });
         }
 
         //Get month the map was uploaded in
-        const date = KCUtil.getDateFlooredToMonth(new Date(obj.timestamp));
+        const date = this.getDateFlooredToMonth(new Date(obj.timestamp));
         const time = date.getTime();
         if(temp.month[time] == null) temp.month[time] = [];
 

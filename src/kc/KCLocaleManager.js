@@ -10,7 +10,7 @@ const config = {
         "cw4": "creeperworld4"
     },
     
-    /** @type {Object.<string, Object.<string, { display: string, aliases: string[] }>>} */
+    /** @type {Object.<string, Object.<string, { display: string, aliases?: string[] }>>} */
     "namedef": {
         "game" : {
             "chopraider" : {
@@ -70,31 +70,21 @@ const config = {
                 "aliases": ["2", "high", "h", "hi", "hig"]
             }
         },
+        "cw4_objectives" : {
+            "0": { "display": "Nullify", "aliases": ["nullify", "n", "0"] },
+            "1": { "display": "Totems", "aliases": ["totems", "t", "1"] },
+            "2": { "display": "Reclaim", "aliases": ["reclaim", "r", "2"] },
+            "3": { "display": "Hold", "aliases": ["hold", "h", "3"] },
+            "4": { "display": "Collect", "aliases": ["collect", "c", "4"] },
+            "5": { "display": "Custom", "aliases": ["custom", "c", "5"] }
+        },
         "map_mode_custom" : {
-            "cw2_custom" : {
-                "display": "Custom",
-                "aliases": []
-            },
-            "cw2_code": {
-                "display": "Code",
-                "aliases": []
-            },
-            "cw3_custom" : {
-                "display": "Colonial Space",
-                "aliases": []
-            },
-            "cw3_dmd" : {
-                "display": "DMD",
-                "aliases": []
-            },
-            "pf_custom" : {
-                "display": "Exchange",
-                "aliases": []
-            },
-            "cw4_custom" : {
-                "display": "Farsite Colonies",
-                "aliases": []
-            }
+            "cw2_custom" : { "display": "Custom" },
+            "cw2_code": { "display": "Code" },
+            "cw3_custom" : { "display": "Colonial Space" },
+            "cw3_dmd" : { "display": "DMD" },
+            "pf_custom" : { "display": "Exchange" },
+            "cw4_custom" : { "display": "Farsite Colonies" }
         }
     },
 }
@@ -104,7 +94,7 @@ export function KCLocaleManager() {}
 
 /**
  * Get the display name from an alias.
- * @param {"game"|"cw2_code_map_size"|"cw2_code_map_complexity"|"map_mode_custom"} category - The namedef category.
+ * @param {"game"|"cw2_code_map_size"|"cw2_code_map_complexity"|"cw4_objectives"|"map_mode_custom"} category - The namedef category.
  * @param {string} str - An alias name.
  * @returns {string} The display name.
  */
@@ -128,7 +118,7 @@ KCLocaleManager.getDisplayNameFromAlias = function(category, str) {
 
 /**
  * Get the primary alias from any alias.
- * @param {"game"|"cw2_code_map_size"|"cw2_code_map_complexity"|"map_mode_custom"} category - The namedef category.
+ * @param {"game"|"cw2_code_map_size"|"cw2_code_map_complexity"|"cw4_objectives"|"map_mode_custom"} category - The namedef category.
  * @param {string} str - An alias to convert to the primary alias.
  * @returns {string | null} The primary alias.
  */
@@ -141,8 +131,10 @@ KCLocaleManager.getPrimaryAliasFromAlias = function(category, str) {
     str = str.replace(/[^a-z0-9_]+/gi, "");
 
     for(let def in defs) {
-        for(let i = 0; i < defs[def].aliases.length; i++)
-            if(str === defs[def].aliases[i])
+        let obj = defs[def];
+        if(obj.aliases == null) continue;
+        for(let i = 0; i < obj.aliases.length; i++)
+            if(str === obj.aliases[i])
                 return def;
     }
     

@@ -4,6 +4,7 @@
 /** @typedef {import('../kc/KCGameMapManager.js').KCGameMapManager} KCGameMapManager */
 /** @typedef {import('../kc/KCGameMapManager.js').MapData} KCGameMapManager.MapData */
 /** @typedef {import('../kc/KCGameMapManager.js').MapScoreQueryData} KCGameMapManager.MapScoreQueryData */
+/** @typedef {import('../kc/KCGameMapManager.js').MapLeaderboardEntry} KCGameMapManager.MapLeaderboardEntry */
 
 import Discord from 'discord.js';
 import * as Bot from 'discord-bot-core';
@@ -73,7 +74,7 @@ export default class Map extends Bot.Module {
                 args.splice(0, 1);
                 let timestamp = Date.parse(args.join(' ')) + (1000*60*60*24);
                 if(Number.isNaN(timestamp)) return this.bot.locale.category("mapdata", "err_date_invalid");
-                let date = KCUtil.getDateFlooredToMonth(new Date(timestamp));
+                let date = ext.kcgmm.getDateFlooredToMonth(new Date(timestamp));
 
                 let maps = ext.kcgmm.getMapListMonth(game, date.getTime());
                 if(maps == null)
@@ -85,9 +86,9 @@ export default class Map extends Bot.Module {
         case 'score':
             const _data = ext.kcgmm.getMapQueryObjectFromCommandParameters(args);
             if(_data.err) return _data.err;
-            const mapQueryData = _data.data;
+            const msqd = _data.data;
 
-            score.call(this, m, mapQueryData, ext.kcgmm).catch(logger.error);
+            score.call(this, m, msqd, ext.kcgmm).catch(logger.error);
             return;
         default:
             return;
@@ -115,7 +116,7 @@ async function map(m, game, id, kcgmm) {
     if(mapList != null) {
         let mapData = mapList.get(id);
         if(mapData) {
-            m.channel.send({ embed:getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game) }).catch(logger.error);
+            m.channel.send({ embed:getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm) }).catch(logger.error);
             return;
         }
     }
@@ -135,10 +136,10 @@ async function map(m, game, id, kcgmm) {
             let mapData = mapList.get(id);
             if(!mapData)
                 message.edit(this.bot.locale.category('mapdata', 'search_result_not_found')).catch(logger.error);
-            else
-                message.edit('', {
-                    embed: getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game)
-                }).catch(logger.error);
+            else {
+                message.delete();
+                m.channel.send({ embed:getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm) }).catch(logger.error);
+            }
         })().catch(e => {
             logger.info(e);
             message.edit(this.bot.locale.category('mapdata', 'search_result_too_fast')).catch(logger.error);
@@ -170,21 +171,27 @@ async function score(m, mapQueryData, kcgmm) {
         inline: false,
     }
 
+    const groupName = mapQueryData.game === 'cw4' ? 'specialevent' : undefined;
+
     if(mapQueryData.id)
         field.name += `: #${mapQueryData.id}`;
     else if(mapQueryData.type === 'code')
         field.name += `: \`${mapQueryData.name}\` S:${mapQueryData.size} C:${mapQueryData.complexity}`;
 
-    let entries = 15;
-    let leaderboard = await kcgmm.getMapScores(mapQueryData);
+    let max = 15;
+    let leaderboard = await kcgmm.getMapScores(mapQueryData, undefined, groupName);
+    /** @type {KCGameMapManager.MapLeaderboardEntry[]|null} */
+    let entries = leaderboard.entries[mapQueryData.objective??0];
+    if(entries == null) throw new Error("No leaderboards");
+
     let longest = 0;
-    for(let i = 0; i < Math.min(15, leaderboard.entries.length); i++) {
-        const entry = leaderboard.entries[i];
+    for(let i = 0; i < Math.min(max, entries.length); i++) {
+        const entry = entries[i];
         if(entry.user.length > longest) longest = entry.user.length;
     }
 
-    for(let i = 0; i < Math.min(15, leaderboard.entries.length); i++) {
-        const entry = leaderboard.entries[i];
+    for(let i = 0; i < Math.min(max, entries.length); i++) {
+        const entry = entries[i];
         if(i > 0) field.value += '\n';
         field.value += Bot.Util.String.fixedWidth(`#${entry.rank}`, 3, ' ') + ' ';
         field.value += Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 9, ' ') + ' ';
@@ -192,6 +199,16 @@ async function score(m, mapQueryData, kcgmm) {
     }
     field.value = '```\n' + Bot.Util.String.fixedWidth('', longest + 18, ' ') + '\n' + field.value;
     field.value += '\n```';
+
+    if(mapQueryData.game === 'cw4') field.value = `Objective: ${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapQueryData.objective+'')}\n` + field.value;
+    if(groupName != null) field.value = `Group Filter: ${groupName}\n` + field.value;
+    if(mapQueryData.id) {
+        const map = kcgmm.getMapListId(mapQueryData.game)?.get(mapQueryData.id);
+        if(map) {
+            field.value = `${map.title} __by ${map.author}__\n\n` + field.value;
+        }
+    }
+
     embed.fields[0] = field;
     m.channel.send({ embed: embed }).catch(logger.error);
 }
@@ -265,9 +282,10 @@ async function bestof(m, game, date, maps) {
  * @param {string} emoteStr 
  * @param {Discord.Guild} guild 
  * @param {string} game 
+ * @param {KCGameMapManager} kcgmm
  * @returns {Discord.MessageEmbed}
  */
-function getMapMessageEmbed(mapData, emoteStr, guild, game) {
+function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
     let emoteId = Bot.Util.getSnowflakeFromDiscordPing(emoteStr);
     let emote = emoteId ? guild.emojis.resolve(emoteId) : null;
 
@@ -299,11 +317,17 @@ function getMapMessageEmbed(mapData, emoteStr, guild, game) {
     str += '\n';
 
     //Scores/Downloads
-    if(typeof mapData.scores === 'number')
+    if(mapData.scores != null && mapData.downloads != null) {
         str += `Scores/Downloads: ${mapData.scores} : ${mapData.downloads} (${Math.round(mapData.scores / mapData.downloads * 1000) / 1000})`;
-    else
-        str += `Downloads: ${mapData.downloads}`;
-    str += '\n';
+        str += '\n';
+    }
+
+    //Objectives
+    if(mapData.game === 'cw4' && mapData.objectives != null) {
+        str += `Objectives: ${kcgmm.getCW4ObjectivesArray(mapData.objectives).reduce((acc, v, i) => acc += v ? KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', i+'') + ', ' : '', '')}`;
+        str = str.substring(0, str.length - 2);
+        str += '\n';
+    }
 
     //Rating/Upvotes/Downvotes
     if(game === 'cw2')

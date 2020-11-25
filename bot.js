@@ -16,7 +16,7 @@ core.on('ready', bot => {
         kcgmm.fetch('cw4').catch(logger.error);
         kcgmm.fetch('pf').catch(logger.error);
         kcgmm.fetch('cw3').catch(logger.error);
-        kcgmm.fetch('cw2').catch(logger.error);
+        //kcgmm.fetch('cw2').catch(logger.error);
         
         setInterval(() => {
             kcgmm.fetch('cw4').catch(logger.error);
@@ -77,7 +77,7 @@ core.on('ready', bot => {
                 return experience.get(message, args, arg, { kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['leaders', 'leaderboard', 'leaderboards'], authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
-                return experience.leaderboard(message, args, arg, {});
+                return experience.leaderboard(message, args, arg, { kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'wipe', authorityLevel: null}), (message, args, arg) => {
                 return experience.wipe(message, args, arg, {});

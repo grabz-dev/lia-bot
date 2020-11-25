@@ -34,21 +34,6 @@ export const KCUtil = Object.freeze({
         return str[0] + ':' + str[1];
     },
     /**
-     * Floor a date to its month. Does not modify original object.
-     * e.g. Nov 14 2020 04:12:45 becomes Nov 01 2020 00:00:00
-     * @param {Date} date
-     * @returns {Date}
-     */
-    getDateFlooredToMonth : function(date) {
-        date = new Date(date);
-        date.setUTCDate(1);
-        date.setUTCHours(0);
-        date.setUTCMinutes(0);
-        date.setUTCSeconds(0);
-        date.setUTCMilliseconds(0);
-        return date;
-    },
-    /**
      * Get string month from date e.g. January, February
      * @param {Date} date 
      * @returns {string}
