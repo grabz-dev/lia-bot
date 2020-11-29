@@ -60,7 +60,7 @@
             "register_confirm": "Are you sure you want to register with the name `%0` for %1? This has to be the name you use for the leaderboards. This name cannot be changed later without losing your progress.\n\nType the command again with your name to confirm, or use a different name to try again.",
             "register_success": "You are now registered as `%0` for %1. Have fun!\n\nTo get your first set of maps to complete, type `!exp new %2`",
             "leaderboard_empty": "Nothing to show.",
-            "leaderboard_title": "%0 leaderboards!"
+            "leaderboard_title": "%0 leaderboards:"
         },
         "mapdata": {
             "err_game_name_not_provided": "You must provide the name of the game.",

@@ -235,7 +235,7 @@ export default class Experience extends Bot.Module {
                 return;
             }
 
-            /** @type {{resultUser: any, total: Experience.ExpData}[]} */
+            /** @type {{resultUser: Db.experience_users, total: Experience.ExpData}[]} */
             let leaders = [];
             for(let resultUser of resultsUsers) {
                 if(!m.guild.members.cache.get(resultUser.user_id)) continue;
@@ -263,24 +263,29 @@ export default class Experience extends Bot.Module {
                 if(result) emote = result.emote;
             }).catch(logger.error);
 
-            let msgStr = emote + ' ' + this.bot.locale.category('experience', 'leaderboard_title', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown') + '\n\n';
+
+            let embed = getEmbedTemplate(m.member);
+            embed.color = KCUtil.gameEmbedColors[game];
+            embed.description = `${emote} ${this.bot.locale.category('experience', 'leaderboard_title', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')}\n`;
+            let msgStr = '';
 
             let selfFound = false;
-            for(let i = 0; i < Math.min(10, leaders.length); i++) {
+            for(let i = 0; i < Math.min(9, leaders.length); i++) {
                 let leader = leaders[i];
 
                 switch(i) {
-                    case 0: msgStr += ':first_place: '; break;
-                    case 1: msgStr += ':second_place: '; break;
-                    case 2: msgStr += ':third_place: '; break;
-                    case 3: msgStr += ':chocolate_bar: '; break;
-                    default: msgStr += ':small_blue_diamond: ';
+                    case 0: msgStr += '🥇 '; break;
+                    case 1: msgStr += '🥈 '; break;
+                    case 2: msgStr += '🥉 '; break;
+                    case 3: msgStr += '🍫 '; break;
+                    default: msgStr += '🍬 ';
                 }
 
-                msgStr += (i + 1) < 10 ? '  ' : '';
-                msgStr += '`#' + (i + 1) + '` - ';
+                let member = m.guild.members.resolve(leader.resultUser.user_id);
+
+                msgStr += `\`#${i+1}\``;
                 msgStr += getFormattedXPBarString('', leader.total, this.expBarLength);
-                msgStr += ' - <@' + leader.resultUser.user_id + '>\n';
+                msgStr += ` ${member ? member.nickname ?? member.user.username : leader.resultUser.user_name}\n`;
 
                 if(resultUsers && leader.resultUser.user_id === resultUsers.user_id)
                     selfFound = true;
@@ -294,14 +299,13 @@ export default class Experience extends Bot.Module {
                 msgStr += '\n:small_blue_diamond: ';
 
                 let expData = getExpDataFromMapsBeaten(getMapsParsed(mapListId, resultsMaps), ext.kcgmm);
-                msgStr += '`#' + (leaders.findIndex(v => v.resultUser.user_id === resultUsers.user_id) + 1) + '` - ';
-                msgStr += getFormattedXPBarString('', expData, this.expBarLength);
-                msgStr += ' - <@' + resultUsers.user_id + '>\n';
-            }
 
-            m.channel.send('...').then(message => {
-                message.edit(msgStr).catch(logger.error);
-            }).catch(logger.error);
+                msgStr += `\`#${leaders.findIndex(v => v.resultUser.user_id === resultUsers.user_id)+1}\``;
+                msgStr += getFormattedXPBarString('', expData, this.expBarLength);
+                msgStr += ` ${m.member.nickname ?? m.member.user.username}\n`;
+            }
+            embed.description += msgStr;
+            m.channel.send({embed: embed}).catch(logger.error);
         });
     }
 
@@ -317,8 +321,11 @@ export default class Experience extends Bot.Module {
     exp(m, args, arg, ext) {
         /** @type {string|undefined} */
         let game = args[0];
-        if(game != null)
-            game = KCLocaleManager.getPrimaryAliasFromAlias('game', game) || undefined;
+        if(game != null) {
+            game = KCLocaleManager.getPrimaryAliasFromAlias('game', game) ?? '';
+            if(game.length === 0 || !this.games.includes(game))
+                game = undefined;
+        }
 
         let embed = getEmbedTemplate(m.member);
 
