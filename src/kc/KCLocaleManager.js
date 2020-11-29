@@ -84,7 +84,7 @@ const config = {
             "cw3_custom" : { "display": "Colonial Space" },
             "cw3_dmd" : { "display": "DMD" },
             "pf_custom" : { "display": "Exchange" },
-            "cw4_custom" : { "display": "Farsite Colonies" }
+            "cw4_custom" : { "display": "Colonies" }
         }
     },
 }

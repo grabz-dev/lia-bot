@@ -315,6 +315,11 @@ export default class Experience extends Bot.Module {
     * @returns {string | void} undefined if finished correctly, string if an error is thrown.
     */
     exp(m, args, arg, ext) {
+        /** @type {string|undefined} */
+        let game = args[0];
+        if(game != null)
+            game = KCLocaleManager.getPrimaryAliasFromAlias('game', game) || undefined;
+
         let embed = getEmbedTemplate(m.member);
 
         this.bot.sql.transaction(async query => {
@@ -329,7 +334,11 @@ export default class Experience extends Bot.Module {
                 emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
             }).catch(logger.error);
 
-            for(let game of this.games) {
+            const games = game == null ? this.games : [game];
+            if(games.length === 1)
+                embed.color = KCUtil.gameEmbedColors[games[0]];
+
+            for(let game of games) {
                 const mapListId = ext.kcgmm.getMapListId(game);
                 if(mapListId == null) continue;
 
@@ -456,8 +465,8 @@ export default class Experience extends Bot.Module {
 
             /** @type {KCGameMapManager.MapData[]} */
             let selectedIds = [];
-            selectRandomMaps(selectedIds, mapListArrayByRankModified, mapsChosenLast, resultsMaps, 3);
-            selectRandomMaps(selectedIds, mapListArrayModified, mapsChosenLast, resultsMaps, 6);
+            selectRandomMaps(selectedIds, mapListArrayByRankModified, mapsCurrent.finished, resultsMaps, 3);
+            selectRandomMaps(selectedIds, mapListArrayModified, mapsCurrent.finished, resultsMaps, 6);
 
             await query(`UPDATE experience_users SET maps_current = '${JSON.stringify(selectedIds.map(v => v.id))}'
                          WHERE user_id = '${m.member.id}' AND game = '${game}'`);
@@ -468,6 +477,7 @@ export default class Experience extends Bot.Module {
             
             let embed = getEmbedTemplate(m.member);
             embed.color = KCUtil.gameEmbedColors[game];
+            embed.description = `Your leaderboards name is \`${resultUsers.user_name}\``;
             
             embed.fields = [];
 
@@ -486,12 +496,12 @@ export default class Experience extends Bot.Module {
             fieldXp.value += '```';
 
             let fieldNewMaps = {
-                name: emote + ' ' + this.bot.locale.category('experience', 'embed_results_title_2', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown'),
+                name: emote + ' ' + this.bot.locale.category('experience', 'embed_results_title_2', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown', KCLocaleManager.getDisplayNameFromAlias('map_mode_custom', `${game}_custom`)),
                 value: maps.unfinished.length <= 0 ? `${Bot.Util.getSpecialWhitespace(3)}You've completed everything. Well done!` : '',
                 inline: false
             };
             for(let j = 0; j < maps.unfinished.length; j++)
-                fieldNewMaps.value += Bot.Util.getSpecialWhitespace(3) + getMapClaimString(maps.unfinished[j], game, ext.kcgmm) + '\n';
+                fieldNewMaps.value += getMapClaimString(maps.unfinished[j], game, ext.kcgmm) + '\n';
 
             let fieldBeatenMaps = {
                 name: emote + ' ' + this.bot.locale.category('experience', 'embed_results_title_3'),
@@ -499,7 +509,7 @@ export default class Experience extends Bot.Module {
                 inline: false,
             }
             for(let j = 0; j < maps.finished.length; j++)
-                fieldBeatenMaps.value += Bot.Util.getSpecialWhitespace(3) + getMapClaimString(maps.finished[j], game, ext.kcgmm) + '\n';
+                fieldBeatenMaps.value += getMapClaimString(maps.finished[j], game, ext.kcgmm) + '\n';
 
             let fieldInstructions = {
                 name: ':information_source: ' + this.bot.locale.category('experience', 'embed_instructions_title'),
@@ -527,11 +537,11 @@ export default class Experience extends Bot.Module {
  * Select random maps that haven't been completed yet
  * @param {KCGameMapManager.MapData[]} arr - Array of maps to fill
  * @param {KCGameMapManager.MapData[]} maps - Maps to choose from. Will be mutated
- * @param {KCGameMapManager.MapData[]} mapsChosenLast - Maps chosen last time
+ * @param {KCGameMapManager.MapData[]} mapsChosenLastCompleted - Maps chosen last time
  * @param {Db.experience_maps[]} resultsMaps - Already finished maps
  * @param {number} count - Amount of maps to pick
  */
-function selectRandomMaps(arr, maps, mapsChosenLast, resultsMaps, count) {
+function selectRandomMaps(arr, maps, mapsChosenLastCompleted, resultsMaps, count) {
     //Random an index from the array.
     //Save the ID of the selected map then remove the element from the array to not roll duplicates.
     while(arr.length < count && maps.length > 0) {
@@ -550,7 +560,7 @@ function selectRandomMaps(arr, maps, mapsChosenLast, resultsMaps, count) {
             continue;
         
         //If we've chosen this map last time, don't choose it again.
-        if(mapsChosenLast.find(v => v.id === map.id))
+        if(mapsChosenLastCompleted.find(v => v.id === map.id))
             continue;
 
         //If we already added this map, don't include it.
@@ -569,15 +579,15 @@ function selectRandomMaps(arr, maps, mapsChosenLast, resultsMaps, count) {
  * @returns {string}
  */
 function getMapClaimString(map, game, kcgmm) {
-    let str = `\`#${map.id}\`: ${getExpFromMap(map, kcgmm)} XP`;
+    let str = `\`ID #${map.id}\`: ${getExpFromMap(map, kcgmm)} XP - ${map.title} __by ${map.author}__`;
 
     if(map.timestamp == null) return str;
     let date = kcgmm.getDateFlooredToMonth(new Date(map.timestamp));
-    let month = KCUtil.getMonthFromDate(date);
+    let month = KCUtil.getMonthFromDate(date, true);
     const rank = kcgmm.getMapMonthlyRank(map);
     if(rank == null) return str;
 
-    return `${str} - #${rank} from ${month} ${date.getUTCFullYear()}`;
+    return `${str} (#${rank} ${month} ${date.getUTCFullYear()})`;
 }
 
 /**

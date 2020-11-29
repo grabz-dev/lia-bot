@@ -16,7 +16,7 @@ core.on('ready', bot => {
         kcgmm.fetch('cw4').catch(logger.error);
         kcgmm.fetch('pf').catch(logger.error);
         kcgmm.fetch('cw3').catch(logger.error);
-        kcgmm.fetch('cw2').catch(logger.error);
+        //kcgmm.fetch('cw2').catch(logger.error);
         
         setInterval(() => {
             kcgmm.fetch('cw4').catch(logger.error);
@@ -70,10 +70,10 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'register', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                 return experience.register(message, args, arg, {});
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['show', 'profile'], authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['profile', 'show'], authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                 return experience.exp(message, args, arg, { kcgmm: kcgmm });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['get', 'claim', 'new'], authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['new', 'claim', 'get'], authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                 return experience.get(message, args, arg, { kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['leaders', 'leaderboard', 'leaderboards'], authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {

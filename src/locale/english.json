@@ -38,18 +38,18 @@
             "err_leaderboard_name_not_provided": "You must provide the leaderboard name you wish to register with.",
 
             "intro_name": ":video_game: Welcome to Experience\n\n",
-            "intro_value": "Play maps and earn points, for fun!\n\n`!exp register help` • Register\n`!exp get help` • Play maps\n\n`!exp show` • Show profile\n`!exp leaders` • Show leaderboards",
+            "intro_value": "Play maps and earn points, for fun!\n\n`!exp register help` • Register\n`!exp new help` • Play maps\n\n`!exp profile` • Show profile\n`!exp leaders` • Show leaderboards",
 
             "embed_not_registered_1": "You're not registered for %0.",
             "embed_not_registered_2": "You can register with `!exp register %0 <name>`",
             "embed_maps_1": "Maps left to complete:",
             "embed_maps_2": "Maps ready to claim:",
             "embed_instructions_title": "Instructions",
-            "embed_instructions_value": "To claim experience and generate new maps to complete, call `!exp get [game]`\nMaps that haven't been beaten on this round will have a chance to appear again.",
+            "embed_instructions_value": "To claim experience and generate new maps to complete, call `!exp new [game]`\nMaps that haven't been beaten on this round will have a chance to appear again.",
             "embed_results_title_1": "Experience",
-            "embed_results_title_2": "Your new %0 maps to beat are:",
+            "embed_results_title_2": "Your new %0 __%1__ maps to beat are:",
             "embed_results_title_3": "These selected maps you have beaten before. Hooray free experience!:",
-            "embed_results_value": "To view your current status, call `!exp show`\nTo claim experience from beaten maps and get five new ones, call `!exp get %0`\nMaps that haven't been beaten on this round will have a chance to appear again.",
+            "embed_results_value": "To view your current progress, call `!exp profile %0`\nConsider checking your progress before generating new maps.\nTo generate new maps to play, call `!exp new %0`\nMaps that haven't been beaten on this round will have a chance to appear again.",
 
             "map_processing_error": "Could not find map list data for %0. Try again later.",
             "wipe_successful": "Profile removed.",
@@ -58,7 +58,7 @@
             "already_registered_with_other_name": "You are already registered as `%0` for %1. You cannot register again without erasing your progress. To wipe your progress, contact moderation.",
             "name_taken": "The name `%0` is already taken for %1. If you feel this is a mistake, please contact moderation.",
             "register_confirm": "Are you sure you want to register with the name `%0` for %1? This has to be the name you use for the leaderboards. This name cannot be changed later without losing your progress.\n\nType the command again with your name to confirm, or use a different name to try again.",
-            "register_success": "You are now registered as `%0` for %1. Have fun!\n\nTo get your first set of maps to complete, type `!exp get %2`",
+            "register_success": "You are now registered as `%0` for %1. Have fun!\n\nTo get your first set of maps to complete, type `!exp new %2`",
             "leaderboard_empty": "Nothing to show.",
             "leaderboard_title": "%0 leaderboards!"
         },
@@ -217,7 +217,7 @@
             ],
             "get": [
                 "!%name% <game>",
-                "Get experience from completed maps and generate five new maps to beat.",
+                "Get experience from completed maps and generate six new maps to beat.",
                 "%space%<game> - pf, cw3, cw2."
             ],
             "show": [

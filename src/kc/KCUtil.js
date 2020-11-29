@@ -5,6 +5,8 @@ import { mkdir } from 'fs';
 
 const months = ["January", "February", "March", "April", "May", "June",
 "July", "August", "September", "October", "November", "December"];
+const months_short = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export const KCUtil = Object.freeze({
     /** @type {Object.<string, number>} */
@@ -36,10 +38,11 @@ export const KCUtil = Object.freeze({
     /**
      * Get string month from date e.g. January, February
      * @param {Date} date 
+     * @param {boolean=} short
      * @returns {string}
      */
-    getMonthFromDate : function(date) {
-        return months[date.getUTCMonth()];
+    getMonthFromDate : function(date, short) {
+        return short ? months_short[date.getUTCMonth()] : months[date.getUTCMonth()];
     },
 
     /**
