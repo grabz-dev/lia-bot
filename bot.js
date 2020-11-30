@@ -110,29 +110,39 @@ core.on('ready', bot => {
             });
         }).catch(logger.error);
 
-        core.getModule((await import('./src/modules/Competition.js')).default).then(competition => {
+        core.getModule((await import('./src/modules/Competition.js')).default).then(async competition => {
             const obj = {
                 baseNames: ['c', 'competition'],
                 categoryNames: [':trophy: Competition', 'competition', 'c']
             }
 
-            core.addLoop(1000 * 60 * 30, guild => {
+            core.getModule((await import('./src/modules/Chronom.js')).default).then(chronom => {
+                core.addLoop(1000 * 60 * 49, guild => {
+                    chronom.loop(guild, kcgmm);
+                });
+
+                core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+                    return chronom.land(message, args, arg, { action: 'chronom', kcgmm: kcgmm });
+                });
+            }).catch(logger.error);
+
+
+            core.addLoop(1000 * 60 * 27, guild => {
                 competition.loop(guild, kcgmm);
             });
-
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'info' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'setchannel', authorityLevel: null}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'set-channel' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'register', authorityLevel: 'COMPETITOR'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'register', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'register' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'update', authorityLevel: 'COMPETITOR'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'update', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'update', kcgmm: kcgmm });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'status', authorityLevel: 'COMPETITOR'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'status', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'status' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'start', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {

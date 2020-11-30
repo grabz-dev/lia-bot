@@ -8,12 +8,13 @@
 /**
  * @typedef {object} MapScoreQueryData
  * @property {string} game - cw2 cw3 pf cw4
- * @property {string} type - CW2: custom, code | CW3: custom, dmd | PF: custom
+ * @property {string} type - CW2: custom, code | CW3: custom, dmd | PF: custom | CW4: custom, chronom
  * @property {number=} id - Works for everything except CW2 code maps. Map ID number.
  * @property {string=} name - CW2 code map only. The map seed
  * @property {number=} size - CW2 code map only. 0, 1, 2 - small, medium, large
  * @property {number=} complexity - CW2 code map only. 0, 1, 2 - low, medium, high
  * @property {number=} objective - CW4 only. Objective index 0-5
+ * @property {number=} timestamp - CW4 only. Chronom date UTC timestamp.
  */
 
 /**
@@ -70,6 +71,9 @@ import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 
 import { fetchMapsDefault } from './KCGameMapManager/fetch-maps-default.js';
 import { fetchMapsCW2 } from './KCGameMapManager/fetch-maps-cw2.js';
+
+const chronom_months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+"JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
 /**
  * @class
@@ -195,11 +199,11 @@ export function KCGameMapManager(options, locale) {
      */
     this.getDateFlooredToMonth = function(date) {
         date = new Date(date);
-        date.setUTCDate(1);
-        date.setUTCHours(0);
-        date.setUTCMinutes(0);
-        date.setUTCSeconds(0);
-        date.setUTCMilliseconds(0);
+        date.setDate(1);
+        date.setHours(0);
+        date.setMinutes(0);
+        date.setSeconds(0);
+        date.setMilliseconds(0);
         return date;
     }
 
@@ -300,7 +304,7 @@ export function KCGameMapManager(options, locale) {
 
             //Provide map type
             if(args[0] == null) {err = "no_type"; return;}
-            if(["custom", "dmd", "code"].includes(args[0])) { obj.type = args[0]; args.splice(0, 1); }
+            if(["custom", "dmd", "code", "chronom"].includes(args[0])) { obj.type = args[0]; args.splice(0, 1); }
             else {
                 if(game === 'cw2' && args.length >= 3) obj.type = 'code';
                 else obj.type = 'custom';
@@ -335,6 +339,20 @@ export function KCGameMapManager(options, locale) {
                 if(name.length === 0) {err = "no_cw2_code_name"; return;}
                 obj.name = name;
             }
+            else if(obj.type === "chronom") {
+                if(obj.game !== "cw4") {err = "bad_type"; return;}
+
+                //TODO KISS
+                if(args[0] == null) {err = "no_objective"; return;}
+                obj.objective = KCLocaleManager.getPrimaryAliasFromAlias("cw4_objectives", args[0]);
+                if(obj.objective == null) {err = "bad_objective"; return;}
+                obj.objective = +obj.objective;
+                args.splice(0, 1);
+
+                let timestamp = Date.parse(args.join(' '));
+                if(Number.isNaN(timestamp)) {err = "bad_chronom_date"; return;}
+                obj.timestamp = timestamp;
+            }
             else {
                 if(args[0] == null) {err = "no_id"; return;}
                 obj.id = Math.floor(+args[0]);
@@ -342,10 +360,12 @@ export function KCGameMapManager(options, locale) {
                 args.splice(0, 1);
 
                 if(obj.game === "cw4") {
+                    //TODO KISS
                     if(args[0] == null) {err = "no_objective"; return;}
                     obj.objective = KCLocaleManager.getPrimaryAliasFromAlias("cw4_objectives", args[0]);
                     if(obj.objective == null) {err = "bad_objective"; return;}
                     obj.objective = +obj.objective;
+                    args.splice(0, 1);
                 }
             }
         })();
@@ -439,7 +459,7 @@ export function KCGameMapManager(options, locale) {
             case "dmd":
                 if(msqd.id == null) return null;
                 return `https://knucklecracker.com/${gameUrlParam}/scoreQuery.php?dmdID=${msqd.id}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}`;
-            case "code":
+            case "code": {
                 if(msqd.name == null) return null;
                 if(msqd.size == null) return null;
                 if(msqd.complexity == null) return null;
@@ -448,6 +468,15 @@ export function KCGameMapManager(options, locale) {
                 let hnum = parseInt(hash.substring(0,8), 16);
                 let gameUID = "procedural" + hnum + "-" + msqd.size + msqd.complexity;
                 return `https://knucklecracker.com/${gameUrlParam}/scoreQuery.php?gameUID=${gameUID}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}`;
+            }
+            case "chronom": {
+                if(msqd.timestamp == null) return null;
+                let date = new Date(msqd.timestamp);
+                let str = `CHRONOM ${chronom_months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+
+                let encode = Buffer.from(str).toString('base64');
+                return `https://knucklecracker.com/${gameUrlParam}/playLogQuery.php?gameUID=${encode}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}`;
+            }
             default:
                 return null;
         }

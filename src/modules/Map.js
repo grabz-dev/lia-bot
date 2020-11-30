@@ -72,7 +72,7 @@ export default class Map extends Bot.Module {
                 return;
             case 'bestof':
                 args.splice(0, 1);
-                let timestamp = Date.parse(args.join(' ')) + (1000*60*60*24);
+                let timestamp = Date.parse(args.join(' '));
                 if(Number.isNaN(timestamp)) return this.bot.locale.category("mapdata", "err_date_invalid");
                 let date = ext.kcgmm.getDateFlooredToMonth(new Date(timestamp));
 
@@ -202,6 +202,10 @@ async function score(m, mapQueryData, kcgmm) {
 
     if(mapQueryData.game === 'cw4') field.value = `Objective: ${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapQueryData.objective+'')}\n` + field.value;
     if(groupName != null) field.value = `Group Filter: ${groupName}\n` + field.value;
+    if(mapQueryData.game === 'cw4' && mapQueryData.timestamp != null) {
+        let date = new Date(mapQueryData.timestamp);
+        field.value = `${KCUtil.getMonthFromDate(date, false)} ${KCUtil.getDayFromDate(date)}, ${date.getFullYear()}\n` + field.value;
+    }
     if(mapQueryData.id) {
         const map = kcgmm.getMapListId(mapQueryData.game)?.get(mapQueryData.id);
         if(map) {
@@ -233,7 +237,7 @@ async function bestof(m, game, date, maps) {
     let embed = getEmbedTemplate(game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), false);
 
     let field = {
-        name: `${KCLocaleManager.getDisplayNameFromAlias('map_mode_custom', `${game}_custom`)}: ${KCUtil.getMonthFromDate(date)}, ${date.getUTCFullYear()}`,
+        name: `${KCLocaleManager.getDisplayNameFromAlias('map_mode_custom', `${game}_custom`)}: ${KCUtil.getMonthFromDate(date, false)}, ${date.getFullYear()}`,
         value: '',
         inline: false
     }

@@ -39,19 +39,22 @@ export const KCUtil = Object.freeze({
      * Get string month from date e.g. January, February
      * @param {Date} date 
      * @param {boolean=} short
+     * @param {boolean=} utc
      * @returns {string}
      */
     getMonthFromDate : function(date, short) {
-        return short ? months_short[date.getUTCMonth()] : months[date.getUTCMonth()];
+        let month = date.getMonth();
+        return short ? months_short[month] : months[month];
     },
 
     /**
      * Get string day from date e.g. 1st 2nd
      * @param {Date} date 
+     * @param {boolean=} utc
      * @returns {string}
      */
     getDayFromDate : function(date) {
-        let day = date.getUTCDate()+'';
+        let day = date.getDate()+'';
         if(day.endsWith('1')) day += 'st';
         else if(day.endsWith('2')) day += 'nd';
         else if(day.endsWith('3')) day += 'rd';

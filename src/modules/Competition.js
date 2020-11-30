@@ -85,13 +85,6 @@ import { KCUtil } from '../kc/KCUtil.js';
  * @property {Discord.Snowflake} message_id - Message snowflake.
  */
 
-//ALTER TABLE competition_maps ADD objective TINYINT UNSIGNED;
-//ALTER TABLE competition_history_maps ADD objective TINYINT UNSIGNED;
-//ALTER TABLE competition_history_scores MODIFY plays SMALLINT UNSIGNED;
-//ALTER TABLE competition_history_scores ADD eco INT;
-//ALTER TABLE competition_history_scores ADD unitsBuilt INT;
-//ALTER TABLE competition_history_scores ADD unitsLost INT;
-
 export default class Competition extends Bot.Module {
     /**
      * @constructor
@@ -219,6 +212,8 @@ export default class Competition extends Bot.Module {
             case 'remove-map':
                 const _data = ext.kcgmm.getMapQueryObjectFromCommandParameters(args);
                 if(_data.err) return _data.err;
+                if(_data.data.type === 'chronom') return "Chronom not supported";
+
                 const mapQueryData = _data.data;
 
                 addMap.call(this, m, ext.action, game, mapQueryData, ext.kcgmm);
@@ -270,7 +265,6 @@ export default class Competition extends Bot.Module {
         case 'end':
             end.call(this, m, ext.kcgmm);
             return;
-        case 'map':
         }
     }
     

@@ -594,7 +594,7 @@ function getMapClaimString(map, game, kcgmm) {
     const rank = kcgmm.getMapMonthlyRank(map);
     if(rank == null) return str;
 
-    return `${str} (#${rank} ${month} ${date.getUTCFullYear()})`;
+    return `${str} (#${rank} ${month} ${date.getFullYear()})`;
 }
 
 /**

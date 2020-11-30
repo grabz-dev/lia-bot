@@ -114,7 +114,7 @@
             "unregister_not_registered": "This user is not registered for any game.",
             "unregister_success": "The specified user is now no longer registered in %0 games.",
             "info_title": ":trophy: Welcome to the Competition!",
-            "info_description": "Compete for the best score in numerous Particle Fleet, Creeper World 3, and Creeper World 2 maps. Your prize? Bragging rights... and points! Head over to the %0 channel and check the stickied messages for information on what maps we're currently competing in!\n\nYou're welcome to join any time. Simply head on over to the self assigned roles channel and become a Competitor there!\n\n:warning:**Make sure to submit your scores with the `specialevent` Group name, or your score won't be included!**:warning:\n\nFeel free to ask any questions you might have in %0.",
+            "info_description": "Compete for the best score in numerous Particle Fleet, Creeper World 3, and Creeper World 2 maps. Your prize? Bragging rights... and points! Head over to the %0 channel and check the stickied messages for information on how to register and what maps we're currently competing in!\n\n:warning:**Make sure to submit your scores with the `specialevent` Group name, or your score won't be included!**:warning:\n\nFeel free to ask any questions you might have in %0.",
             "info_inactive": "The competition is not active on this server. A competition channel needs to be set.",
             "channel_set": "Competition channel set. Competition reset.",
             "status_title": ":bar_chart: Competition status",
@@ -140,7 +140,8 @@
             "cant_end_no_maps": "The competition cannot end, as no maps have been added to it.",
             "end_in_progress": "Ending competition. Standby for confirmation.",
             "end_success": "Competition ended.",
-            "end_channel_ended": "Competition has ended! Leaderboards:"
+            "end_channel_ended": "Competition has ended! Leaderboards:",
+            "chronom_not_registered": "You must first register your %0 leaderboard name. This must be the name you use in leaderboards.\n`!c register cw4 yournamehere`"
         }
     },
     "command": {
