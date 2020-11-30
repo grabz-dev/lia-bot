@@ -90,10 +90,14 @@ export default class Chronom extends Bot.Module {
                 }
             }
 
-            /** @type {Array<Object<string, boolean>>} */
-            let usersCompleted = [];
             /** @type {Object.<string, boolean>} */
             let users = {};
+            for(let resultRegister of resultsRegister) {
+                users[resultRegister.user_name] = true;
+            }
+
+            /** @type {Array<Object<string, boolean>>} */
+            let usersCompleted = [];
             for(let i = 0; i < this.days; i++) {
                 usersCompleted[i] = {};
                 const data = arr2[i];
@@ -101,7 +105,6 @@ export default class Chronom extends Bot.Module {
                     if(entries == null) continue;
                     for(let entry of entries) {
                         usersCompleted[i][entry.user] = true;
-                        users[entry.user] = true;
                     }
                 }
             }

@@ -117,19 +117,21 @@ core.on('ready', bot => {
             }
 
             core.getModule((await import('./src/modules/Chronom.js')).default).then(chronom => {
-                core.addLoop(1000 * 60 * 49, guild => {
-                    chronom.loop(guild, kcgmm);
-                });
-
+                setTimeout(() => {
+                    core.addLoop(1000 * 60 * 49, guild => {
+                        chronom.loop(guild, kcgmm);
+                    });
+                }, 5000);
                 core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                     return chronom.land(message, args, arg, { action: 'chronom', kcgmm: kcgmm });
                 });
             }).catch(logger.error);
 
-
-            core.addLoop(1000 * 60 * 27, guild => {
-                competition.loop(guild, kcgmm);
-            });
+            setTimeout(() => {
+                core.addLoop(1000 * 60 * 27, guild => {
+                    competition.loop(guild, kcgmm);
+                });
+            }, 5000);
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'info' });
             });
