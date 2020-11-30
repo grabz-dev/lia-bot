@@ -122,7 +122,7 @@ core.on('ready', bot => {
                         chronom.loop(guild, kcgmm);
                     });
                 }, 5000);
-                core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+                core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'chronom', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                     return chronom.land(message, args, arg, { action: 'chronom', kcgmm: kcgmm });
                 });
             }).catch(logger.error);
