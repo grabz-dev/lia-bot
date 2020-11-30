@@ -640,8 +640,9 @@ function getFormattedXPBarString(emote, expData, expBarsMax, noCode) {
  * @returns {number}
  */
 function getExpFromMap(mapData, kcgmm) {
-    const rng = seedrandom(mapData.id+'');
-    let value = Math.floor(((rng() / 2) + 0.75) * 100); //0.75 - 1.25
+    //const rng = seedrandom(mapData.id+'');
+    //let value = Math.floor(((rng() / 2) + 0.75) * 100); //0.75 - 1.25
+    let value = 100;
 
     if(!mapData.timestamp)
         return value;
@@ -650,7 +651,7 @@ function getExpFromMap(mapData, kcgmm) {
     if(rank == null)
         return value;
 
-    const multiplier = Math.max(Math.ceil((10 - rank) / 2), 1);
+    const multiplier = Math.max(1, Math.ceil((16 - rank) / 5));
     return value * multiplier;
 }
 
