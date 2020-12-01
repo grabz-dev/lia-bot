@@ -453,7 +453,6 @@ export default class Experience extends Bot.Module {
             let mapListArrayModified = ext.kcgmm.getMapListArray(game);
             const mapListId = ext.kcgmm.getMapListId(game);
             let mapListIdModified = ext.kcgmm.getMapListId(game);
-            let mapListArrayByRankModified = ext.kcgmm.getHighestRankedMonthlyMaps(game, 50);
             if(mapListArrayModified == null || mapListId == null || mapListIdModified == null) {
                 m.channel.send(this.bot.locale.category('experience', 'map_processing_error', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
                 return;
@@ -469,6 +468,10 @@ export default class Experience extends Bot.Module {
             let mapsChosenLast = getMapsParsed(mapListId, /** @type {number[]} */(JSON.parse(resultUsers.maps_current)));
             //Find out which maps from current maps are completed.
             let mapsCurrent = await getMapsCompleted(mapsChosenLast, resultUsers.user_name, ext.kcgmm);
+
+            let allMapsCompleted = resultsMaps.map((v => v.map_id)).concat(mapsCurrent.finished.map(v => v.id));
+            const maxMonthlyMaps = Math.min(3, Math.ceil(mapListArrayModified.length / 50));
+            let mapListArrayByRankModified = ext.kcgmm.getHighestRankedMonthlyMaps(game, 3, allMapsCompleted);
 
             /** @type {KCGameMapManager.MapData[]} */
             let selectedIds = [];
@@ -651,8 +654,9 @@ function getExpFromMap(mapData, kcgmm) {
     if(rank == null)
         return value;
 
+    return Math.max(value, value + 200 - ((rank-1) * 20)); 
     const multiplier = Math.max(1, (16 - rank) / 5);
-    return Math.ceil(value * multiplier);
+    return Math.ceil(value * multiplier / 10) * 10;
 }
 
 /**

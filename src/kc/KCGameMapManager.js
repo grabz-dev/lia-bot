@@ -228,9 +228,12 @@ export function KCGameMapManager(options, locale) {
      * Get an array of maps sorted based on their rank in their month
      * @param {string} game 
      * @param {number=} count - The amount of maps after which to stop
+     * @param {number[]=} exclude - Array of map IDs that will be excluded from the return array
      * @returns {MapData[]}
      */
-    this.getHighestRankedMonthlyMaps = function(game, count) {
+    this.getHighestRankedMonthlyMaps = function(game, count, exclude) {
+        exclude = exclude ?? [];
+
         const mapList = this._maps.month.get(game);
         if(mapList == null) return [];
         /** @type {MapData[][]} */
@@ -260,7 +263,9 @@ export function KCGameMapManager(options, locale) {
                     i--;
                     continue;
                 }
-                maps.push(mapList[0]);
+                let map = mapList[0];
+                if(!exclude.includes(map.id))
+                    maps.push(map);
                 mapList.splice(0, 1);
                 if(count != null && maps.length >= count) break loop;
             }
