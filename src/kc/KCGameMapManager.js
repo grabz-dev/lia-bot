@@ -233,22 +233,35 @@ export function KCGameMapManager(options, locale) {
     this.getHighestRankedMonthlyMaps = function(game, count) {
         const mapList = this._maps.month.get(game);
         if(mapList == null) return [];
-        const maps = [];
         /** @type {MapData[][]} */
         const mapListValues = Object.values(mapList);
+        /** @type {MapData[][]} */
+        const mapListValuesCopy = [];
+        for(let i = 0; i < mapListValues.length; i++) {
+            let mapList = mapListValues[i];
+            mapListValuesCopy[i] = [];
+            for(let j = 0; j < mapList.length; j++) {
+                let map = mapList[j];
+                mapListValuesCopy[i][j] = map;
+            }
+        }
+        
+        const maps = [];
+        
         //While mapListValues has entries
         loop:
-        while(mapListValues.length > 0) {
+        while(mapListValuesCopy.length > 0) {
             //Go through top rated maps in each month
-            for(let i = 0; i < mapListValues.length; i++) {
-                //If there are no more maps remove entry from mapListValues
-                let mapList = mapListValues[i];
+            for(let i = 0; i < mapListValuesCopy.length; i++) {
+                //If there are no more maps remove entry from mapListValuesCopy
+                let mapList = mapListValuesCopy[i];
                 if(mapList.length <= 0) {
-                    mapListValues.splice(i, 1);
+                    mapListValuesCopy.splice(i, 1);
                     i--;
                     continue;
                 }
                 maps.push(mapList[0]);
+                mapList.splice(0, 1);
                 if(count != null && maps.length >= count) break loop;
             }
         }
