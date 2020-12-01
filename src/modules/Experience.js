@@ -651,8 +651,8 @@ function getExpFromMap(mapData, kcgmm) {
     if(rank == null)
         return value;
 
-    const multiplier = Math.max(1, Math.ceil((16 - rank) / 5));
-    return value * multiplier;
+    const multiplier = Math.max(1, (16 - rank) / 5);
+    return Math.ceil(value * multiplier);
 }
 
 /**
