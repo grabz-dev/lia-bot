@@ -1,8 +1,11 @@
 import https from 'https';
 import xml2js from 'xml2js';
 import zlib from 'zlib';
+import fetch from 'node-fetch';
 
 export function HttpRequest() {}
+
+HttpRequest.fetch = fetch;
 
 /**
  * Send a HTTP GET request

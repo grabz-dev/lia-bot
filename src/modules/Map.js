@@ -116,7 +116,7 @@ async function map(m, game, id, kcgmm) {
     if(mapList != null) {
         let mapData = mapList.get(id);
         if(mapData) {
-            m.channel.send({ embed:getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm) }).catch(logger.error);
+            m.channel.send({ embed:await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm) }).catch(logger.error);
             return;
         }
     }
@@ -138,7 +138,7 @@ async function map(m, game, id, kcgmm) {
                 message.edit(this.bot.locale.category('mapdata', 'search_result_not_found')).catch(logger.error);
             else {
                 message.delete();
-                m.channel.send({ embed:getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm) }).catch(logger.error);
+                m.channel.send({ embed:await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm) }).catch(logger.error);
             }
         })().catch(e => {
             logger.info(e);
@@ -287,20 +287,18 @@ async function bestof(m, game, date, maps) {
  * @param {Discord.Guild} guild 
  * @param {string} game 
  * @param {KCGameMapManager} kcgmm
- * @returns {Discord.MessageEmbed}
+ * @returns {Promise<Discord.MessageEmbed>}
  */
-function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
+async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
     let emoteId = Bot.Util.getSnowflakeFromDiscordPing(emoteStr);
     let emote = emoteId ? guild.emojis.resolve(emoteId) : null;
 
     let thumbnailURL = '';
     if(mapData.id && mapData.id > 0) {
-        if(game === 'cw2') {
-            thumbnailURL = 'http://knucklecracker.com/creeperworld2/thumb.php?id=' + mapData.id;
-        }
-        else {
-            thumbnailURL = 'http://knucklecracker.com/' + KCLocaleManager.getUrlStringFromPrimaryAlias(game) + '/queryMaps.php?query=thumbnailid&id=' + mapData.id;
-        }
+        if(game === 'cw2')
+            thumbnailURL = `http://knucklecracker.com/creeperworld2/thumb.php?id=${mapData.id}`;
+        else
+            thumbnailURL = `https://knucklecracker.com/${KCLocaleManager.getUrlStringFromPrimaryAlias(game)}/queryMaps.php?query=thumbnail&guid=${mapData.guid}`;
     }
 
     let embed = getEmbedTemplate.bind(this)(game, emote, true);
@@ -355,7 +353,7 @@ function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
     }];
     
     //Desc
-    if(mapData.desc && mapData.desc.length > 0) {
+    if(mapData.desc != null && mapData.desc.length > 0) {
         embed.fields.push({
             name: ':envelope: Description',
             value: mapData.desc,

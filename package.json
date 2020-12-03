@@ -8,6 +8,7 @@
   "dependencies": {
     "discord-bot-core": "github:grabz-dev/discord-bot-core#main",
     "discord.js": "^12.4.1",
+    "node-fetch": "^2.6.1",
     "seedrandom": "^3.0.5",
     "xml2js": "^0.4.23"
   },

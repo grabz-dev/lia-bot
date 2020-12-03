@@ -19,6 +19,7 @@
 
 /**
  * @typedef {object} MapData
+ * @property {string=} guid - GUID of the map. Excludes CW2
  * @property {number} id - The id of the map.
  * @property {string} game - cw2, cw3, pf, cw4
  * @property {string} author - The name of the author.

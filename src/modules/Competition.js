@@ -757,7 +757,6 @@ function end(m, kcgmm) {
             let entries = leaderboard.entries[map.objective == null ? 0 : map.objective];
             if(entries) {
                 for(let score of entries) {
-                    console.log(score);
                     let insertScores = (await query(`INSERT INTO competition_history_scores (id_competition_history_maps, user_rank, user_id, time, plays, score, eco, unitsBuilt, unitsLost)
                     VALUES ('${insertMaps.insertId}', '${score.rank}', '${score.user}', '${score.time}', ${score.plays != null ? `'${score.plays}'` : 'NULL'}, ${score.score != null ? `'${score.score}'` : 'NULL'}, ${score.eco != null ? `'${score.eco}'` : 'NULL'}, ${score.unitsBuilt != null ? `'${score.unitsBuilt}'` : 'NULL'}, ${score.unitsLost != null ? `'${score.unitsLost}'` : 'NULL'})`)).results;
                 }
@@ -1043,7 +1042,11 @@ async function getEmbedFieldFromMapData(guild, locale, mapLeaderboard, mapScoreQ
             }
             name += `: #${mapData.id}`;
             value = `${mapData.title} __by ${mapData.author}__\n`;
-            value += `${getDifficultyStringFromMapData(mapData)}, ${mapData.width}x${mapData.height}`;
+            if(mapData.game === 'cw4')
+                value += `Objective: **${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapScoreQueryData.objective+'')}**`;
+            else
+                value += `${getDifficultyStringFromMapData(mapData)}`;
+            value += `, ${mapData.width}x${mapData.height}`;
             break;
     }
 
@@ -1092,9 +1095,6 @@ function getDifficultyStringFromMapData(mapData) {
         let str = `${percentage} clears`;
         return str;
     }
-
-    if(mapData.upvotes)
-        return `${mapData.upvotes} thumbsup`;
 
     return 'difficulty indeterminable';
 }

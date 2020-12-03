@@ -38,6 +38,7 @@ export async function fetchMapsDefault(game) {
 
         //Fill shared map properties
         const shared = {
+            guid: map.g[0],
             id: +map.i[0],
             game: game,
             author: map.a[0],

@@ -60,5 +60,26 @@ export const KCUtil = Object.freeze({
         else if(day.endsWith('3')) day += 'rd';
         else day += 'th';
         return day;
+    },
+
+    /**
+     * Convert ArrayBuffer to string
+     * @param {ArrayBuffer} buf 
+     */
+    arrayBufferToString : function(buf) {
+        return String.fromCharCode.apply(null, Array.from(new Uint16Array(buf)));
+    },
+
+    /**
+     * Convert string to ArrayBuffer
+     * @param {string} str 
+     */
+    stringToArrayBuffer : function(str) {
+        var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+        var bufView = new Uint16Array(buf);
+        for (var i=0, strLen=str.length; i < strLen; i++) {
+            bufView[i] = str.charCodeAt(i);
+        }
+        return buf;
     }
 });
