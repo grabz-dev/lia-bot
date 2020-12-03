@@ -294,7 +294,7 @@
             "register": [
                 "!%name% <game> <name>",
                 "Register the user name you use on the in-game leaderboards for the specified game with your Discord profile.",
-                "%space%<game> - pf, cw3, cw2.",
+                "%space%<game> - cw4, pf, cw3, cw2",
                 "%space%<name> - The exact name you use on the in-game leaderboards.",
                 "Example: `!c register cw4 Pineapple`"
             ],
