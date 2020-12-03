@@ -171,6 +171,9 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'map', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'map', kcgmm: kcgmm, map: map });
             });
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'intro', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
+                return competition.land(message, args, arg, { action: 'intro' });
+            });
         }).catch(logger.error);
 
         (() => {

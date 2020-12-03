@@ -177,7 +177,7 @@ export default class Competition extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'register'|'unregister'|'set-channel'|'info'|'status'|'start'|'destroy'|'add-map'|'remove-map'|'update'|'build-tally'|'end'|'map'} ext.action - Custom parameters provided to function call.
+     * @param {'register'|'unregister'|'set-channel'|'info'|'status'|'start'|'destroy'|'add-map'|'remove-map'|'update'|'build-tally'|'end'|'map'|'intro'} ext.action - Custom parameters provided to function call.
      * @param {KCGameMapManager} ext.kcgmm
      * @param {import('./Map.js').default} ext.map
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
@@ -264,6 +264,14 @@ export default class Competition extends Bot.Module {
             return;
         case 'end':
             end.call(this, m, ext.kcgmm);
+            return;
+        case 'intro':
+            switch(arg) {
+            case 'champion':
+            case 'chronom':
+                intro.call(this, m, arg);
+                return;
+            }
             return;
         }
     }
@@ -807,7 +815,34 @@ function map(m, kcgmm, game, map) {
     }).catch(logger.error);
 }
 
+/**
+ * Build intro message embed.
+ * @this Competition
+ * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {'champion'|'chronom'} type
+ */
+function intro(m, type) {
+    const embed = getEmbedTemplate();
 
+    if(type === 'champion') {
+        let roleId = this.bot.getRoleId(m.guild.id, 'CHAMPION_OF_KC');
+        embed.color = 4482815;
+
+        embed.description = `:fire: **Introduction to Champions**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nPlace #1 at the end of a competition in any of the maps listed in the pinned messages below to become Champion.`;
+    }
+    else if(type === 'chronom') {
+        let roleId = this.bot.getRoleId(m.guild.id, 'MASTER_OF_CHRONOM');
+        embed.color = 12141774;
+
+        embed.description = `:fire: **Introduction to Chronom**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nComplete all of the latest Creeper World 4 Chronom maps to become Master of Chronom. Track your status with the \`!c chronom\` command.`;
+    }
+
+    embed.image = {
+        url: 'https://media.discordapp.net/attachments/376817338990985246/783860176292806697/specialevent.png'
+    }
+
+    m.channel.send({embed: embed}).catch(logger.error);
+}
 
 
 

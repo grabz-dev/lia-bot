@@ -295,7 +295,8 @@
                 "!%name% <game> <name>",
                 "Register the user name you use on the in-game leaderboards for the specified game with your Discord profile.",
                 "%space%<game> - pf, cw3, cw2.",
-                "%space%<name> - The exact name you use on the in-game leaderboards."
+                "%space%<name> - The exact name you use on the in-game leaderboards.",
+                "Example: `!c register cw4 Pineapple`"
             ],
             "status": [
                 "!%name%",
@@ -339,6 +340,9 @@
                 "!%name% <game>",
                 "Get a random custom map from the specified game that was not featured in the Competition before.",
                 "%space%<game> - cw2 cw3 pf"
+            ],
+            "intro": [
+                "!%name% champion | !%name% chronom"
             ],
             "chronom": [
                 "!%name%",
