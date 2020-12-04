@@ -1156,6 +1156,7 @@ function getDifficultyEmoteFromMapData(mapData) {
 }
 
 /**
+ * Parse a leaderboard on the KC server into a leaderboard on Discord
  * @this Competition
  * @param {SQLWrapper.Query} query
  * @param {Discord.Guild} guild
@@ -1166,6 +1167,9 @@ function getDifficultyEmoteFromMapData(mapData) {
 async function getMapLeaderboardWithOnlyRegisteredUsers(query, guild, game, mapLeaderboard) {
     /** @type {KCGameMapManager.MapLeaderboardEntry[][]} */
     const newEntries = [];
+
+    /** @type {Object.<string, boolean>} */
+    const names = {};
 
     for(let i = 0; i < mapLeaderboard.entries.length; i++) {
         let oldEntries = mapLeaderboard.entries[i];
@@ -1178,6 +1182,9 @@ async function getMapLeaderboardWithOnlyRegisteredUsers(query, guild, game, mapL
             let resultRegister = (await query(`SELECT * FROM competition_register 
             WHERE guild_id = '${guild.id}' AND user_name = '${entry.user}' AND game = '${game}'`)).results[0];
             if(resultRegister == null) continue;
+
+            if(names[resultRegister.user_name] != null) continue;
+            names[resultRegister.user_name] = true;
 
             /** @type {void|Discord.GuildMember} */
             let member = await guild.members.fetch(resultRegister.user_id).catch(() => {});
