@@ -1168,13 +1168,13 @@ async function getMapLeaderboardWithOnlyRegisteredUsers(query, guild, game, mapL
     /** @type {KCGameMapManager.MapLeaderboardEntry[][]} */
     const newEntries = [];
 
-    /** @type {Object.<string, boolean>} */
-    const names = {};
-
     for(let i = 0; i < mapLeaderboard.entries.length; i++) {
         let oldEntries = mapLeaderboard.entries[i];
         if(oldEntries == null) continue;
         newEntries[i] = [];
+
+        /** @type {Object.<string, boolean>} */
+        const names = {};
 
         let rank = 1;
         for(let entry of oldEntries) {
