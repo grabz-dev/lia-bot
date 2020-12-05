@@ -216,14 +216,12 @@ function start(m, game, url) {
             if(result) emote = result.emote;
         }).catch(logger.error);
 
-        let str = ":movie_camera: <@" + m.member.id + "> is now streaming\n" + emote + " " + KCLocaleManager.getDisplayNameFromAlias("game", game) + "\n:clapper: at " + url + " !\n\n";
+        let str = ":movie_camera: <@" + m.member.id + "> is now streaming " + emote + " " + KCLocaleManager.getDisplayNameFromAlias("game", game) + " at " + url + "\n\n";
         let role = await m.guild.roles.fetch(resultGames.role_id).catch(() => {});
         if(role) str += "<@&" + role.id + ">";
 
-        str += "\n------------------------------------";
-        str += "\n\n:white_check_mark: Do you want to be notified of future streams for this game? Type `!stream subscribe " + game + "`";
-        str += "\n:x: No longer want to receive these notifications? Type `!stream unsubscribe " + game + "`";
-        str += "\n:information_source: Want to become a streamer? Reach out to the moderation team for questions.";
+        str += "\n:information_source: To subscribe or unsubscribe from these notifications, go to the <#776882569034858508> channel and react to or unreact from the appropriate message.";
+        str += "\n:information_source: Want to be able to send streaming notifications? Reach out to the moderation team.";
 
         /** @type {Discord.Message|null} */
         let messageStream = null;
