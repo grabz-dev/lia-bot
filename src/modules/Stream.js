@@ -6,6 +6,7 @@ import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
+import { KCUtil } from '../kc/KCUtil.js';
 
 export default class Stream extends Bot.Module {
     /** @param {Core.Entry} bot */
@@ -17,23 +18,6 @@ export default class Stream extends Bot.Module {
                             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                             guild_id VARCHAR(64) NOT NULL,
                             channel_id VARCHAR(64) NOT NULL
-                         )`);
-
-            await query(`CREATE TABLE IF NOT EXISTS stream_games (
-                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                            guild_id VARCHAR(64) NOT NULL,
-                            game VARCHAR(16) NOT NULL,
-                            role_id VARCHAR(64) NOT NULL
-                         )`);
-
-            await query(`CREATE TABLE IF NOT EXISTS stream_streams (
-                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                            guild_id VARCHAR(64) NOT NULL,
-                            user_id VARCHAR(64) NOT NULL,
-                            game VARCHAR(16) NOT NULL,
-                            url VARCHAR(512) NOT NULL,
-                            channel_id VARCHAR(64) NOT NULL,
-                            message_id VARCHAR(64) NOT NULL
                          )`);
         }).catch(logger.error);
     }
@@ -49,20 +33,14 @@ export default class Stream extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'info'|'set-channel'|'add-game'|'start'|'end'|'status'} ext.action - Custom parameters provided to function call.
+     * @param {|'set-channel'|'start'} ext.action - Custom parameters provided to function call.
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
         switch(ext.action) {
-        case 'info':
-            if(arg.length > 0)
-                return;
-            info.call(this, m).catch(logger.error);
-            return;
         case 'set-channel':
             setChannel.call(this, m);
             return;
-        case 'add-game':
         case 'start':
             if(args[0] == null)
                 return this.bot.locale.category("stream", "err_game_name_not_provided");
@@ -71,14 +49,6 @@ export default class Stream extends Bot.Module {
                 return this.bot.locale.category("stream", "err_game_name_not_supported", args[0]);
 
             switch(ext.action) {
-            case 'add-game':
-                if(args[1] == null)
-                    return this.bot.locale.category("stream", "err_role_name_not_provided");
-                let roleId = Bot.Util.getSnowflakeFromDiscordPing(args[1]);
-                if(roleId == null)
-                    return this.bot.locale.category("stream", "err_role_name_not_correct");
-                addGame.call(this, m, game, roleId);
-                return;
             case 'start':
                 if(args[1] == null)
                     return this.bot.locale.category("stream", "err_url_not_provided");
@@ -88,35 +58,10 @@ export default class Stream extends Bot.Module {
                 start.call(this, m, game, url);
                 return;
             }
-        case 'end':
-            let url = getValidURL(args[0]);
-            if(url == null && args[0] !== "override")
-                return this.bot.locale.category("stream", "err_no_vod");
-            end.call(this, m, url);
-            return;
-        case 'status':
-            status.call(this, m);
-            return;
         default:
             return;
         }
     }
-}
-
-/**
- * Show introduction to streaming.
- * @this {Stream}
- * @param {Bot.Message} m
- */
-async function info(m) {
-    let roleId = this.bot.getRoleId(m.guild.id, "STREAMER");
-    let role = roleId ? await m.guild.roles.fetch(roleId).catch(() => {}) : undefined;
-    let embed = new Discord.MessageEmbed({
-        color: 4929148,
-        title: this.bot.locale.category("stream", "intro_name"),
-        description: this.bot.locale.category("stream", "intro_value", role ? `<@&${role.id}>` : "[unset]")
-    });
-    m.channel.send({embed: embed}).catch(logger.error);
 }
 
 /**
@@ -144,38 +89,6 @@ function setChannel(m) {
 }
 
 /**
- * Add a game for streaming purposes.
- * @this {Stream}
- * @param {Bot.Message} m
- * @param {string} game
- * @param {Discord.Snowflake} roleId
- */
-function addGame(m, game, roleId) {
-    this.bot.sql.transaction(async query => {
-        let role = await m.guild.roles.fetch(roleId).catch(() => {});
-        if(role == null) {
-            m.message.reply(this.bot.locale.category("stream", "err_role_name_not_on_this_server")).catch(logger.error);
-            return;
-        }
-
-        /** @type {any[]} */
-        let results = (await query(`SELECT role_id FROM stream_games
-                                    WHERE guild_id = '${m.guild.id}' AND game = '${game}'
-                                    FOR UPDATE`)).results;
-        if(results.length > 0) {
-            await query(`UPDATE stream_games SET role_id = '${role.id}'
-                         WHERE guild_id = '${m.guild.id}' AND game = '${game}'`);
-        }
-        else {
-            await query(`INSERT INTO stream_games (guild_id, game, role_id)
-                         VALUES ('${m.guild.id}', '${game}', '${role.id}')`);
-        }
-
-        m.message.reply(this.bot.locale.category("stream", "add_success")).catch(logger.error);
-    }).catch(logger.error);
-}
-
-/**
  * Start a new stream.
  * @this {Stream}
  * @param {Bot.Message} m
@@ -193,22 +106,6 @@ function start(m, game, url) {
             return;
         }
 
-        /** @type {any} */
-        let resultGames = (await query(`SELECT * FROM stream_games 
-                                        WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
-        if(!resultGames) {
-            m.message.reply(this.bot.locale.category("stream", "game_not_added", game)).catch(logger.error);
-            return;
-        }
-
-        /** @type {any} */
-        let resultStreams = (await query(`SELECT * FROM stream_streams
-                                          WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}'`)).results[0];
-        if(resultStreams) {
-            m.message.reply(this.bot.locale.category("stream", "start_already_streaming")).catch(logger.error);
-            return;
-        }
-
         let emote = ':game_die:';
         await this.bot.sql.transaction(async query => {
             let result = (await query(`SELECT * FROM emotes_game
@@ -216,101 +113,14 @@ function start(m, game, url) {
             if(result) emote = result.emote;
         }).catch(logger.error);
 
-        let str = ":movie_camera: <@" + m.member.id + "> is now streaming " + emote + " " + KCLocaleManager.getDisplayNameFromAlias("game", game) + " at " + url + "\n\n";
-        let role = await m.guild.roles.fetch(resultGames.role_id).catch(() => {});
-        if(role) str += "<@&" + role.id + ">";
+        const embed = getEmbedTemplate(m.member);
+        embed.color = KCUtil.gameEmbedColors[game];
+        embed.description = `Streaming ${emote}${KCLocaleManager.getDisplayNameFromAlias("game", game)}\nat ${url}`;
 
-        str += "\n:information_source: To subscribe or unsubscribe from these notifications, go to the <#776882569034858508> channel and react to or unreact from the appropriate message.";
-        str += "\n:information_source: Want to be able to send streaming notifications? Reach out to the moderation team.";
-
-        /** @type {Discord.Message|null} */
-        let messageStream = null;
-
-        if(role) {
-            await role.setMentionable(true, `new ${game} stream mention`);
-            messageStream = await channel.send(str);
-            await role.setMentionable(false, `new ${game} stream mention`);
-        }
-        else messageStream = await channel.send(str);
-
-        await query(`INSERT INTO stream_streams (guild_id, user_id, game, url, channel_id, message_id)
-                     VALUES ('${m.guild.id}', '${m.member.id}', '${game}', '${url}', '${channel.id}', '${messageStream.id}')`);
+        channel.send({embed: embed});
+        m.message.delete();
     }).catch(logger.error);
 }
-
-/**
- * End the user's currently running stream.
- * @this {Stream}
- * @param {Bot.Message} m
- * @param {string|null} url
- */
-function end(m, url) {
-    const now = Date.now();
-
-    this.bot.sql.transaction(async query => {
-        /** @type {any} */
-        let resultStreams = (await query(`SELECT * FROM stream_streams
-                                          WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}'`)).results[0];
-        if(!resultStreams) {
-            m.message.reply(this.bot.locale.category("stream", "end_not_streaming")).catch(logger.error);
-            return;
-        }
-
-        let game = resultStreams.game;
-
-        let emote = ':game_die:';
-        await this.bot.sql.transaction(async query => {
-            let result = (await query(`SELECT * FROM emotes_game
-                                        WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
-            if(result) emote = result.emote;
-        }).catch(logger.error);
-
-        await query(`DELETE FROM stream_streams WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}'`);
-
-        let channel = m.guild.channels.resolve(resultStreams.channel_id);
-        if(channel instanceof Discord.TextChannel) {
-            let message = await channel.messages.fetch(resultStreams.message_id).catch(() => {});
-
-            let str = ":calendar_spiral: [" + Bot.Util.getFormattedDate(now, true) + "]\n";
-            str += emote + " " + KCLocaleManager.getDisplayNameFromAlias("game", game);
-            str += " stream by <@" + m.member.id + "> ended.\n";
-            str += url == null ? ":x: VOD not saved." : ":clapper: VOD: <" + url + ">";
-
-            if(message) await message.edit(str);
-        }
-
-    }).catch(logger.error);
-}
-
-/**
- * Show the current status of streams.
- * @this {Stream}
- * @param {Bot.Message} m
- */
-function status(m) {
-    this.bot.sql.transaction(async query => {
-        /** @type {any[]} */
-        let resultsStreams = (await query(`SELECT * FROM stream_streams
-                                          WHERE guild_id = '${m.guild.id}'`)).results;
-        if(resultsStreams.length <= 0) {
-            m.message.reply(this.bot.locale.category("stream", "status_no_streams")).catch(logger.error);
-            return;
-        }
-
-        let message = await m.channel.send("...");
-        var str = "Currently live: \n\n";
-        
-        for(let result of resultsStreams)
-            str += KCLocaleManager.getDisplayNameFromAlias("game", result.game) + " <@" + result.user_id + "> at <" + result.url + ">\n";
-        
-        message.edit(str).catch(e => logger.error(e));
-    }).catch(logger.error);
-}
-
-
-
-
-
 
 
 /////////////////////////////////////
@@ -327,6 +137,7 @@ function getValidURL(str) {
     let index =              str.indexOf("twitch.tv/");
     if(index === -1) index = str.indexOf("youtube.com/");
     if(index === -1) index = str.indexOf("youtu.be/");
+    if(index === -1) index = str.indexOf("steamcommunity.com/");
 
     if(index === -1)
         return null;
@@ -334,4 +145,22 @@ function getValidURL(str) {
     let url = str.slice(index, str.length);
     url = "https://" + url;
     return url;
+}
+
+/**
+ * 
+ * @param {Discord.GuildMember=} member 
+ * @returns {Discord.MessageEmbed}
+ */
+function getEmbedTemplate(member) {
+    let embed = new Discord.MessageEmbed({
+        timestamp: new Date(),
+    });
+    if(member) {
+        embed.author = {
+            name: member.user.username + '#' + member.user.discriminator,
+            iconURL: member.user.avatarURL() || member.user.defaultAvatarURL
+        }
+    }
+    return embed;
 }

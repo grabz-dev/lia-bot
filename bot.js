@@ -35,6 +35,8 @@ core.on('ready', bot => {
 
         /** @type {import('./src/modules/Map.js').default} */
         const map = await core.getModule((await import('./src/modules/Map.js')).default);
+        /** @type {import('./src/modules/Stream.js').default} */
+        const stream = await core.getModule((await import('./src/modules/Stream.js')).default);
         (() => {
             const obj = {
                 categoryNames: [':game_die: Miscellaneous', 'miscellaneous', 'misc']
@@ -49,8 +51,14 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['bestof', 'month'], commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
                 return map.land(message, args, arg, { action: 'bestof', kcgmm: kcgmm });
             });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'stream', commandNames: 'setchannel', authorityLevel: null}), (message, args, arg) => {
+                return stream.land(message, args, arg, { action: 'set-channel' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'stream', commandNames: ['', 'start'], authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+                return stream.land(message, args, arg, { action: 'start' });
+            });
         })();
-
+        
 
         core.getModule((await import('./src/modules/Emotes.js')).default).then(emotes => {
             core.addCommand({baseNames: 'emote', commandNames: null, categoryNames: [':diamond_shape_with_a_dot_inside: Core', 'core'], authorityLevel: 'MODERATOR'}, (message, args, arg) => {
@@ -81,32 +89,6 @@ core.on('ready', bot => {
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'wipe', authorityLevel: null}), (message, args, arg) => {
                 return experience.wipe(message, args, arg, {});
-            });
-        }).catch(logger.error);
-
-        core.getModule((await import('./src/modules/Stream.js')).default).then(stream => {
-            const obj = {
-                baseNames: 'stream',
-                categoryNames: [':clapper: Stream', 'stream', 'streamer']
-            }
-
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
-                return stream.land(message, args, arg, { action: 'info' });
-            });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'setchannel', authorityLevel: null}), (message, args, arg) => {
-                return stream.land(message, args, arg, { action: 'set-channel' });
-            });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['addgame', 'add'], authorityLevel: null}), (message, args, arg) => {
-                return stream.land(message, args, arg, { action: 'add-game' });
-            });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'start', authorityLevel: 'STREAMER'}), (message, args, arg) => {
-                return stream.land(message, args, arg, { action: 'start' });
-            });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'end', authorityLevel: 'STREAMER'}), (message, args, arg) => {
-                return stream.land(message, args, arg, { action: 'end' });
-            });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'status', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
-                return stream.land(message, args, arg, { action: 'status' });
             });
         }).catch(logger.error);
 

@@ -244,34 +244,15 @@
             ]
         },
         "stream": {
-            "": [
-                "!%name%",
-                "See the introduction to streaming!"
-            ],
             "setchannel": [
                 "!%name%",
                 "Set this channel as the one to broadcast stream announcements."
             ],
-            "addgame": [
-                "!%name% <game> <role>",
-                "Associate a subscriber role with a Knuckle Cracker game. Users having this role by subscribing will be mentioned whenever a stream of said game goes live.",
-                "%space%<game> - cw4, pf, cw3, cw2.",
-                "%space%<role> - Role ID, or mention the role."
-            ],
-            "start": [
+            "": [
                 "!%name% <game> <url>",
                 "Start a new stream.",
-                "%space%<game> - pf, cw3, cw2.",
-                "%space%<url> - The link to your stream."
-            ],
-            "end": [
-                "!%name% <vod>",
-                "End your current stream.",
-                "%space%<vod> - The link to the VOD from your stream, or `override` to not save a VOD."
-            ],
-            "status": [
-                "!%name%",
-                "Check if anyone is currently streaming."
+                "%space%<game> - cw4, pf, cw3, cw2, chopraider, gemcraft",
+                "%space%<url> - The link to your stream (YouTube, Twitch, Steam)."
             ]
         },
         "c": {
