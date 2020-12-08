@@ -66,7 +66,7 @@
 import Discord from 'discord.js';
 import crypto from 'crypto';
 import xml2js from 'xml2js';
-import { logger } from 'discord-bot-core';
+import { logger, Util } from 'discord-bot-core';
 import { HttpRequest } from '../utils/HttpRequest.js';
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 
@@ -228,50 +228,46 @@ export function KCGameMapManager(options, locale) {
     /**
      * Get an array of maps sorted based on their rank in their month
      * @param {string} game 
-     * @param {number=} count - The amount of maps after which to stop
+     * @param {number} count - Length of returned array
+     * @param {number=} maxRank - The amount of maps after which to stop
      * @param {number[]=} exclude - Array of map IDs that will be excluded from the return array
      * @returns {MapData[]}
      */
-    this.getHighestRankedMonthlyMaps = function(game, count, exclude) {
+    this.getHighestRankedMonthlyMaps = function(game, count, maxRank, exclude) {
         exclude = exclude ?? [];
+
+        /** @type {MapData[][]} */
+        const mapsByRank = []; //[rank][map]
 
         const mapList = this._maps.month.get(game);
         if(mapList == null) return [];
         /** @type {MapData[][]} */
         const mapListValues = Object.values(mapList);
-        /** @type {MapData[][]} */
-        const mapListValuesCopy = [];
-        for(let i = 0; i < mapListValues.length; i++) {
-            let mapList = mapListValues[i];
-            mapListValuesCopy[i] = [];
-            for(let j = 0; j < mapList.length; j++) {
-                let map = mapList[j];
-                mapListValuesCopy[i][j] = map;
-            }
-        }
-        
-        const maps = [];
-        
-        //While mapListValues has entries
+
         loop:
-        while(mapListValuesCopy.length > 0) {
-            //Go through top rated maps in each month
-            for(let i = 0; i < mapListValuesCopy.length; i++) {
-                //If there are no more maps remove entry from mapListValuesCopy
-                let mapList = mapListValuesCopy[i];
-                if(mapList.length <= 0) {
-                    mapListValuesCopy.splice(i, 1);
-                    i--;
-                    continue;
-                }
-                let map = mapList[0];
+        for(let mapList of mapListValues) {
+            for(let i = 0; i < mapList.length; i++) {
+                const rank = i + 1;
+                if(maxRank != null && rank > maxRank) continue loop;
+                const map = mapList[i];
+                if(mapsByRank[i] == null) mapsByRank[i] = [];
+
                 if(!exclude.includes(map.id))
-                    maps.push(map);
-                mapList.splice(0, 1);
-                if(count != null && maps.length >= count) break loop;
+                    mapsByRank[i].push(map);
             }
         }
-        return maps;
+
+        /** @type {MapData[]} */
+        const ret = [];
+
+        for(let maps of mapsByRank) {
+            if(ret.length >= count) break;
+            if(maps.length <= 0) continue;
+            const map = maps[Util.getRandomInt(0, maps.length)];
+            ret.push(map);
+        }
+        
+        return ret;
     }
 
     /**

@@ -470,8 +470,7 @@ export default class Experience extends Bot.Module {
             let mapsCurrent = await getMapsCompleted(mapsChosenLast, resultUsers.user_name, ext.kcgmm);
 
             let allMapsCompleted = resultsMaps.map((v => v.map_id)).concat(mapsCurrent.finished.map(v => v.id));
-            const maxMonthlyMaps = Math.max(3, Math.ceil(mapListArrayModified.length / 50));
-            let mapListArrayByRankModified = ext.kcgmm.getHighestRankedMonthlyMaps(game, maxMonthlyMaps, allMapsCompleted);
+            let mapListArrayByRankModified = ext.kcgmm.getHighestRankedMonthlyMaps(game, 3, 10, allMapsCompleted);
             
             /** @type {KCGameMapManager.MapData[]} */
             let selectedIds = [];
