@@ -29,7 +29,7 @@ export async function fetchMapsDefault(game) {
             break;
         }
         catch(err) {
-            logger.warn(err);
+            logger.error(err);
             continue;
         }
     }

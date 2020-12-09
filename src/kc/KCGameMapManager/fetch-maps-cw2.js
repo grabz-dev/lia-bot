@@ -26,16 +26,10 @@ export async function fetchMapsCW2(options) {
     }
 
     while(true) {
-        try {
-            let finished = await fetcher.call(this, options, currentPage, mapListTemp);
-            if(finished) break;
-            currentPage++;
-            await Bot.Util.Promise.sleep(1000);
-        }
-        catch(err) {
-            logger.warn(err);
-            continue;
-        }
+        let finished = await fetcher.call(this, options, currentPage, mapListTemp);
+        if(finished) break;
+        currentPage++;
+        await Bot.Util.Promise.sleep(1000);
     }
 }
 
@@ -49,7 +43,17 @@ export async function fetchMapsCW2(options) {
  */
 async function fetcher(options, page, mapListTemp) {
     //Fetch all maps from the current page.
-    let data = await HttpRequest.get(URL + "&page=" + page);
+    while(true) {
+        try {
+            var data = await HttpRequest.get(URL + "&page=" + page);
+            break;
+        }
+        catch(err) {
+            logger.error(err);
+            continue;
+        }
+    }
+
     let exit = true;
 
     let i = 0;
