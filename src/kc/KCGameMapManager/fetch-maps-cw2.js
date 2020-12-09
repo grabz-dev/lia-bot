@@ -26,10 +26,16 @@ export async function fetchMapsCW2(options) {
     }
 
     while(true) {
-        let finished = await fetcher.call(this, options, currentPage, mapListTemp);
-        if(finished) break;
-        currentPage++;
-        await Bot.Util.Promise.sleep(1000);
+        try {
+            let finished = await fetcher.call(this, options, currentPage, mapListTemp);
+            if(finished) break;
+            currentPage++;
+            await Bot.Util.Promise.sleep(1000);
+        }
+        catch(err) {
+            logger.warn(err);
+            continue;
+        }
     }
 }
 
