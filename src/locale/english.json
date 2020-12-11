@@ -176,7 +176,7 @@
             "": [
                 "<n>!%name% <game> <type> <id> <objective>",
                 "<v>Show score for a map.",
-                "<v>%space%<game> - pf, cw3, cw2",
+                "<v>%space%<game> - cw4, pf, cw3, cw2",
                 "<v>%space%<type> - custom, dmd, code. If none is specified, assumes custom.",
                 "<v>%space%<id> - The map ID.",
                 "<v>%space%<objective> - CW4 only. The objective that must be completed.",
@@ -207,7 +207,7 @@
             "": [
                 "!%name% <game> <emote>",
                 "Associate an emote with a KC game for use with various commands.",
-                "%space%<game> - pf, cw3, cw2.",
+                "%space%<game> - cw4, pf, cw3, cw2.",
                 "%space%<emote> - The emote to use."
             ]
         },
@@ -219,7 +219,7 @@
             "new": [
                 "!%name% <game>",
                 "Get experience from completed maps and generate six new maps to beat.",
-                "%space%<game> - pf, cw3, cw2."
+                "%space%<game> - cw4, pf, cw3, cw2."
             ],
             "profile": [
                 "!%name%",
@@ -228,18 +228,18 @@
             "leaders": [
                 "!%name% <game>",
                 "Show Discord experience leaderboards!",
-                "%space%<game> - pf, cw3, cw2."
+                "%space%<game> - cw4, pf, cw3, cw2."
             ],
             "register": [
                 "!%name% <game> <name>",
                 "Register your leaderboard name for the experience system.",
-                "%space%<game> - pf, cw3, cw2.",
+                "%space%<game> - cw4, pf, cw3, cw2.",
                 "%space%<name> - The name you use on the leaderboards."
             ],
             "wipe": [
                 "!%name% <game> <id>",
                 "Full wipe a user's experience data for a specific game.",
-                "%space%<game> - pf, cw3, cw2.",
+                "%space%<game> - cw4, pf, cw3, cw2.",
                 "%space%<id> - The user mention/ping, or the user ID."
             ]
         },
