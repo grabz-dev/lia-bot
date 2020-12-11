@@ -182,3 +182,9 @@ core.on('ready', bot => {
         })();
     })().catch(logger.error);
 });
+
+process.on('unhandledRejection', (reason, p) => {
+    console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);
+    // @ts-ignore
+    console.dir(reason.stack);
+});

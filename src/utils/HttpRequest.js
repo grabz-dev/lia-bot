@@ -28,6 +28,10 @@ HttpRequest.get = function(url, isXml) {
                 else
                     resolve(data);
             });
+
+            response.on('error', err => {
+                reject(err);
+            });
         }).on('error', err => {
             reject(err);
         });

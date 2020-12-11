@@ -216,12 +216,12 @@
                 "!%name%",
                 "See the introduction to Experience!"
             ],
-            "get": [
+            "new": [
                 "!%name% <game>",
                 "Get experience from completed maps and generate six new maps to beat.",
                 "%space%<game> - pf, cw3, cw2."
             ],
-            "show": [
+            "profile": [
                 "!%name%",
                 "Display information about your current profile."
             ],
@@ -250,7 +250,7 @@
             ],
             "": [
                 "!%name% <game> <url>",
-                "Start a new stream.",
+                "Send a stream announcement to your stream in the <#388339514143145984> channel.",
                 "%space%<game> - cw4, pf, cw3, cw2, chopraider, gemcraft",
                 "%space%<url> - The link to your stream (YouTube, Twitch, Steam)."
             ]
