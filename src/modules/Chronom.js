@@ -190,7 +190,8 @@ function chronom(m, kcgmm) {
             let month = KCUtil.getMonthFromDate(date, true);
             let day = KCUtil.getDayFromDate(date);
 
-            str += `${completed ? ':white_check_mark:' : ':x:'} ${month} ${day}, ${year}\n`;
+            if(i < 5)
+                str += `${completed ? ':white_check_mark:' : ':x:'} ${month} ${day}, ${year}\n`;
         }
         str += `\nCurrent streak: ${bestStreak}/${this.days}\n`;
 
