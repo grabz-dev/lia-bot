@@ -46,7 +46,9 @@ export default class Experience extends Bot.Module {
         //https://knucklecracker.com/creeperworld4/plqueryDEMO.php?gameUID=demobonus4
         //KCGameMapManager.getScoreQueryURL
         this.games = ['cw4', 'pf', 'cw3', 'cw2'];
-        this.expBarLength = 15;
+        this.expBarLength = 40;
+        this.expBarLeadersLength = 26;
+        this.dots = ['⠀', '⡀', '⣀', '⣄', '⣤', '⣦', '⣶', '⣷', '⣿']
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS experience_users (
@@ -284,7 +286,7 @@ export default class Experience extends Bot.Module {
                 let member = m.guild.members.resolve(leader.resultUser.user_id);
 
                 msgStr += `\`#${i+1}\``;
-                msgStr += getFormattedXPBarString('', leader.total, this.expBarLength);
+                msgStr += getFormattedXPBarString.call(this, '', leader.total, this.expBarLeadersLength, true);
                 msgStr += ` ${member ? member.nickname ?? member.user.username : leader.resultUser.user_name}\n`;
 
                 if(resultUsers && leader.resultUser.user_id === resultUsers.user_id)
@@ -301,7 +303,7 @@ export default class Experience extends Bot.Module {
                 let expData = getExpDataFromMapsBeaten(getMapsParsed(mapListId, resultsMaps), ext.kcgmm);
 
                 msgStr += `\`#${leaders.findIndex(v => v.resultUser.user_id === resultUsers.user_id)+1}\``;
-                msgStr += getFormattedXPBarString('', expData, this.expBarLength);
+                msgStr += getFormattedXPBarString.call(this, '', expData, this.expBarLeadersLength, true);
                 msgStr += ` ${m.member.nickname ?? m.member.user.username}\n`;
             }
             embed.description += msgStr;
@@ -361,7 +363,7 @@ export default class Experience extends Bot.Module {
 
                 if(resultUsers == null) {
                     let expData = getExpDataFromMapsBeaten([], ext.kcgmm);
-                    field.name = getFormattedXPBarString(emotes[game]||':game_die:', expData, this.expBarLength);
+                    field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
 
                     field.value = Bot.Util.getSpecialWhitespace(3);
                     field.value += this.bot.locale.category('experience', 'embed_not_registered_1', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown');
@@ -374,7 +376,7 @@ export default class Experience extends Bot.Module {
                     WHERE id_experience_users = '${resultUsers.id}'`)).results;
 
                     let expData = getExpDataFromMapsBeaten(getMapsParsed(mapListId, resultsMaps), ext.kcgmm);
-                    field.name = getFormattedXPBarString(emotes[game]||':game_die:', expData, this.expBarLength);
+                    field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
 
                     
                     let mapsCurrent = getMapsParsed(mapListId, /** @type {number[]} */(JSON.parse(resultUsers.maps_current)));
@@ -463,7 +465,7 @@ export default class Experience extends Bot.Module {
                                             WHERE id_experience_users = '${resultUsers.id}'`)).results;
             let oldMaps = getMapsParsed(mapListId, resultsMaps);
             let expDataOld = getExpDataFromMapsBeaten(oldMaps, ext.kcgmm);
-            let xpOld = getFormattedXPBarString(null, expDataOld, this.expBarLength, true);
+            let xpOld = getFormattedXPBarString.call(this, null, expDataOld, this.expBarLength, false, true);
 
             let mapsChosenLast = getMapsParsed(mapListId, /** @type {number[]} */(JSON.parse(resultUsers.maps_current)));
             //Find out which maps from current maps are completed.
@@ -476,6 +478,7 @@ export default class Experience extends Bot.Module {
             let selectedIds = [];
             selectRandomMaps(selectedIds, mapListArrayByRankModified, mapsCurrent.finished, resultsMaps, 3);
             selectRandomMaps(selectedIds, mapListArrayModified, mapsCurrent.finished, resultsMaps, 6);
+            selectedIds.sort((a, b) => getExpFromMap(b, ext.kcgmm) - getExpFromMap(a, ext.kcgmm));
 
             await query(`UPDATE experience_users SET maps_current = '${JSON.stringify(selectedIds.map(v => v.id))}'
                          WHERE user_id = '${m.member.id}' AND game = '${game}'`);
@@ -499,9 +502,11 @@ export default class Experience extends Bot.Module {
                 inline: false
             }
             fieldXp.value = '```';
-            fieldXp.value += xpOld + '\n';
-            fieldXp.value += '↓                   ↓  ↓                   ↓\n';
-            fieldXp.value += getFormattedXPBarString(null, expDataNew, this.expBarLength, true);
+            if(expDataOld.currentLevel !== expDataNew.currentLevel || expDataOld.currentXP !== expDataNew.currentXP) {
+                fieldXp.value += xpOld + '\n';
+                fieldXp.value += `${getFormattedXPBarString.call(this, null, expDataNew, this.expBarLength, false, true, true)}\n`;
+            }
+            fieldXp.value += getFormattedXPBarString.call(this, null, expDataNew, this.expBarLength, false, true);
             fieldXp.value += '```';
 
             let fieldNewMaps = {
@@ -600,39 +605,46 @@ function getMapClaimString(map, game, kcgmm) {
 }
 
 /**
- * 
+ * @this {Experience}
  * @param {string | null} emote 
  * @param {Experience.ExpData} expData
  * @param {number} expBarsMax 
+ * @param {boolean=} noXpCur 
  * @param {boolean=} noCode 
+ * @param {boolean=} arrowOnly
  * @returns {string}
  */
-function getFormattedXPBarString(emote, expData, expBarsMax, noCode) {
+function getFormattedXPBarString(emote, expData, expBarsMax, noXpCur, noCode, arrowOnly) {
+    let lvl = arrowOnly ? '' : `Lv.${expData.currentLevel}`;
+    expBarsMax -= lvl.length;
+    let xpCur = noXpCur ? '' : Bot.Util.String.fixedWidth(arrowOnly ? '' : expData.currentXP+'', 5, ' ');
+    expBarsMax -= xpCur.length;
+    let xpMax = Bot.Util.String.fixedWidth(arrowOnly ? '' : expData.maxXP+'', 5, ' ', true);
+    expBarsMax -= xpMax.length;
+    //Miscellaneous characters:
+    expBarsMax -= 2;
+
+    let half1 = Math.floor(expBarsMax / 2);
+    let half2 = Math.floor(expBarsMax / 2);
+
+    let expPrc = expData.currentXP / expData.maxXP;
+    let dotsRemaining =  Math.floor(expBarsMax * 8 * expPrc);
+    let bar = '';
+    for(let i = 0; i < expBarsMax; i++) {
+        let dots = Math.min(this.dots.length - 1, dotsRemaining);
+        dotsRemaining -= dots;
+
+        bar = `${bar}${arrowOnly ? (i === half1 || i === half2 ? '↓' : this.dots[0]) : this.dots[dots]}`;
+    }
+
+    let half = Math.floor(expBarsMax / 2);
+    bar = `${bar.substring(0, half)}${lvl}${bar.substring(half)}`;
+    bar = arrowOnly ? ` ${bar} ` : `|${bar}|`;
+
     let str = '';
-    
-    if(emote == null)
-        str += '';
-    else
-        str += emote + ' ';
-    if(!noCode)
-        str += '`';
-    str += 'LVL: ' + Bot.Util.String.fixedWidth(expData.currentLevel+'', 4, ' ', true);
-    str += ' ';
-    str += 'XP: ' + Bot.Util.String.fixedWidth(expData.currentXP+'', 5, ' ', false);
-    str += '/' + Bot.Util.String.fixedWidth(expData.maxXP+'', 6, ' ', true);
-    str += ' ';
-
-    let expBarsToFill = Math.floor(expData.currentXP / expData.maxXP * expBarsMax);
-
-    str += '|';
-    for(let j = 0; j < expBarsToFill; j++)
-    str += '#';
-    for(let j = 0; j < expBarsMax - expBarsToFill; j++)
-        str += ' ';
-    str += '|';
-    if(!noCode)
-        str += '`';
-
+    str = `${str}${xpCur}${bar}${xpMax}`;
+    str = noCode ? str : `\`${str}\``;
+    str = emote == null ? `${str}` : `${emote} ${str}`;
     return str;
 }
 
