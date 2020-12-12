@@ -405,7 +405,7 @@ export default class Experience extends Bot.Module {
 
             embed.fields.push({
                 name: ':information_source: ' + this.bot.locale.category('experience', 'embed_instructions_title'),
-                value: this.bot.locale.category('experience', 'embed_instructions_value'),
+                value: this.bot.locale.category('experience', 'embed_instructions_value', game == null ? '[game]' : game),
                 inline: false,
             });
 
