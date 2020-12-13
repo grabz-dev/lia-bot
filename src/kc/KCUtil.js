@@ -54,12 +54,13 @@ export const KCUtil = Object.freeze({
      * @returns {string}
      */
     getDayFromDate : function(date) {
-        let day = date.getDate()+'';
-        if(day.endsWith('1')) day += 'st';
-        else if(day.endsWith('2')) day += 'nd';
-        else if(day.endsWith('3')) day += 'rd';
-        else day += 'th';
-        return day;
+        let day = date.getDate();
+        switch(day) {
+        case 1: return `${day}st`;
+        case 2: return `${day}nd`;
+        case 3: return `${day}rd`;
+        default: return `${day}th`;
+        }
     },
 
     /**
