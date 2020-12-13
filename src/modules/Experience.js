@@ -628,7 +628,7 @@ function getFormattedXPBarString(emote, expData, expBarsMax, noXpCur, noCode, ar
     let half2 = Math.floor(expBarsMax / 2);
 
     let expPrc = expData.currentXP / expData.maxXP;
-    let dotsRemaining =  Math.floor(expBarsMax * 8 * expPrc);
+    let dotsRemaining =  Math.floor(expBarsMax * (this.dots.length - 1) * expPrc);
     let bar = '';
     for(let i = 0; i < expBarsMax; i++) {
         let dots = Math.min(this.dots.length - 1, dotsRemaining);
