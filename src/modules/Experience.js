@@ -48,7 +48,7 @@ export default class Experience extends Bot.Module {
         this.games = ['cw4', 'pf', 'cw3', 'cw2'];
         this.expBarLength = 40;
         this.expBarLeadersLength = 26;
-        this.dots = ['⠀', '⡀', '⣀', '⣄', '⣤', '⣦', '⣶', '⣷', '⣿']
+        this.dots = ['⣀', '⣄', '⣤', '⣦', '⣶', '⣷', '⣿']
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS experience_users (
@@ -504,7 +504,7 @@ export default class Experience extends Bot.Module {
             fieldXp.value = '```';
             if(expDataOld.currentLevel !== expDataNew.currentLevel || expDataOld.currentXP !== expDataNew.currentXP) {
                 fieldXp.value += xpOld + '\n';
-                fieldXp.value += `${getFormattedXPBarString.call(this, null, expDataNew, this.expBarLength, false, true, true)}\n`;
+                fieldXp.value += `                     ↓\n`;
             }
             fieldXp.value += getFormattedXPBarString.call(this, null, expDataNew, this.expBarLength, false, true);
             fieldXp.value += '```';
