@@ -47,6 +47,7 @@
             "embed_instructions_title": "Instructions",
             "embed_instructions_value": "To claim experience and generate new maps to complete, call `!exp new %0`\nMaps that haven't been beaten on this round will have a chance to appear again.",
             "embed_results_title_1": "Experience",
+            "embed_results_title_1_1": "Experience (Before & After)",
             "embed_results_title_2": "Your new %0 __%1__ maps to beat are:",
             "embed_results_title_3": "These selected maps you have beaten before. Hooray free experience!:",
             "embed_results_value": "To view your current progress, call `!exp profile %0`\nConsider checking your progress before generating new maps.\nTo generate new maps to play, call `!exp new %0`\nMaps that haven't been beaten on this round will have a chance to appear again.",

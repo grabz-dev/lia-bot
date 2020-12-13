@@ -497,17 +497,17 @@ export default class Experience extends Bot.Module {
             let maps = await getMapsCompleted(selectedIds, resultUsers.user_name, ext.kcgmm);
 
             let fieldXp = {
-                name: emote + ' ' + this.bot.locale.category('experience', 'embed_results_title_1'),
-                value: Bot.Util.getSpecialWhitespace(1),
+                name: emote + ' ',
+                value: '',
                 inline: false
             }
-            fieldXp.value = '```';
+            let xpNew = getFormattedXPBarString.call(this, null, expDataNew, this.expBarLength, false, true);
             if(expDataOld.currentLevel !== expDataNew.currentLevel || expDataOld.currentXP !== expDataNew.currentXP) {
-                fieldXp.value += xpOld + '\n';
-                fieldXp.value += `                     ↓\n`;
+                fieldXp.name += this.bot.locale.category('experience', 'embed_results_title_1_1');
+                fieldXp.value += `\`\`\`${xpOld}\`\`\``;
             }
-            fieldXp.value += getFormattedXPBarString.call(this, null, expDataNew, this.expBarLength, false, true);
-            fieldXp.value += '```';
+            else fieldXp.name += this.bot.locale.category('experience', 'embed_results_title_1');
+            fieldXp.value += `\`\`\`${xpNew}\`\`\``;
 
             let fieldNewMaps = {
                 name: emote + ' ' + this.bot.locale.category('experience', 'embed_results_title_2', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown', KCLocaleManager.getDisplayNameFromAlias('map_mode_custom', `${game}_custom`)),
