@@ -473,9 +473,8 @@ export default class Experience extends Bot.Module {
             let resultsMaps = (await query(`SELECT * FROM experience_maps
                                             WHERE id_experience_users = '${resultUsers.id}'`)).results;
             let oldMaps = getMapsParsed(mapListId, resultsMaps);
-            const totalCompleted = oldMaps.length;
 
-            let expDataOld = getExpDataFromMapsBeaten(oldMaps, ext.kcgmm, totalCompleted);
+            let expDataOld = getExpDataFromMapsBeaten(oldMaps, ext.kcgmm, oldMaps.length);
             let xpOld = getFormattedXPBarString.call(this, null, expDataOld, this.expBarLength, false, true);
 
             let mapsChosenLast = getMapsParsed(mapListId, /** @type {number[]} */(JSON.parse(resultUsers.maps_current)));
@@ -483,6 +482,7 @@ export default class Experience extends Bot.Module {
             let mapsCurrent = await getMapsCompleted(mapsChosenLast, resultUsers.user_name, ext.kcgmm);
 
             let allMapsCompleted = resultsMaps.map((v => v.map_id)).concat(mapsCurrent.finished.map(v => v.id));
+            const totalCompleted = allMapsCompleted.length;
             let mapListArrayByRankModified = ext.kcgmm.getHighestRankedMonthlyMaps(game, 3, 10, allMapsCompleted);
             
             /** @type {KCGameMapManager.MapData[]} */
