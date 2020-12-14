@@ -245,10 +245,13 @@ export default class Experience extends Bot.Module {
                 /** @type {any[]} */
                 let resultsMaps = (await query(`SELECT * FROM experience_maps
                                                 WHERE id_experience_users = '${resultUser.id}'`)).results;
+
+                let mapsParsed = getMapsParsed(mapListId, resultsMaps);
+                const totalCompleted = mapsParsed.length;
                 
                 leaders.push({
                     resultUser: resultUser,
-                    total: getExpDataFromMapsBeaten(getMapsParsed(mapListId, resultsMaps), ext.kcgmm)
+                    total: getExpDataFromMapsBeaten(mapsParsed, ext.kcgmm, totalCompleted)
                 });
             }
             leaders.sort((a, b) => b.total.currentLevel - a.total.currentLevel || b.total.currentXP - a.total.currentXP);
@@ -300,7 +303,10 @@ export default class Experience extends Bot.Module {
 
                 msgStr += '\n:small_blue_diamond: ';
 
-                let expData = getExpDataFromMapsBeaten(getMapsParsed(mapListId, resultsMaps), ext.kcgmm);
+                let mapsParsed = getMapsParsed(mapListId, resultsMaps);
+                const totalCompleted = mapsParsed.length;
+
+                let expData = getExpDataFromMapsBeaten(mapsParsed, ext.kcgmm, totalCompleted);
 
                 msgStr += `\`#${leaders.findIndex(v => v.resultUser.user_id === resultUsers.user_id)+1}\``;
                 msgStr += getFormattedXPBarString.call(this, '', expData, this.expBarLeadersLength, true);
@@ -362,7 +368,7 @@ export default class Experience extends Bot.Module {
                                                 WHERE user_id = '${m.member.id}' AND game = '${game}'`)).results[0];
 
                 if(resultUsers == null) {
-                    let expData = getExpDataFromMapsBeaten([], ext.kcgmm);
+                    let expData = getExpDataFromMapsBeaten([], ext.kcgmm, 0);
                     field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
 
                     field.value = Bot.Util.getSpecialWhitespace(3);
@@ -375,7 +381,10 @@ export default class Experience extends Bot.Module {
                     let resultsMaps = (await query(`SELECT * FROM experience_maps
                     WHERE id_experience_users = '${resultUsers.id}'`)).results;
 
-                    let expData = getExpDataFromMapsBeaten(getMapsParsed(mapListId, resultsMaps), ext.kcgmm);
+                    let mapsParsed = getMapsParsed(mapListId, resultsMaps);
+                    const totalCompleted = mapsParsed.length;
+
+                    let expData = getExpDataFromMapsBeaten(mapsParsed, ext.kcgmm, totalCompleted);
                     field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
 
                     
@@ -464,7 +473,9 @@ export default class Experience extends Bot.Module {
             let resultsMaps = (await query(`SELECT * FROM experience_maps
                                             WHERE id_experience_users = '${resultUsers.id}'`)).results;
             let oldMaps = getMapsParsed(mapListId, resultsMaps);
-            let expDataOld = getExpDataFromMapsBeaten(oldMaps, ext.kcgmm);
+            const totalCompleted = oldMaps.length;
+
+            let expDataOld = getExpDataFromMapsBeaten(oldMaps, ext.kcgmm, totalCompleted);
             let xpOld = getFormattedXPBarString.call(this, null, expDataOld, this.expBarLength, false, true);
 
             let mapsChosenLast = getMapsParsed(mapListId, /** @type {number[]} */(JSON.parse(resultUsers.maps_current)));
@@ -478,7 +489,7 @@ export default class Experience extends Bot.Module {
             let selectedIds = [];
             selectRandomMaps(selectedIds, mapListArrayByRankModified, mapsCurrent.finished, resultsMaps, 3);
             selectRandomMaps(selectedIds, mapListArrayModified, mapsCurrent.finished, resultsMaps, 6);
-            selectedIds.sort((a, b) => getExpFromMap(b, ext.kcgmm) - getExpFromMap(a, ext.kcgmm));
+            selectedIds.sort((a, b) => getExpFromMap(b, ext.kcgmm, totalCompleted) - getExpFromMap(a, ext.kcgmm, totalCompleted));
 
             await query(`UPDATE experience_users SET maps_current = '${JSON.stringify(selectedIds.map(v => v.id))}'
                          WHERE user_id = '${m.member.id}' AND game = '${game}'`);
@@ -489,11 +500,11 @@ export default class Experience extends Bot.Module {
             
             let embed = getEmbedTemplate(m.member);
             embed.color = KCUtil.gameEmbedColors[game];
-            embed.description = `Your leaderboards name is \`${resultUsers.user_name}\``;
+            embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou completed ${totalCompleted} maps (XP mult: ${Math.ceil(getExpMultiplier(totalCompleted) * 100)/100}x)`;
             
             embed.fields = [];
 
-            let expDataNew = getExpDataFromMapsBeaten(oldMaps.concat(mapsCurrent.finished), ext.kcgmm);
+            let expDataNew = getExpDataFromMapsBeaten(oldMaps.concat(mapsCurrent.finished), ext.kcgmm, totalCompleted);
             let maps = await getMapsCompleted(selectedIds, resultUsers.user_name, ext.kcgmm);
 
             let fieldXp = {
@@ -515,7 +526,7 @@ export default class Experience extends Bot.Module {
                 inline: false
             };
             for(let j = 0; j < maps.unfinished.length; j++)
-                fieldNewMaps.value += getMapClaimString(maps.unfinished[j], game, ext.kcgmm) + '\n';
+                fieldNewMaps.value += getMapClaimString(maps.unfinished[j], game, ext.kcgmm, totalCompleted) + '\n';
 
             let fieldBeatenMaps = {
                 name: emote + ' ' + this.bot.locale.category('experience', 'embed_results_title_3'),
@@ -523,7 +534,7 @@ export default class Experience extends Bot.Module {
                 inline: false,
             }
             for(let j = 0; j < maps.finished.length; j++)
-                fieldBeatenMaps.value += getMapClaimString(maps.finished[j], game, ext.kcgmm) + '\n';
+                fieldBeatenMaps.value += getMapClaimString(maps.finished[j], game, ext.kcgmm, totalCompleted) + '\n';
 
             let fieldInstructions = {
                 name: ':information_source: ' + this.bot.locale.category('experience', 'embed_instructions_title'),
@@ -590,10 +601,11 @@ function selectRandomMaps(arr, maps, mapsChosenLastCompleted, resultsMaps, count
  * @param {KCGameMapManager.MapData} map 
  * @param {string} game
  * @param {KCGameMapManager} kcgmm 
+ * @param {number} total - Total maps completed
  * @returns {string}
  */
-function getMapClaimString(map, game, kcgmm) {
-    let str = `\`ID #${map.id}\`: ${getExpFromMap(map, kcgmm)} XP - ${map.title} __by ${map.author}__`;
+function getMapClaimString(map, game, kcgmm, total) {
+    let str = `\`ID #${map.id}\`: ${getExpFromMap(map, kcgmm, total)} XP - ${map.title} __by ${map.author}__`;
 
     if(map.timestamp == null) return str;
     let date = kcgmm.getDateFlooredToMonth(new Date(map.timestamp));
@@ -651,21 +663,28 @@ function getFormattedXPBarString(emote, expData, expBarsMax, noXpCur, noCode, ar
 /**
  * @param {KCGameMapManager.MapData} mapData 
  * @param {KCGameMapManager} kcgmm
+ * @param {number} total - Total maps beaten
  * @returns {number}
  */
-function getExpFromMap(mapData, kcgmm) {
+function getExpFromMap(mapData, kcgmm, total) {
     //const rng = seedrandom(mapData.id+'');
     //let value = Math.floor(((rng() / 2) + 0.75) * 100); //0.75 - 1.25
     let value = 100;
-
-    if(!mapData.timestamp)
-        return value;
-
     const rank = kcgmm.getMapMonthlyRank(mapData);
-    if(rank == null)
-        return value;
 
-    return Math.max(value, value + 200 - ((rank-1) * 20));
+    if(mapData.timestamp != null && rank != null)
+        value = Math.max(value, value + 200 - ((rank-1) * 20));
+    
+    return Math.ceil(value * getExpMultiplier(total));
+}
+
+/**
+ * 
+ * @param {number} total - Total maps beaten 
+ * @returns {number}
+ */
+function getExpMultiplier(total) {
+    return Math.pow(1.015, total);
 }
 
 /**
@@ -711,16 +730,17 @@ function getMapsParsed(mapListId, arr) {
 /**
  * @param {KCGameMapManager.MapData[]} maps
  * @param {KCGameMapManager} kcgmm
+ * @param {number} total - Total maps beaten
  * @returns {Experience.ExpData}
  */
-function getExpDataFromMapsBeaten(maps, kcgmm) {
+function getExpDataFromMapsBeaten(maps, kcgmm, total) {
     let level = 1;
     let xpToNextLevel = 600; //2000 XP to level 2.
     let xpIncreasePerLevel = 200;
     let totalXp = 0;
 
     for(let map of maps) {
-        totalXp += getExpFromMap(map, kcgmm);
+        totalXp += getExpFromMap(map, kcgmm, total);
     }
 
     while(true) {
