@@ -1091,18 +1091,21 @@ async function getEmbedFieldFromMapData(guild, locale, mapLeaderboard, mapScoreQ
         value += "```";
         for(let i = 0; i < entries.length; i++) {
             let entry = entries[i];
-            if(i > 9) {
-                value += (entries.length - i + 1) + " more scores...";
-                break;
-            }
-
-            value += "#" + Bot.Util.String.fixedWidth(entry.rank+"", 3, "⠀", true);
-            value += Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 7, "⠀", false);
 
             /** @type {void|Discord.GuildMember} */
-            let member = await guild.members.fetch(entry.user).catch(() => {});
+            const member = await guild.members.fetch(entry.user).catch(() => {});
+            const name = (member ? member.nickname || member.user.username : entry.user).substring(0, 17);
 
-            value += " " + (member ? member.nickname || member.user.username : entry.user).substring(0, 17) + "\n";
+            if(i <= 7) {
+                value += `#${Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true)}${Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 7, "⠀", false)} ${name}\n`;
+            }
+            else if(i === 8) {
+                value += (entries.length - i) + " more scores from: ";
+            }
+
+            if(i >= 8) {
+                value += `${name}${i < entries.length - 1 ? ', ' : ''}`;
+            }
         }
         if(entries.length <= 0)
             value += "No scores yet!";
