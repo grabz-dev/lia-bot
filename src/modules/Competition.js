@@ -1092,11 +1092,11 @@ async function getEmbedFieldFromMapData(guild, locale, mapLeaderboard, mapScoreQ
         for(let i = 0; i < entries.length; i++) {
             let entry = entries[i];
             if(i > 9) {
-                value += (mapLeaderboard.entries.length - i + 1) + " more scores...";
+                value += (entries.length - i + 1) + " more scores...";
                 break;
             }
 
-            value += "#" + Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true);
+            value += "#" + Bot.Util.String.fixedWidth(entry.rank+"", 3, "⠀", true);
             value += Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 7, "⠀", false);
 
             /** @type {void|Discord.GuildMember} */
