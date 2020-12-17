@@ -82,5 +82,15 @@ export const KCUtil = Object.freeze({
             bufView[i] = str.charCodeAt(i);
         }
         return buf;
-    }
+    },
+
+    /**
+     * @param {any} obj1 
+     * @param {any} obj2 
+     */
+    objectCompareShallow : function (obj1, obj2) {
+        if(Object.keys(obj1).length !== Object.keys(obj2).length)
+            return false;
+        return Object.keys(obj1).every(key => obj2.hasOwnProperty(key) && obj1[key] === obj2[key]);
+    } 
 });

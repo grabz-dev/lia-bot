@@ -177,6 +177,20 @@ export function KCGameMapManager(options, locale) {
     }
 
     /**
+     * 
+     * @param {string} game //cw2 cw3 pf cw4 
+     * @param {number} id 
+     * @returns {MapData|null}
+     */
+    this.getMapById = function(game, id) {
+        let mapList = this._maps.id.get(game);
+        if(mapList == null) return null;
+        let map = mapList.get(id);
+        if(map == null) return null;
+        return Object.assign({}, map);
+    }
+
+    /**
      * Returns map list array for specific month sorted from best to worst
      * @param {string} game //cw3 pf cw4
      * @param {number} timestamp

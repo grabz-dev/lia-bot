@@ -112,13 +112,10 @@ async function map(m, game, id, kcgmm) {
         if(result) emote = result.emote;
     }).catch(logger.error);
 
-    let mapList = kcgmm.getMapListId(game);
-    if(mapList != null) {
-        let mapData = mapList.get(id);
-        if(mapData) {
-            m.channel.send({ embed:await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm) }).catch(logger.error);
-            return;
-        }
+    let mapData = kcgmm.getMapById(game, id);
+    if(mapData != null) {
+        m.channel.send({ embed:await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm) }).catch(logger.error);
+        return;
     }
 
     var str = this.bot.locale.category('mapdata', 'searching_map');
@@ -128,12 +125,7 @@ async function map(m, game, id, kcgmm) {
             if(game !== 'cw2')
                 await kcgmm.fetch(game);
 
-            mapList = kcgmm.getMapListId(game);
-            if(!mapList) {
-                message.edit(this.bot.locale.category('mapdata', 'search_result_not_found')).catch(logger.error);
-                return;
-            }
-            let mapData = mapList.get(id);
+            let mapData = kcgmm.getMapById(game, id);
             if(!mapData)
                 message.edit(this.bot.locale.category('mapdata', 'search_result_not_found')).catch(logger.error);
             else {
@@ -207,8 +199,8 @@ async function score(m, mapQueryData, kcgmm) {
         field.value = `${KCUtil.getMonthFromDate(date, false)} ${KCUtil.getDayFromDate(date)}, ${date.getFullYear()}\n` + field.value;
     }
     if(mapQueryData.id) {
-        const map = kcgmm.getMapListId(mapQueryData.game)?.get(mapQueryData.id);
-        if(map) {
+        const map = kcgmm.getMapById(mapQueryData.game, mapQueryData.id);
+        if(map != null) {
             field.value = `${map.title} __by ${map.author}__\n\n` + field.value;
         }
     }

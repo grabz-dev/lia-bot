@@ -94,6 +94,7 @@ export default class Competition extends Bot.Module {
         super(bot);
 
         this.games = ["cw4", "pf", "cw3", "cw2"];
+        this.maxScoresInTable = 8;
 
         this.bot.sql.transaction(async query => {
             
@@ -169,6 +170,8 @@ export default class Competition extends Bot.Module {
     /** @param {Discord.Guild} guild - Current guild. */
     init(guild) {
         super.init(guild);
+
+        this.cache.set(guild.id, 'comp_maps', []);
     }
 
     /**
@@ -328,27 +331,28 @@ export default class Competition extends Bot.Module {
 
                 const fullMapLeaderboard = await kcgmm.getMapScores(map, undefined, "specialevent");
                 const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(query, guild, map.game, fullMapLeaderboard);
+
                 const emote = (emotes && map.game && emotes[map.game]) ? emotes[map.game] : ":map:";
                 let embed = embeds.get(map.game);
                 if(!embed) {
                     embed = getEmbedScores(KCUtil.gameEmbedColors[map.game], timeLeft);
                     embeds.set(map.game, embed);
                 }
+
+                const mapData = map.id == null ? undefined : kcgmm.getMapById(map.game, map.id) ?? undefined;
+                const field = await getEmbedFieldFromMapData.call(this, guild, registeredMapLeaderboard, map, emote, mapData);
+
+                if(hasMapStatusChanged.call(this, guild, map, registeredMapLeaderboard)) {
+                    const embed = getEmbedScores(KCUtil.gameEmbedColors[map.game]);
+                    embed.title = ":trophy: Score update!";
+                    embed.fields = [];
+                    embed.fields[0] = field;
+                    channel.send({ embed }).catch(logger.error);
+                }
+
                 let fields = embed.fields;
                 if(!fields) fields = [];
-                if(map.type === "code")
-                    fields.push(await getEmbedFieldFromMapData(guild, this.bot.locale, registeredMapLeaderboard, map, emote));
-                else {
-                    let mapList = kcgmm.getMapListId(map.game);
-                    if(mapList && map.id) {
-                        let mapData = mapList.get(map.id);
-                        if(mapData) 
-                            fields.push(await getEmbedFieldFromMapData(guild, this.bot.locale, registeredMapLeaderboard, map, emote, mapData));
-                        else fields.push({name: "err_map_not_found", value: "err_map_not_found", inline: false});
-                    }
-                    else
-                        fields.push({name: "err_map_invalid", value: "err_map_invalid", inline: false});
-                }
+                fields.push(field);
 
                 let message = messages.get(map.game);
                 if(!message) {
@@ -553,6 +557,8 @@ function destroy(m) {
         await query(`UPDATE competition_main SET time_start = NULL, time_end = NULL WHERE guild_id = '${m.guild.id}'`);
         await query(`DELETE FROM competition_maps WHERE guild_id = '${m.guild.id}'`);
 
+        this.cache.set(m.guild.id, 'comp_maps', []);
+
         m.message.reply(this.bot.locale.category("competition", "erased")).catch(logger.error);
     }).catch(logger.error);
 }
@@ -735,11 +741,10 @@ function end(m, kcgmm) {
             
             maps.set(resultMaps, registeredMapLeaderboard);
             
-            const mapList = kcgmm.getMapListId(map.game);
-            const mapData = !mapList || map.id == null ? undefined : mapList.get(map.id);
+            const mapData = map.id == null ? undefined : kcgmm.getMapById(map.game, map.id) ?? undefined;
 
             const embed = getEmbedTemplate();
-            const field = await getEmbedFieldFromMapData(m.guild, this.bot.locale, registeredMapLeaderboard, map, emotes[map.game], mapData);
+            const field = await getEmbedFieldFromMapData.call(this, m.guild, registeredMapLeaderboard, map, emotes[map.game], mapData);
             embed.title = field.name;
             embed.description = field.value;
             embed.footer = {
@@ -777,6 +782,8 @@ function end(m, kcgmm) {
 
         await m.message.reply(this.bot.locale.category("competition", "end_success"));
         await buildScoreTally.bind(this)(m.guild, channel, query);
+
+        this.cache.set(m.guild.id, 'comp_maps', []);
     }).catch(logger.error);
 }
 
@@ -1032,30 +1039,33 @@ function getEmbedTemplate() {
 
 /**
  * @param {number} color
- * @param {number} timeRemaining - in milliseconds.
+ * @param {number=} timeRemaining - in milliseconds.
  * @returns {Discord.MessageEmbed}
  */
 function getEmbedScores(color, timeRemaining) {
-    return new Discord.MessageEmbed({
+    const embed = new Discord.MessageEmbed({
         color: color,
         description: "",
         timestamp: new Date(),
-        footer: {
+    });
+    if(timeRemaining != null) {
+        embed.footer = {
             text: "Time left: " + (timeRemaining > 0 ? Bot.Util.getFormattedTimeRemaining(timeRemaining) : "OVERTIME")
         }
-    });
+    }
+    return embed;
 }
 
 /**
+ * @this {Competition}
  * @param {Discord.Guild} guild
- * @param {Bot.Locale} locale
  * @param {KCGameMapManager.MapLeaderboard} mapLeaderboard
  * @param {KCGameMapManager.MapScoreQueryData} mapScoreQueryData 
  * @param {string} emoteStr
  * @param {KCGameMapManager.MapData=} mapData
  * @returns {Promise<{name: string, value: string, inline: boolean}>}
  */
-async function getEmbedFieldFromMapData(guild, locale, mapLeaderboard, mapScoreQueryData, emoteStr, mapData) {
+async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData, emoteStr, mapData) {
     let name = `${emoteStr} ${KCLocaleManager.getDisplayNameFromAlias("map_mode_custom", `${mapScoreQueryData.game}_${mapScoreQueryData.type}`)}`;
     let value = "";
 
@@ -1096,14 +1106,14 @@ async function getEmbedFieldFromMapData(guild, locale, mapLeaderboard, mapScoreQ
             const member = await guild.members.fetch(entry.user).catch(() => {});
             const name = (member ? member.nickname || member.user.username : entry.user).substring(0, 17);
 
-            if(i <= 7) {
+            if(i <= this.maxScoresInTable - 1) {
                 value += `#${Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true)}${Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 7, "⠀", false)} ${name}\n`;
             }
-            else if(i === 8) {
+            else if(i === this.maxScoresInTable) {
                 value += (entries.length - i) + " more scores from: ";
             }
 
-            if(i >= 8) {
+            if(i >= this.maxScoresInTable) {
                 value += `${name}${i < entries.length - 1 ? ', ' : ''}`;
             }
         }
@@ -1222,4 +1232,40 @@ function getMapScoreQueryDataFromDatabase(resultMaps) {
         name: resultMaps.name ?? undefined,
         objective: resultMaps.objective ?? undefined,
     }
+}
+
+/**
+ * @this {Competition}
+ * @param {Discord.Guild} guild
+ * @param {KCGameMapManager.MapScoreQueryData} msqd
+ * @param {KCGameMapManager.MapLeaderboard} leaderboard
+ * @returns {boolean}
+ */
+function hasMapStatusChanged(guild, msqd, leaderboard) {
+    /** @type {{msqd: KCGameMapManager.MapScoreQueryData, leaderboard: KCGameMapManager.MapLeaderboard}[]} */
+    let compMaps = this.cache.get(guild.id, 'comp_maps');
+
+    let compMapMatch = compMaps.find(v => KCUtil.objectCompareShallow(v.msqd, msqd));
+
+    if(compMapMatch == null) {
+        compMaps.push({ msqd, leaderboard });
+        this.cache.set(guild.id, 'comp_maps', compMaps);
+        return false;
+    }
+    else {
+        compMaps[compMaps.indexOf(compMapMatch)] = { msqd, leaderboard }
+        this.cache.set(guild.id, 'comp_maps', compMaps);
+
+        const leaderboardIndex = msqd.objective ?? 0;
+        let leaderboardOld = compMapMatch.leaderboard.entries[leaderboardIndex];
+        let leaderboardNew = leaderboard.entries[leaderboardIndex];
+        if(leaderboardOld == null || leaderboardNew == null) return false;
+
+        let len = Math.min(this.maxScoresInTable, Math.min(leaderboardNew.length, leaderboardOld.length));
+        for(let i = 0; i < len; i++) {
+            if(leaderboardOld[i].user !== leaderboardNew[i].user)
+                return true;
+        }
+    }
+    return false;
 }
