@@ -54,7 +54,7 @@ export default class Experience extends Bot.Module {
             await query(`CREATE TABLE IF NOT EXISTS experience_users (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 user_id VARCHAR(64) NOT NULL,
-                user_name VARCHAR(128) NOT NULL,
+                user_name VARCHAR(128) BINARY NOT NULL,
                 game VARCHAR(16) NOT NULL,
                 maps_current JSON NOT NULL
              )`);

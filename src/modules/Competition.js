@@ -122,7 +122,7 @@ export default class Competition extends Bot.Module {
                 map_id MEDIUMINT UNSIGNED,
                 size TINYINT UNSIGNED,
                 complexity TINYINT UNSIGNED,
-                name VARCHAR(128),
+                name VARCHAR(128) BINARY,
                 objective TINYINT UNSIGNED
              )`);
 
@@ -140,7 +140,7 @@ export default class Competition extends Bot.Module {
                 map_id MEDIUMINT UNSIGNED,
                 size TINYINT UNSIGNED,
                 complexity TINYINT UNSIGNED,
-                name VARCHAR(128),
+                name VARCHAR(128) BINARY,
                 objective TINYINT UNSIGNED
              )`);
 
@@ -162,7 +162,7 @@ export default class Competition extends Bot.Module {
                 guild_id VARCHAR(64) NOT NULL,
                 user_id VARCHAR(64) NOT NULL,
                 game VARCHAR(16) NOT NULL,
-                user_name VARCHAR(128) NOT NULL
+                user_name VARCHAR(128) BINARY NOT NULL
              )`);
         }).catch(logger.error);
     }
