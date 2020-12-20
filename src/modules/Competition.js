@@ -841,7 +841,7 @@ function intro(m, type) {
         let roleId = this.bot.getRoleId(m.guild.id, 'MASTER_OF_CHRONOM');
         embed.color = 12141774;
 
-        embed.description = `:fire: **Introduction to Chronom**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nComplete all of the latest Creeper World 4 Chronom maps to become Master of Chronom. Track your status with the \`!c chronom\` command.`;
+        embed.description = `:fire: **Introduction to Chronom**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nComplete all of the latest Creeper World 4 Chronom maps to become Master of Chronom. Track your status with the \`!c chronom\` command in <#457188713978527746>.`;
     }
 
     embed.image = {
