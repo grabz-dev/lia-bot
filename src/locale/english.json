@@ -36,6 +36,7 @@
             "err_user_mention_not_provided": "You must ping the user, or type their user ID.",
             "err_user_mention_not_correct": "Incorrect user ID specified, or the mention/ping was typed incorrectly.",
             "err_leaderboard_name_not_provided": "You must provide the leaderboard name you wish to register with.",
+            "err_map_id_invalid": "The provided map ID is invalid.",
 
             "intro_name": ":video_game: Welcome to Experience\n\n",
             "intro_value": "Play maps and earn points, for fun!\n\n`!exp register help` • Register\n`!exp new help` • Play maps\n\n`!exp profile` • Show profile\n`!exp leaders` • Show leaderboards",
@@ -61,7 +62,13 @@
             "register_confirm": "Are you sure you want to register with the name `%0` for %1? This has to be the name you use for the leaderboards. This name cannot be changed later without losing your progress.\n\nType the command again with your name to confirm, or use a different name to try again.",
             "register_success": "You are now registered as `%0` for %1. Have fun!\n\nTo get your first set of maps to complete, type `!exp new %2`",
             "leaderboard_empty": "Nothing to show.",
-            "leaderboard_title": "%0 leaderboards:"
+            "leaderboard_title": "%0 leaderboards:",
+
+            "already_ignoring_map": "You are already ignoring this map.",
+            "not_ignoring_map": "This map is not in your ignore list.",
+            "map_ignored": "Map #%0 will no longer show up. To unignore, see `!exp unignore help`. To see all ignored maps, see `!exp ignorelist %1`.",
+            "map_unignored": "Map #%0 will now show up again. To see all ignored maps, see `!exp ignorelist %1`.",
+            "maps_ignored": "The following maps are on your ignore list:"
         },
         "mapdata": {
             "err_game_name_not_provided": "You must provide the name of the game.",
@@ -242,6 +249,23 @@
                 "Full wipe a user's experience data for a specific game.",
                 "%space%<game> - cw4, pf, cw3, cw2.",
                 "%space%<id> - The user mention/ping, or the user ID."
+            ],
+            "ignore": [
+                "!%name% <game> <map_id>",
+                "Add a map to your ignore list.",
+                "%space%<game> - cw4, pf, cw3, cw2.",
+                "%space%<map_id> - The ID of the map to ignore."
+            ],
+            "unignore": [
+                "!%name% <game> <map_id>",
+                "Remove a map from your ignore list.",
+                "%space%<game> - cw4, pf, cw3, cw2.",
+                "%space%<map_id> - The ID of the map to unignore."
+            ],
+            "ignorelist": [
+                "!%name% <game>",
+                "Show a list of maps you ignored.",
+                "%space%<game> - cw4, pf, cw3, cw2."
             ]
         },
         "stream": {

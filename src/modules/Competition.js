@@ -183,6 +183,7 @@ export default class Competition extends Bot.Module {
      * @param {'register'|'unregister'|'set-channel'|'info'|'status'|'start'|'destroy'|'add-map'|'remove-map'|'update'|'build-tally'|'end'|'map'|'intro'} ext.action - Custom parameters provided to function call.
      * @param {KCGameMapManager} ext.kcgmm
      * @param {import('./Map.js').default} ext.map
+     * @param {import('./Champion.js').default} ext.champion
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
@@ -263,10 +264,10 @@ export default class Competition extends Bot.Module {
             update.call(this, m, ext.kcgmm);
             return;
         case 'build-tally':
-            buildTally.call(this, m);
+            buildTally.call(this, m, ext.champion);
             return;
         case 'end':
-            end.call(this, m, ext.kcgmm);
+            end.call(this, m, ext.kcgmm, ext.champion);
             return;
         case 'intro':
             switch(arg) {
@@ -670,10 +671,11 @@ function update(m, kcgmm) {
  * Rebuild the competition tally.
  * @this Competition
  * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {import('./Champion.js').default} champion
  */
-function buildTally(m) {
+function buildTally(m, champion) {
     this.bot.sql.transaction(async query => {
-        await buildScoreTally.bind(this)(m.guild, m.channel, query);
+        await buildScoreTally.call(this, m.guild, m.channel, query, champion);
     }).catch(logger.error);
 }
 
@@ -682,8 +684,9 @@ function buildTally(m) {
  * @this Competition
  * @param {Bot.Message} m - Message of the user executing the command.
  * @param {KCGameMapManager} kcgmm
+ * @param {import('./Champion.js').default} champion
  */
-function end(m, kcgmm) {
+function end(m, kcgmm, champion) {
     const now = Date.now();
 
     this.bot.sql.transaction(async query => {
@@ -781,7 +784,7 @@ function end(m, kcgmm) {
         await query(`DELETE FROM competition_maps WHERE guild_id = '${m.guild.id}'`);
 
         await m.message.reply(this.bot.locale.category("competition", "end_success"));
-        await buildScoreTally.bind(this)(m.guild, channel, query);
+        await buildScoreTally.call(this, m.guild, channel, query, champion);
 
         this.cache.set(m.guild.id, 'comp_maps', []);
     }).catch(logger.error);
@@ -859,79 +862,13 @@ function intro(m, type) {
  * @param {Discord.Guild} guild 
  * @param {Discord.TextChannel} channel
  * @param {SQLWrapper.Query} query
- * @returns {Promise<Discord.Message>}
+ * @param {import('./Champion.js').default} champion
  */
-async function buildScoreTally(guild, channel, query) {
-    const roleId = this.bot.getRoleId(guild.id, "CHAMPION_OF_KC");
-    const role = roleId ? guild.roles.cache.get(roleId) : undefined;
-
-    /** @type {Discord.Collection<Discord.Snowflake, number>} */
-    const champions = new Discord.Collection();
-
-    let weeks = 2;
-    let i = 1;
-
-    /** @type {Db.competition_history_competitions[]} */
-    let resultsComps = (await query(`SELECT * FROM competition_history_competitions WHERE guild_id = '${guild.id}'`)).results;
-    
-    resultsComps = resultsComps.slice(resultsComps.length - weeks, resultsComps.length);
-    
-    for(let resultComps of resultsComps) {
-        /** @type {Db.competition_history_maps[]} */
-        let resultsMaps = (await query(`SELECT * FROM competition_history_maps 
-            WHERE id_competition_history_competitions = '${resultComps.id}'`)).results;
-
-        for(let resultMaps of resultsMaps) {
-            /** @type {Db.competition_history_scores[]} */
-            let resultsScores = (await query(`SELECT * FROM competition_history_scores 
-                WHERE id_competition_history_maps = '${resultMaps.id}'`)).results;
-
-            for(let resultScores of resultsScores) {
-                if(resultScores.user_rank !== 1) continue;
-                
-                champions.set(resultScores.user_id, i);
-            }
-        }
-        i++;
-    }
-
-    champions.sort((a, b) => {
-        return b - a;
+async function buildScoreTally(guild, channel, query, champion) {
+    return await champion.processChampionRole(channel, guild, query, {
+        postScoreTally: true,
+        postExpLeaders: false,
     });
-
-    if(role) {
-        let arr = [];
-        for(let member of role.members.array()) {
-            arr.push(member.roles.remove(role).catch(logger.error));
-        }
-
-        for(let p of arr)
-            await p;
-    }
-
-    const embed = getEmbedTemplate();
-    const field = {
-        name: "Current champions",
-        value: "",
-        inline: false
-    }
-    for(let champion of champions) {
-        let weeks = champion[1];
-        let snowflake = champion[0];
-
-        field.value += `\`${weeks} weeks left\` <@${snowflake}>\n`;
-
-        if(role) {
-            let member = await guild.members.fetch(snowflake).catch(() => {});
-            if(member) member.roles.add(role).catch(logger.error);
-        }
-    }
-    if(field.value.length === 0) field.value = "None";
-    
-    embed.fields = [];
-    embed.fields.push(field);
-
-    return await channel.send({embed: embed});
 }
 
 /**
