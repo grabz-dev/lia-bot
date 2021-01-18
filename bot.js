@@ -46,19 +46,19 @@ core.on('ready', bot => {
                 categoryNames: [':game_die: Miscellaneous', 'miscellaneous', 'misc']
             }
 
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'map', commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'map', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return map.land(message, args, arg, { action: 'map', kcgmm: kcgmm });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['score', 'scores'], commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['score', 'scores'], commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return map.land(message, args, arg, { action: 'score', kcgmm: kcgmm });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['bestof', 'month'], commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['bestof', 'month'], commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return map.land(message, args, arg, { action: 'bestof', kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'stream', commandNames: 'setchannel', authorityLevel: null}), (message, args, arg) => {
                 return stream.land(message, args, arg, { action: 'set-channel' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'stream', commandNames: ['', 'start'], authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'stream', commandNames: ['', 'start'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return stream.land(message, args, arg, { action: 'start' });
             });
         })();
@@ -76,31 +76,31 @@ core.on('ready', bot => {
                 categoryNames: [':joystick: Experience', 'experience', 'exp']
             }
 
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'info', kcgmm: kcgmm });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'register', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'register', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'register' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['profile', 'show'], authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['profile', 'show'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'profile', kcgmm: kcgmm });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['new', 'claim', 'get'], authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['new', 'claim', 'get'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'new', kcgmm: kcgmm });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['leaders', 'leaderboard', 'leaderboards'], authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['leaders', 'leaderboard', 'leaderboards'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'leaderboard', kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'wipe', authorityLevel: null}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'wipe' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'ignore', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'ignore', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'ignore' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'unignore', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'unignore', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'unignore' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'ignorelist', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'ignorelist', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'ignorelist' });
             });
         }).catch(logger.error);
@@ -117,7 +117,7 @@ core.on('ready', bot => {
                         chronom.loop(guild, kcgmm);
                     });
                 }, 5000);
-                core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'chronom', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+                core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'chronom', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                     return chronom.land(message, args, arg, { action: 'chronom', kcgmm: kcgmm });
                 });
             }).catch(logger.error);
@@ -127,19 +127,19 @@ core.on('ready', bot => {
                     competition.loop(guild, kcgmm);
                 });
             }, 5000);
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'info' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'setchannel', authorityLevel: null}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'set-channel' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'register', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'register', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'register' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'update', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'update', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'update', kcgmm: kcgmm });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'status', authorityLevel: 'CITIZEN_OF_ODIN'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'status', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'status' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'start', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
