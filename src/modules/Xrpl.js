@@ -13,7 +13,7 @@ export default class Xrpl extends Bot.Module {
     constructor(bot) {
         super(bot);
 
-        this.maxDescLength = 100;
+        this.maxDescLength = 200;
     }
 
     /** @param {Discord.Guild} guild - Current guild. */
