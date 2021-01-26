@@ -219,6 +219,19 @@
                 "%space%<emote> - The emote to use."
             ]
         },
+        "4rpl": {
+            "": [
+                "!%name% <command>",
+                "Display short information about a 4RPL command.",
+                "%space%<command> - The command name. If omitted, a link to full documentation is be provided."
+            ]
+        },
+        "crpl": {
+            "": [
+                "!%name%",
+                "Display a link to CRPL documentation."
+            ]
+        },
         "exp": {
             "": [
                 "!%name%",
