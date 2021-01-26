@@ -62,7 +62,7 @@ export default class Map extends Bot.Module {
                 if(mapId == null || mapId == 'random')
                 mapId = (mapListByIds.random().id || 1) + '';
 
-                let id = Number(mapId);
+                let id = Number(mapId.replace('#', ''));
                 if(id < 0)
                     return this.bot.locale.category('mapdata', 'err_mapid_negative');
                 if(!Number.isFinite(id) || id <= 0)

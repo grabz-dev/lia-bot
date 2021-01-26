@@ -27,24 +27,26 @@ core.on('ready', bot => {
             kcgmm.fetch('cw2').catch(logger.error);
         }, 1000 * 60 * 60 * 24);
 
-        core.addCommand({baseNames: ['roll', 'dice', 'die'], commandNames: null, categoryNames: [':game_die: Miscellaneous', 'miscellaneous', 'misc'], authorityLevel: 'EVERYONE'}, (m, args, arg) => {
-            let param = Number(args[0]);
-            let sides = Number.isNaN(param) ? 6 : param;
-            let roll = Bot.Util.getRandomInt(1, sides + 1);
-
-            m.message.reply(`[:game_die: D${sides}] rolled \`${roll}\`!`).catch(logger.error);
-        });
-
         /** @type {import('./src/modules/Map.js').default} */
         const map = await core.getModule((await import('./src/modules/Map.js')).default);
         /** @type {import('./src/modules/Stream.js').default} */
         const stream = await core.getModule((await import('./src/modules/Stream.js')).default);
         /** @type {import('./src/modules/Champion.js').default} */
         const champion = await core.getModule((await import('./src/modules/Champion.js')).default);
+        /** @type {import('./src/modules/Xrpl.js').default} */
+        const xrpl = await core.getModule((await import('./src/modules/Xrpl.js')).default);
         (() => {
             const obj = {
                 categoryNames: [':game_die: Miscellaneous', 'miscellaneous', 'misc']
             }
+
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['roll', 'dice', 'die'], commandNames: null, authorityLevel: 'EVERYONE'}), (m, args, arg) => {
+                let param = Number(args[0]);
+                let sides = Number.isNaN(param) ? 6 : param;
+                let roll = Bot.Util.getRandomInt(1, sides + 1);
+    
+                m.message.reply(`[:game_die: D${sides}] rolled \`${roll}\`!`).catch(logger.error);
+            });
 
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'map', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return map.land(message, args, arg, { action: 'map', kcgmm: kcgmm });
@@ -60,6 +62,13 @@ core.on('ready', bot => {
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'stream', commandNames: ['', 'start'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return stream.land(message, args, arg, { action: 'start' });
+            });
+
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'crpl', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return xrpl.land(message, args, arg, { action: 'crpl' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: '4rpl', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return xrpl.land(message, args, arg, { action: '4rpl' });
             });
         })();
         
