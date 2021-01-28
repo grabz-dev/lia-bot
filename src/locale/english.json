@@ -223,13 +223,14 @@
             "": [
                 "!%name% <command>",
                 "Display short information about a 4RPL command.",
-                "%space%<command> - The command name. If omitted, a link to full documentation is be provided."
+                "%space%<command> - The command name. If omitted, a link to full documentation is provided."
             ]
         },
         "crpl": {
             "": [
-                "!%name%",
-                "Display a link to CRPL documentation."
+                "!%name% <command>",
+                "Display short information about a CRPL command.",
+                "%space%<command> - The command name. If omitted, a link to full documentation is provided."
             ]
         },
         "exp": {

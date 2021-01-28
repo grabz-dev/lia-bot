@@ -1,6 +1,6 @@
 {
   "name": "lia-bot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "",
   "main": "bot.js",
   "author": "Grabz#4707",
@@ -8,11 +8,13 @@
   "dependencies": {
     "discord-bot-core": "github:grabz-dev/discord-bot-core#main",
     "discord.js": "^12.4.1",
+    "jsdom": "^16.4.0",
     "node-fetch": "^2.6.1",
     "seedrandom": "^3.0.5",
     "xml2js": "^0.4.23"
   },
   "devDependencies": {
+    "@types/jsdom": "^16.2.6",
     "@types/node": "^14.0.27"
   }
 }

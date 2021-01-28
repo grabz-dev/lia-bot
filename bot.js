@@ -33,8 +33,8 @@ core.on('ready', bot => {
         const stream = await core.getModule((await import('./src/modules/Stream.js')).default);
         /** @type {import('./src/modules/Champion.js').default} */
         const champion = await core.getModule((await import('./src/modules/Champion.js')).default);
-        /** @type {import('./src/modules/Xrpl.js').default} */
-        const xrpl = await core.getModule((await import('./src/modules/Xrpl.js')).default);
+        /** @type {import('./src/modules/Wiki.js').default} */
+        const wiki = await core.getModule((await import('./src/modules/Wiki.js')).default);
         (() => {
             const obj = {
                 categoryNames: [':game_die: Miscellaneous', 'miscellaneous', 'misc']
@@ -65,10 +65,10 @@ core.on('ready', bot => {
             });
 
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'crpl', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return xrpl.land(message, args, arg, { action: 'crpl' });
+                return wiki.land(message, args, arg, { action: 'crpl' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: '4rpl', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return xrpl.land(message, args, arg, { action: '4rpl' });
+                return wiki.land(message, args, arg, { action: '4rpl' });
             });
         })();
         
