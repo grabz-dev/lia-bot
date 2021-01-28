@@ -14,6 +14,7 @@ import { JSDOM } from 'jsdom';
  * @property {string} title
  * @property {string} cmd
  * @property {string} desc
+ * @property {string} footer
  * @property {Discord.EmbedField[]} fields
  * @property {boolean} doesNotExist
  */
@@ -85,6 +86,7 @@ async function getXrpl(m, xrpl, pageName) {
         title: '',
         cmd: '',
         desc: '',
+        footer: '',
         fields: /** @type {Discord.EmbedField[]} */([]),
         doesNotExist: false,
     }
@@ -116,6 +118,9 @@ async function getXrpl(m, xrpl, pageName) {
         embed.description += `__**[${wikidata.cmd}](${url})**__\n`;
     embed.description += `${wikidata.desc}`;
     embed.fields = wikidata.fields;
+    if(wikidata.footer.length > 0) embed.footer = {
+        text: wikidata.footer
+    }
 
     m.message.delete();
 
@@ -137,6 +142,7 @@ async function getXrpl(m, xrpl, pageName) {
 function processWikiPage(wikidata, xrpl, pageName, document) {
     if(pageName.length <= 0) {
         wikidata.desc = `__**[${xrpl.toUpperCase()} Documentation](${this.rpl[xrpl].urlDocs})**__`;
+        wikidata.footer = `Show specific command: !${xrpl} <command>`;
         return;
     }
 
