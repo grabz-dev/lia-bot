@@ -19,23 +19,110 @@ import { JSDOM } from 'jsdom';
  * @property {boolean} doesNotExist
  */
 
+/** 
+ * @typedef {object} RPLData
+ * @property {string} game
+ * @property {string} urlDocs
+ * @property {string} urlCmd
+ * @property {Object.<string, string>} pageOverrides
+ */
+
 export default class Wiki extends Bot.Module {
     /** @param {Core.Entry} bot */
     constructor(bot) {
         super(bot);
 
-        this.maxDescLength = 200;
+        //For page overrides, keys must be lowercase!
 
+        const commonPageOverrides = {
+            '$varname:def_val': 'define',
+            '$init_var':        'define',
+            '$':                'define',
+            '<-varname':        'read',
+            '<-var':            'read',
+            '<-':               'read',
+            '->varname':        'write',
+            '->var':            'write',
+            '->':               'write',
+            '-?varname':        'exists',
+            '-?var':            'exists',
+            '-?':               'exists',
+            '--varname':        'delete',
+            '--var':            'delete',
+            '--':               'delete',
+            '<-!':              'refread',
+            '->!':              'refwrite',
+            '-?!':              'refexists',
+            '--!':              'refdelete',
+            '@func_name':       'call',
+            '@':                'call',
+            ':func_name':       'func',
+            ':':                'func',
+            '#':                'comment',
+            ':awake':           'func_awake',
+            'awake':            'func_awake',
+            ':destroyed':       'func_destroyed',
+            'destroyed':        'func_destroyed',
+            ':gameloaded':      'func_gameloaded',
+            'gameloaded':       'func_gameloaded',
+        }
+
+        this.maxDescLength = 200;
         this.rpl = {
+            /** @type {RPLData} */
             'crpl': {
                 game: 'cw3',
                 urlDocs: 'https://knucklecracker.com/wiki/doku.php?id=crpl:crplreference',
                 urlCmd: 'https://knucklecracker.com/wiki/doku.php?id=crpl:docs:',
+                pageOverrides: Object.assign({
+                    ':showmessagedialogcallback':   'func_showmessagedialogcallback',
+                    'showmessagedialogcallback':    'func_showmessagedialogcallback',
+                    ':usercancelaction':            'func_usercancelaction',
+                    'usercancelaction':            'func_usercancelaction',
+                }, commonPageOverrides)
             },
+            /** @type {RPLData} */
+            'prpl': {
+                game: 'pf',
+                urlDocs: 'https://knucklecracker.com/wiki/doku.php?id=prpl:prplreference',
+                urlCmd: 'https://knucklecracker.com/wiki/doku.php?id=prpl:',
+                pageOverrides: Object.assign({
+                    '<-*':              'readglobal',
+                    '->*':              'writeglobal',
+                    '-?*':              'existsglobal',
+                    '--*':              'deleteglobal',
+                    '<-!*':             'refreadglobal',
+                    '->!*':             'refwriteglobal',
+                    '-?!*':             'refexistsglobal',
+                    '--!*':             'refdeleteglobal',
+                }, commonPageOverrides)
+            },
+            /** @type {RPLData} */
             '4rpl': {
                 game: 'cw4',
                 urlDocs: 'https://knucklecracker.com/wiki/doku.php?id=4rpl:start',
-                urlCmd: 'https://knucklecracker.com/wiki/doku.php?id=4rpl:commands:'
+                urlCmd: 'https://knucklecracker.com/wiki/doku.php?id=4rpl:commands:',
+                pageOverrides: Object.assign({
+                    '$$init_var':       'define2',
+                    '$$':               'define2',
+                    ':buildcomplete':   'func_buildcomplete',
+                    'buildcomplete':    'func_buildcomplete',
+                    ':once':            'func_once',
+                    'once':             'func_once',
+                    ':_selected':       'func_selected',
+                    '_selected':        'func_selected',
+                    'selected':         'func_selected',
+                    ':_uicallback':     'func_uicallback',
+                    '_uicallback':      'func_uicallback',
+                    'uicallback':       'func_uicallback',
+                    ':_warepacketsent': 'func_warepacketsent',
+                    '_warepacketsent':  'func_warepacketsent',
+                    'warepacketsent':   'func_warepacketsent',
+                    'frameadvance':     'MSG_FrameAdvance',
+                    'preupdate':        'MSG_PreUpdate',
+                    'postupdate':       'MSG_PostUpdate',
+                    ',':                'comma',
+                }, commonPageOverrides)
             }
         }
     }
@@ -51,24 +138,19 @@ export default class Wiki extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'crpl'|'4rpl'} ext.action - Custom parameters provided to function call.
+     * @param {'crpl'|'prpl'|'4rpl'} ext.action - Custom parameters provided to function call.
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
         switch(ext.action) {
         case 'crpl':
+        case 'prpl':
         case '4rpl': {
-            let pageName = arg.replace(/[\n\r\s]+/g, '');
+            let pageName = arg.replace(/[\n\r\s]+/g, '').toLowerCase();
+            pageName = this.rpl[ext.action].pageOverrides[pageName]??pageName;
 
-            switch(ext.action) {
-            case 'crpl':
-                getXrpl.call(this, m, 'crpl', pageName);
-                return;
-            case '4rpl':
-                getXrpl.call(this, m, '4rpl', pageName);
-                return;
-            }
-            }
+            getXrpl.call(this, m, ext.action, pageName);
+        }
         }
     }
 }
@@ -77,7 +159,7 @@ export default class Wiki extends Bot.Module {
  * Get XRPL wiki page.
  * @this {Wiki}
  * @param {Bot.Message} m - Message of the user executing the command.
- * @param {'crpl'|'4rpl'} xrpl
+ * @param {'crpl'|'prpl'|'4rpl'} xrpl
  * @param {string} pageName - The name of the wiki page.
  */
 async function getXrpl(m, xrpl, pageName) {
@@ -111,7 +193,7 @@ async function getXrpl(m, xrpl, pageName) {
         if(result) emote = result.emote;
     }).catch(logger.error);
 
-    let embed = getEmbedTemplate(xrpl, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''));
+    let embed = getEmbedTemplate.call(this, xrpl, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''));
 
     embed.description = '';
     if(wikidata.cmd.length > 0)
@@ -135,7 +217,7 @@ async function getXrpl(m, xrpl, pageName) {
  * Modifies the wikidata object.
  * @this {Wiki}
  * @param {WikiData} wikidata 
- * @param {'crpl'|'4rpl'} xrpl
+ * @param {'crpl'|'prpl'|'4rpl'} xrpl
  * @param {string} pageName
  * @param {Document} document
  */
@@ -154,15 +236,17 @@ function processWikiPage(wikidata, xrpl, pageName, document) {
     }
 
     if(xrpl === '4rpl') {
-        const elemCmd = document.querySelector('.page > div.level1');
-        const elemDesc = document.querySelector('.page > div.level2');
+        //An assumption is made that a div.level1 element always exists, just can contain no text sometimes
+        const elemCmd = getNextElement(document.querySelector('#syntax')) ?? document.querySelector('.page > div.level1');
+        const elemDesc = getNextElement(document.querySelector('#description'));
 
-        if(elemCmd != null) wikidata.cmd = (elemCmd.textContent??'').trim().replace(/[\n\r]+/g, ' ');
+        //elemCmd.textContent can contain 1 space sometimes, well we don't want that
+        if(elemCmd != null) wikidata.cmd = ((elemCmd.textContent??'').trim()||pageName).replace(/[\n\r]+/g, ' ')
         if(elemDesc != null) wikidata.desc = shortenDescription.call(this, (elemDesc.textContent??'').trim().replace(/[\n\r]+/g, ' '));
         return;
     }
 
-    if(xrpl === 'crpl') {
+    if(xrpl === 'crpl' || xrpl === 'prpl') {
         const elemTitle = document.querySelector('.page > h2');
         const elemTable = document.querySelector('.page > div:nth-of-type(1) table');
         const elemDesc = document.querySelector('.page > div:nth-of-type(2)');
@@ -229,22 +313,34 @@ function shortenDescription(str) {
 
 /**
  * @this {Wiki}
- * @param {'crpl'|'4rpl'} rpl
+ * @param {'crpl'|'prpl'|'4rpl'} rpl
  * @param {Discord.GuildEmoji|null} emote
  * @returns {Discord.MessageEmbed}
  */
 function getEmbedTemplate(rpl, emote) {
-    /** @type {null|string} */
-    let game = null;
-    if(rpl === 'crpl') game = 'cw3';
-    else if(rpl === '4rpl') game = 'cw4';
-
+    /** @type {string} */
     return new Discord.MessageEmbed({
-        color: game == null ? 0 : KCUtil.gameEmbedColors[game],
+        color: KCUtil.gameEmbedColors[this.rpl[rpl].game],
         author: {
             name: rpl.toUpperCase(),
             icon_url: emote ? emote.url : undefined
         },
         fields: [],
     });
+}
+
+/**
+ * Get the next element on the provided element's parent
+ * @param {Element|null} elem
+ * @returns {Element|null} 
+ */
+function getNextElement(elem) {
+    if(elem == null) return null;
+    let parent = elem.parentElement;
+    if(parent == null) return null;
+    let index = Array.from(parent.children).indexOf(elem);
+    if(index < 0) return null;
+    let nextElem = parent.children[index + 1];
+    if(nextElem == null) return null;
+    return nextElem;
 }

@@ -67,6 +67,9 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'crpl', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return wiki.land(message, args, arg, { action: 'crpl' });
             });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'prpl', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return wiki.land(message, args, arg, { action: 'prpl' });
+            });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: '4rpl', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return wiki.land(message, args, arg, { action: '4rpl' });
             });

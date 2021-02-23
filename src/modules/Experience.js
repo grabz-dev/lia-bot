@@ -125,7 +125,7 @@ export default class Experience extends Bot.Module {
                 leaderboard.call(this, m, game, ext.kcgmm);
                 return;
             case 'new':
-                newMaps.call(this, m, game, ext.kcgmm);
+                newMaps.call(this, m, game, ext.kcgmm, (args[1]??'').toLowerCase().includes('dm'));
                 return;
             case 'wipe':
                 let argSnowflake = args[1];
@@ -161,7 +161,7 @@ export default class Experience extends Bot.Module {
                     game = undefined;
             }
 
-            profile.call(this, m, game, ext.kcgmm);
+            profile.call(this, m, game, ext.kcgmm, (args[0]??'').toLowerCase().includes('dm') || (args[1]??'').toLowerCase().includes('dm'));
             return;
         }
         case 'info': {
@@ -333,8 +333,9 @@ function leaderboard(m, game, kcgmm) {
  * @param {Bot.Message} m - Message of the user executing the command.
  * @param {string|undefined} game
  * @param {KCGameMapManager} kcgmm
+ * @param {boolean} dm
  */
-function profile(m, game, kcgmm) {
+function profile(m, game, kcgmm, dm) {
     let embed = getEmbedTemplate(m.member);
 
     this.bot.sql.transaction(async query => {
@@ -412,13 +413,21 @@ function profile(m, game, kcgmm) {
 
         embed.fields[embed.fields.length - 1].value += '\n' + Bot.Util.getSpecialWhitespace(1);
 
-        embed.fields.push({
+        let fieldInstructions = {
             name: ':information_source: ' + this.bot.locale.category('experience', 'embed_instructions_title'),
             value: this.bot.locale.category('experience', 'embed_instructions_value', game == null ? '[game]' : game),
             inline: false,
-        });
+        }
+
+        embed.fields.push(fieldInstructions);
 
         m.channel.send({ embed:embed }).catch(logger.error);
+        if(dm) {
+            fieldInstructions.value = `${this.bot.locale.category('experience', 'embed_dm_value')}\n${fieldInstructions.value}`;
+            m.member.createDM().then(dm => {
+                return dm.send({ embed: embed });
+            }).catch(logger.error);
+        }
     }).catch(logger.error);
 }
 
@@ -428,8 +437,9 @@ function profile(m, game, kcgmm) {
  * @param {Bot.Message} m - Message of the user executing the command.
  * @param {string} game
  * @param {KCGameMapManager} kcgmm
+ * @param {boolean} dm
  */
-function newMaps(m, game, kcgmm) {
+function newMaps(m, game, kcgmm, dm) {
     this.bot.sql.transaction(async query => {
         await query(`SELECT maps_current FROM experience_users
                      WHERE user_id = '${m.member.id}' AND game = '${game}'
@@ -549,6 +559,12 @@ function newMaps(m, game, kcgmm) {
         embed.fields.push(fieldInstructions);
 
         m.channel.send({ embed:embed }).catch(logger.error);
+        if(dm) {
+            fieldInstructions.value = `${this.bot.locale.category('experience', 'embed_dm_value')}\n${fieldInstructions.value}`;
+            m.member.createDM().then(dm => {
+                return dm.send({ embed: embed });
+            }).catch(logger.error);
+        }
     }).catch(logger.error);
 }
 

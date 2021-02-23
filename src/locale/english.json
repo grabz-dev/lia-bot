@@ -52,6 +52,7 @@
             "embed_results_title_2": "Your new %0 __%1__ maps to beat are:",
             "embed_results_title_3": "These selected maps you have beaten before. Hooray free experience!:",
             "embed_results_value": "To view your current progress, call `!exp profile %0`\nConsider checking your progress before generating new maps.\nTo generate new maps to play, call `!exp new %0`\nMaps that haven't been beaten on this round will have a chance to appear again.",
+            "embed_dm_value": "**Head back to <#457188713978527746> to execute commands.**",
 
             "map_processing_error": "Could not find map list data for %0. Try again later.",
             "wipe_successful": "Profile removed.",
@@ -222,14 +223,21 @@
         "4rpl": {
             "": [
                 "!%name% <command>",
-                "Display short information about a 4RPL command.",
+                "Display short information about a 4RPL command (CW4).",
+                "%space%<command> - The command name. If omitted, a link to full documentation is provided."
+            ]
+        },
+        "prpl": {
+            "": [
+                "!%name% <command>",
+                "Display short information about a PRPL command (PF).",
                 "%space%<command> - The command name. If omitted, a link to full documentation is provided."
             ]
         },
         "crpl": {
             "": [
                 "!%name% <command>",
-                "Display short information about a CRPL command.",
+                "Display short information about a CRPL command (CW3).",
                 "%space%<command> - The command name. If omitted, a link to full documentation is provided."
             ]
         },
@@ -239,13 +247,16 @@
                 "See the introduction to Experience!"
             ],
             "new": [
-                "!%name% <game>",
+                "!%name% <game> DM",
                 "Get experience from completed maps and generate six new maps to beat.",
-                "%space%<game> - cw4, pf, cw3, cw2."
+                "%space%<game> - cw4, pf, cw3, cw2.",
+                "%space%dm - If DM is typed, a copy of the message is DM'd."
             ],
             "profile": [
-                "!%name%",
-                "Display information about your current profile."
+                "!%name% <game> DM",
+                "Display information about your current profile.",
+                "%space%<game> (Optional) - cw4, pf, cw3, cw2",
+                "%space%dm - If DM is typed, a copy of the message is DM'd."
             ],
             "leaders": [
                 "!%name% <game>",
