@@ -84,39 +84,6 @@ export default class Experience extends Bot.Module {
                 game_uid VARCHAR(128) BINARY NOT NULL,
                 state TINYINT(2) NOT NULL
              )`);
-
-
-
-            //TEMPORARY COMPATIBILITY CODE FOLLOWS
-
-            let resultsUsers = (await query(`SELECT * FROM experience_users`)).results;
-            for(let resultUsers of resultsUsers) {
-                let resultsMaps = (await query(`SELECT * FROM experience_maps
-                    WHERE id_experience_users = '${resultUsers.id}'`)).results;
-                for(let resultMaps of resultsMaps) {
-                    await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state)
-                        VALUES ('${resultUsers.id}', '${resultMaps.map_id}', '1')`);
-                }
-
-                let resultsMapsIgnore = (await query(`SELECT * FROM experience_maps_ignore
-                    WHERE id_experience_users = '${resultUsers.id}'`)).results;
-                for(let resultMapsIgnore of resultsMapsIgnore) {
-                    await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state)
-                        VALUES ('${resultUsers.id}', '${resultMapsIgnore.map_id}', '2')`);
-                }
-
-                let maps_current = JSON.parse(resultUsers.maps_current);
-                if(!(maps_current instanceof Array)) continue;
-                for(let map_current of maps_current) {
-                    await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state)
-                        VALUES ('${resultUsers.id}', '${map_current}', '0')`);
-                }
-            }
-
-            await query(`DROP TABLE experience_maps`);
-            await query(`DROP TABLE experience_maps_ignore`);
-            await query(`ALTER TABLE experience_users DROP COLUMN maps_current`);
-            logger.info("Experience compatibility - ALL DONE");
         }).catch(logger.error);
     }
 
