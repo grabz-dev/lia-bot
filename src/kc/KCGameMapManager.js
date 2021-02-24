@@ -15,6 +15,7 @@
  * @property {number=} complexity - CW2 code map only. 0, 1, 2 - low, medium, high
  * @property {number=} objective - CW4 only. Objective index 0-5
  * @property {number=} timestamp - CW4 only. Chronom date UTC timestamp.
+ * @property {string=} gameUID - "misc" and type only. GUID of the map
  */
 
 /**
@@ -505,6 +506,9 @@ export function KCGameMapManager(options, locale) {
 
                 let encode = Buffer.from(str).toString('base64');
                 return `https://knucklecracker.com/${gameUrlParam}/playLogQuery.php?gameUID=${encode}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}`;
+            }
+            case "misc": {
+                return `https://knucklecracker.com/${gameUrlParam}/${msqd.game === 'cw4' ? 'playLogQuery' : 'scoreQuery'}.php?gameUID=${msqd.gameUID}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}`;
             }
             default:
                 return null;
