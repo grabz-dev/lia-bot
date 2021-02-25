@@ -15,7 +15,8 @@ import Experience from '../Experience.js';
 
 /**
  * @typedef {object} NewMapsData
- * @property {number} countTotalCompleted
+ * @property {number} countNewTotalCompleted
+ * @property {number} countOldTotalCompleted
  * @property {KCGameMapManager.MapData[]} oldMapsTotalCompleted
  * @property {{finished: KCGameMapManager.MapData[], unfinished: KCGameMapManager.MapData[]}} oldSelectedMaps
  * @property {{finished: KCGameMapManager.MapData[], unfinished: KCGameMapManager.MapData[]}} newSelectedMaps
@@ -65,13 +66,13 @@ export class CustomManager {
         const oldMapsParsedFromDb = getMapsParsedFromDatabase(mapListId, resultsMapsCustom);
         const oldSelectedMaps = await getMapsCompleted(oldMapsParsedFromDb.selected, resultUsers.user_name, kcgmm);
         const allMapsCompleted = resultsMapsCustom.filter(v => v.state === 1).map(v => v.map_id).concat(oldSelectedMaps.finished.map(v => v.id));
-        const countTotalCompleted = allMapsCompleted.length;
+        const countNewTotalCompleted = allMapsCompleted.length;
 
         /** @type {KCGameMapManager.MapData[]} */
         const selectedIds = [];
         selectRandomMaps(selectedIds, kcgmm.getHighestRankedMonthlyMaps(resultUsers.game, 3, 10, allMapsCompleted), allMapsCompleted, oldMapsParsedFromDb.ignored, 3);
         selectRandomMaps(selectedIds, mapListsForProcessing.asArray, allMapsCompleted, oldMapsParsedFromDb.ignored, 6);
-        selectedIds.sort((a, b) => this.getExpFromMap(b, kcgmm, countTotalCompleted) - this.getExpFromMap(a, kcgmm, countTotalCompleted));
+        selectedIds.sort((a, b) => this.getExpFromMap(b, kcgmm, countNewTotalCompleted) - this.getExpFromMap(a, kcgmm, countNewTotalCompleted));
 
         await query(`DELETE FROM experience_maps_custom
             WHERE id_experience_users = '${resultUsers.id}' AND state = '0'`);
@@ -88,7 +89,8 @@ export class CustomManager {
         const newSelectedMaps = await getMapsCompleted(selectedIds, resultUsers.user_name, kcgmm);
 
         return {
-            countTotalCompleted, 
+            countNewTotalCompleted,
+            countOldTotalCompleted: oldMapsParsedFromDb.completed.length,
             oldMapsTotalCompleted: oldMapsParsedFromDb.completed,
             oldSelectedMaps,
             newSelectedMaps

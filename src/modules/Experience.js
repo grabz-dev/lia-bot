@@ -499,17 +499,21 @@ function newMaps(m, game, kcgmm, dm) {
         const data_custom = await this.managers.custom.newMaps(query, kcgmm, resultUsers, mapListArray, mapListId);
         const data_campaign = await this.managers.campaign.newMaps(query, kcgmm, resultUsers);
 
-        let totalCompleted = 0;
-        totalCompleted += data_custom.countTotalCompleted;
-        totalCompleted += data_campaign.countTotalCompleted;
+        let totalCompletedOld = 0;
+        totalCompletedOld += data_custom.countOldTotalCompleted;
+        totalCompletedOld += data_campaign.countOldTotalCompleted;
+
+        let totalCompletedNew = 0;
+        totalCompletedNew += data_custom.countNewTotalCompleted;
+        totalCompletedNew += data_campaign.countNewTotalCompleted;
 
         let totalExpOld = 0;
-        totalExpOld += this.managers.custom.getExpFromMaps(data_custom.oldMapsTotalCompleted, kcgmm, totalCompleted);
-        totalExpOld += this.managers.campaign.getExpFromMaps(data_campaign.oldMapsTotalCompleted, totalCompleted);
+        totalExpOld += this.managers.custom.getExpFromMaps(data_custom.oldMapsTotalCompleted, kcgmm, totalCompletedOld);
+        totalExpOld += this.managers.campaign.getExpFromMaps(data_campaign.oldMapsTotalCompleted, totalCompletedOld);
 
         let totalExpNew = totalExpOld;
-        totalExpNew += this.managers.custom.getExpFromMaps(data_custom.oldSelectedMaps.finished, kcgmm, totalCompleted);
-        totalExpNew += this.managers.campaign.getExpFromMaps(data_campaign.oldSelectedMaps.finished, totalCompleted);
+        totalExpNew += this.managers.custom.getExpFromMaps(data_custom.oldSelectedMaps.finished, kcgmm, totalCompletedNew);
+        totalExpNew += this.managers.campaign.getExpFromMaps(data_campaign.oldSelectedMaps.finished, totalCompletedNew);
 
         const expDataOld = getExpDataFromTotalExp(totalExpOld);
 
@@ -520,7 +524,7 @@ function newMaps(m, game, kcgmm, dm) {
         
         let embed = getEmbedTemplate(m.member);
         embed.color = KCUtil.gameEmbedColors[game];
-        embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou completed ${totalCompleted} maps (XP mult: ${Math.ceil(this.getExpMultiplier(totalCompleted) * 100)/100}x)`;
+        embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou completed ${totalCompletedNew} maps (XP mult: ${Math.ceil(this.getExpMultiplier(totalCompletedNew) * 100)/100}x)`;
         
         embed.fields = [];
         
@@ -543,9 +547,9 @@ function newMaps(m, game, kcgmm, dm) {
             inline: false
         };
         for(let map of data_custom.newSelectedMaps.unfinished)
-            fieldNewMaps.value += this.managers.custom.getMapClaimString(map, kcgmm, totalCompleted) + '\n';
+            fieldNewMaps.value += this.managers.custom.getMapClaimString(map, kcgmm, totalCompletedNew) + '\n';
         for(let map of data_campaign.newSelectedMaps.unfinished)
-            fieldNewMaps.value += this.managers.campaign.getMapClaimString(map, totalCompleted) + '\n';
+            fieldNewMaps.value += this.managers.campaign.getMapClaimString(map, totalCompletedNew) + '\n';
         if(fieldNewMaps.value.length === 0)
             fieldNewMaps.value = `${Bot.Util.getSpecialWhitespace(3)}You've completed everything. Well done!`;
 
@@ -555,9 +559,9 @@ function newMaps(m, game, kcgmm, dm) {
             inline: false,
         }
         for(let map of data_custom.newSelectedMaps.finished)
-            fieldBeatenMaps.value += this.managers.custom.getMapClaimString(map, kcgmm, totalCompleted) + '\n';
+            fieldBeatenMaps.value += this.managers.custom.getMapClaimString(map, kcgmm, totalCompletedNew) + '\n';
         for(let map of data_campaign.newSelectedMaps.finished)
-            fieldBeatenMaps.value += this.managers.campaign.getMapClaimString(map, totalCompleted) + '\n';
+            fieldBeatenMaps.value += this.managers.campaign.getMapClaimString(map, totalCompletedNew) + '\n';
 
         let fieldInstructions = {
             name: ':information_source: ' + this.bot.locale.category('experience', 'embed_instructions_title'),

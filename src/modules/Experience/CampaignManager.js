@@ -15,7 +15,8 @@ import Experience from '../Experience.js';
 
 /**
  * @typedef {object} NewMapsData
- * @property {number} countTotalCompleted
+ * @property {number} countNewTotalCompleted
+ * @property {number} countOldTotalCompleted
  * @property {CampaignMapData[]} oldMapsTotalCompleted
  * @property {{finished: CampaignMapData[], unfinished: CampaignMapData[]}} oldSelectedMaps
  * @property {{finished: CampaignMapData[], unfinished: CampaignMapData[]}} newSelectedMaps
@@ -147,7 +148,6 @@ export class CampaignManager {
         const oldMapsParsedFromDb = getMapsParsedFromDatabase.call(this, resultsMapsCampaign, resultUsers);
         const oldSelectedMaps = await getMapsCompleted(oldMapsParsedFromDb.selected, resultUsers.user_name, kcgmm);
         const allMapsCompleted = resultsMapsCampaign.filter(v => v.state === 1).map(v => v.game_uid).concat(oldSelectedMaps.finished.map(v => v.gameUID));
-        const countTotalCompleted = allMapsCompleted.length;
 
         /** @type {CampaignMapData[]} */
         let selectedCampaignMaps = [];
@@ -169,7 +169,8 @@ export class CampaignManager {
         const newSelectedMaps = await getMapsCompleted(selectedCampaignMaps, resultUsers.user_name, kcgmm);
 
         return {
-            countTotalCompleted,
+            countNewTotalCompleted: allMapsCompleted.length,
+            countOldTotalCompleted: oldMapsParsedFromDb.completed.length,
             oldMapsTotalCompleted: oldMapsParsedFromDb.completed,
             oldSelectedMaps,
             newSelectedMaps
