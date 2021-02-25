@@ -419,19 +419,29 @@ function profile(m, game, kcgmm, dm) {
                 field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
 
                 let str = '';
-                str += Bot.Util.getSpecialWhitespace(3) + this.bot.locale.category('experience', 'embed_maps_1');
+                str += this.bot.locale.category('experience', 'embed_maps_2');
                 str += ' ';
-                for(let j = 0; j < data_custom.selectedMaps.unfinished.length; j++)
-                    str += `\`#${data_custom.selectedMaps.unfinished[j].id}\` `;
-                for(let j = 0; j < data_campaign.selectedMaps.unfinished.length; j++)
-                    str += `\`${data_campaign.selectedMaps.unfinished[j].mapName}\` `;
-                str += '\n';
-                str += Bot.Util.getSpecialWhitespace(3) + this.bot.locale.category('experience', 'embed_maps_2');
-                str += ' ';      
                 for(let j = 0; j < data_custom.selectedMaps.finished.length; j++)
                     str += `\`#${data_custom.selectedMaps.finished[j].id}\` `;
                 for(let j = 0; j < data_campaign.selectedMaps.finished.length; j++)
                     str += `\`${data_campaign.selectedMaps.finished[j].mapName}\` `;
+                str += '\n';
+                str += this.bot.locale.category('experience', 'embed_maps_1');
+                if(games.length === 1) {
+                    str += '\n';
+                    for(let map of data_custom.selectedMaps.unfinished)
+                        str += this.managers.custom.getMapClaimString(map, kcgmm, totalCompleted) + '\n';
+                    for(let map of data_campaign.selectedMaps.unfinished)
+                        str += this.managers.campaign.getMapClaimString(map, totalCompleted) + '\n';
+                    str = str.substring(0, str.length - 1);
+                }
+                else {
+                    for(let j = 0; j < data_custom.selectedMaps.unfinished.length; j++)
+                        str += `\`#${data_custom.selectedMaps.unfinished[j].id}\` `;
+                    for(let j = 0; j < data_campaign.selectedMaps.unfinished.length; j++)
+                        str += `\`${data_campaign.selectedMaps.unfinished[j].mapName}\` `;
+                }
+                
                 field.value = str;
                 field.name += ' ' + resultUsers.user_name;
             }
