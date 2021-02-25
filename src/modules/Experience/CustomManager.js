@@ -179,10 +179,12 @@ export class CustomManager {
      * @param {KCGameMapManager.MapData} map 
      * @param {KCGameMapManager} kcgmm 
      * @param {number} total - Total maps completed
+     * @param {boolean=} crossedOut - Whether the map should be crossed out
      * @returns {string}
      */
-    getMapClaimString(map, kcgmm, total) {
-        let str = `\`ID #${map.id}\`: ${this.getExpFromMap(map, kcgmm, total)} XP - ${map.title} __by ${map.author}__`;
+    getMapClaimString(map, kcgmm, total, crossedOut) {
+        let cross = crossedOut ? '~~' : '';
+        let str = `\`ID #${map.id}\`: ${this.getExpFromMap(map, kcgmm, total)} XP - ${cross}${map.title} __by ${map.author}__${cross}`;
 
         if(map.timestamp == null) return str;
         let date = kcgmm.getDateFlooredToMonth(new Date(map.timestamp));

@@ -571,9 +571,9 @@ function newMaps(m, game, kcgmm, dm) {
             inline: false,
         }
         for(let map of data_custom.newSelectedMaps.finished)
-            fieldBeatenMaps.value += this.managers.custom.getMapClaimString(map, kcgmm, totalCompletedNew) + '\n';
+            fieldBeatenMaps.value += this.managers.custom.getMapClaimString(map, kcgmm, totalCompletedNew, true) + '\n';
         for(let map of data_campaign.newSelectedMaps.finished)
-            fieldBeatenMaps.value += this.managers.campaign.getMapClaimString(map, totalCompletedNew) + '\n';
+            fieldBeatenMaps.value += this.managers.campaign.getMapClaimString(map, totalCompletedNew, true) + '\n';
 
         let fieldInstructions = {
             name: ':information_source: ' + this.bot.locale.category('experience', 'embed_instructions_title'),
