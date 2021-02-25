@@ -521,8 +521,10 @@ function newMaps(m, game, kcgmm, dm) {
         totalExpOld += this.managers.custom.getExpFromMaps(data_custom.oldMapsTotalCompleted, kcgmm, totalCompletedOld);
         totalExpOld += this.managers.campaign.getExpFromMaps(data_campaign.oldMapsTotalCompleted, totalCompletedOld);
 
-        let totalExpNew = totalExpOld;
+        let totalExpNew = 0;
+        totalExpNew += this.managers.custom.getExpFromMaps(data_custom.oldMapsTotalCompleted, kcgmm, totalCompletedNew);
         totalExpNew += this.managers.custom.getExpFromMaps(data_custom.oldSelectedMaps.finished, kcgmm, totalCompletedNew);
+        totalExpNew += this.managers.campaign.getExpFromMaps(data_campaign.oldMapsTotalCompleted, totalCompletedNew);
         totalExpNew += this.managers.campaign.getExpFromMaps(data_campaign.oldSelectedMaps.finished, totalCompletedNew);
 
         const expDataOld = getExpDataFromTotalExp(totalExpOld);
