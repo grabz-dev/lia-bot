@@ -275,11 +275,15 @@ export function KCGameMapManager(options, locale) {
         /** @type {MapData[]} */
         const ret = [];
 
+        loop:
         for(let maps of mapsByRank) {
-            if(ret.length >= count) break;
-            if(maps.length <= 0) continue;
-            const map = maps[Util.getRandomInt(0, maps.length)];
-            ret.push(map);
+            while(maps.length > 0) {
+                const index = Util.getRandomInt(0, maps.length);
+                const map = maps[index];
+                maps.splice(index, 1);
+                ret.push(map);
+                if(ret.length >= count) break loop;
+            }
         }
         
         return ret;
