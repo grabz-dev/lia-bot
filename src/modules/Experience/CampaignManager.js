@@ -78,6 +78,7 @@ export class CampaignManager {
                     { name: 'Sequence',                 gameUID: 'c3RvcnkxNw%3d%3d',    exp: 550 },
                     { name: 'Wallis',                   gameUID: 'c3RvcnkxOA%3d%3d',    exp: 575 },
                     { name: 'Founders',                 gameUID: 'c3RvcnkxOQ%3d%3d',    exp: 600 },
+                    { name: 'Ever After',               gameUID: 'c3RvcnkyMA%3d%3d',    exp: 1000 },
                 ]
             }, {
                 name: "Span Experiments",
