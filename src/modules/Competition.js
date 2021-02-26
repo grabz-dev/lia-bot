@@ -1018,8 +1018,8 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
             break;
         default:
             if(!mapData) {
-                name = "err_map_invalid_2";
-                value = "err_map_invalid_2";
+                name = ":warning: Uh oh";
+                value = "Information about this map is taking a while to load. Use `!c update` to force a reload. For CW2, you may need to wait up to 20 minutes first.";
                 break;
             }
             name += `: #${mapData.id}`;
