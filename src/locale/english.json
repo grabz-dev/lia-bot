@@ -292,6 +292,11 @@
                 "!%name% <game>",
                 "Show a list of maps you ignored.",
                 "%space%<game> - cw4, pf, cw3, cw2."
+            ],
+            "message": [
+                "!%name% <game>",
+                "Create an autoupdating leaderboards message for the specified game.",
+                "%space%<game> - cw4, pf, cw3, cw2."
             ]
         },
         "stream": {

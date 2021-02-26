@@ -10,6 +10,14 @@ import Discord from 'discord.js';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 
+/**
+ * @typedef {object} Db.champion_champions
+ * @property {number} id - Primary key
+ * @property {Discord.Snowflake} guild_id - Competition channel ID.
+ * @property {string} entry_key
+ * @property {Discord.Snowflake} user_id
+ */
+
 export default class Champion extends Bot.Module {
     /**
      * @constructor
@@ -22,130 +30,88 @@ export default class Champion extends Bot.Module {
     /** @param {Discord.Guild} guild - Current guild. */
     init(guild) {
         super.init(guild);
+
+        this.bot.sql.transaction(async query => {
+            await query(`CREATE TABLE IF NOT EXISTS champion_champions (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(64) NOT NULL,
+                entry_key VARCHAR(32) NOT NULL,
+                user_id VARCHAR(64) NOT NULL
+             )`);
+        }).catch(logger.error);
     }
 
     /**
-     * 
-     * @param {Discord.TextChannel} channel
-     * @param {Discord.Guild} guild
      * @param {SQLWrapper.Query} query
-     * @param {object} opts
-     * @param {boolean} opts.postScoreTally
-     * @param {boolean} opts.postExpLeaders
+     * @param {Discord.Guild} guild
+     * @param {Discord.Collection<Discord.Snowflake, boolean>} champions 
      */
-    async processChampionRole(channel, guild, query, opts) {
-        const roleId = this.bot.getRoleId(guild.id, "CHAMPION_OF_KC");
-        const role = roleId ? guild.roles.cache.get(roleId) : undefined;
+    async refreshCompetitionChampions(query, guild, champions) {
+        let arr = [...champions.keys()];
 
-        /** @type {Discord.Collection<Discord.Snowflake, boolean>} */
-        const champions = new Discord.Collection();
+        await query(`DELETE FROM champion_champions WHERE guild_id = '${guild.id}' AND entry_key = 'competition'`);
 
-        //TODO
-        //So the plan was to make it so players who are #1 in Experience leaderboards also get champion
-        //So far so good, but this is where I stop for now, because this implementation means that
-        //I would have to query competition champions and experience leaderboards for every game
-        //every single time someone does `!exp new`, which will be painfully slow. I'll have to
-        //come back to this later, for now I'm keeping the code
-        await processCompetition.call(this, champions, role??null, channel, guild, query, opts.postScoreTally);
-        await processExperience.call(this, champions, role??null, channel, guild, query, opts.postExpLeaders);
+        for(let snowflake of arr) {
+            await query(`INSERT INTO champion_champions (guild_id, entry_key, user_id)
+                VALUES ('${guild.id}', 'competition', '${snowflake}')`);
+        }
 
-        if(role) {
-            let arr = [];
-            for(let member of role.members.array()) {
+        await processChampionRole.call(this, query, guild);
+    }
+
+    /**
+     * @param {SQLWrapper.Query} query
+     * @param {Discord.Guild} guild
+     * @param {{game: string, userId: Discord.Snowflake}[]} champions 
+     */
+    async refreshExperienceChampions(query, guild, champions) {
+        for(let champion of champions) {
+            /** @type {Db.champion_champions|null} */
+            let resultChampions = (await query(`SELECT * FROM champion_champions 
+                WHERE guild_id = '${guild.id}' AND entry_key = 'exp_${champion.game}'`)).results[0];
+            
+            if(resultChampions == null)
+                await query(`INSERT INTO champion_champions (guild_id, entry_key, user_id)
+                    VALUES ('${guild.id}', 'exp_${champion.game}', '${champion.userId}')`);
+            else
+                await query(`UPDATE champion_champions SET user_id = '${champion.userId}'
+                    WHERE guild_id = '${guild.id}' AND entry_key = 'exp_${champion.game}'`);
+        }
+
+        await processChampionRole.call(this, query, guild);
+    }
+}
+
+/**
+ * @this {Champion}
+ * @param {SQLWrapper.Query} query 
+ * @param {Discord.Guild} guild
+ */
+async function processChampionRole(query, guild) {
+    const roleId = this.bot.getRoleId(guild.id, "CHAMPION_OF_KC");
+    const role = roleId ? guild.roles.cache.get(roleId) : undefined;
+
+    /** @type {Db.champion_champions[]} */
+    let resultsChampions = (await query(`SELECT * FROM champion_champions WHERE guild_id = '${guild.id}'`)).results;
+
+    if(role) {
+        let arr = [];
+        let membersChampions = role.members.array();
+        for(let member of membersChampions) {
+            if(!resultsChampions.find(v => v.user_id === member.id))
                 arr.push(member.roles.remove(role).catch(logger.error));
-            }
-    
-            for(let p of arr)
-                await p;
-    
-            for(let champion of champions) {
-                let snowflake = champion[0];
-    
+        }
+
+        for(let p of arr)
+            await p;
+
+        for(let resultChampions of resultsChampions) {
+            let snowflake = resultChampions.user_id;
+
+            if(!membersChampions.find(v => v.id === snowflake)) {
                 let member = await guild.members.fetch(snowflake).catch(() => {});
                 if(member) member.roles.add(role).catch(logger.error);
             }
         }
-    }
-}
-
-/**
- * @this {Champion}
- * @param {Discord.Collection<Discord.Snowflake, boolean>} champions
- * @param {Discord.Role|null} role
- * @param {Discord.TextChannel} channel
- * @param {Discord.Guild} guild
- * @param {SQLWrapper.Query} query
- * @param {boolean} postMessage
- */
-async function processExperience(champions, role, channel, guild, query, postMessage) {
-
-}
-
-/**
- * @this {Champion}
- * @param {Discord.Collection<Discord.Snowflake, boolean>} champions
- * @param {Discord.Role|null} role
- * @param {Discord.TextChannel} channel
- * @param {Discord.Guild} guild
- * @param {SQLWrapper.Query} query
- * @param {boolean} postMessage
- */
-async function processCompetition(champions, role, channel, guild, query, postMessage) {
-    /** @type {Discord.Collection<Discord.Snowflake, number>} */
-    const championsWeeks = new Discord.Collection();
-
-    const weeks = 2;
-    let i = 1;
-
-    /** @type {Db.competition_history_competitions[]} */
-    let resultsComps = (await query(`SELECT * FROM competition_history_competitions WHERE guild_id = '${guild.id}'`)).results;
-    
-    resultsComps = resultsComps.slice(resultsComps.length - weeks, resultsComps.length);
-    
-    for(let resultComps of resultsComps) {
-        /** @type {Db.competition_history_maps[]} */
-        let resultsMaps = (await query(`SELECT * FROM competition_history_maps 
-            WHERE id_competition_history_competitions = '${resultComps.id}'`)).results;
-
-        for(let resultMaps of resultsMaps) {
-            /** @type {Db.competition_history_scores[]} */
-            let resultsScores = (await query(`SELECT * FROM competition_history_scores 
-                WHERE id_competition_history_maps = '${resultMaps.id}'`)).results;
-
-            for(let resultScores of resultsScores) {
-                if(resultScores.user_rank !== 1) continue;
-                
-                championsWeeks.set(resultScores.user_id, i);
-                champions.set(resultScores.user_id, true);
-            }
-        }
-        i++;
-    }
-
-    championsWeeks.sort((a, b) => {
-        return b - a;
-    });
-
-    if(postMessage) {
-        const embed = new Discord.MessageEmbed({
-            color: 1482885,
-        });
-        const field = {
-            name: "Current champions",
-            value: "",
-            inline: false
-        }
-        for(let champion of championsWeeks) {
-            let weeks = champion[1];
-            let snowflake = champion[0];
-
-            field.value += `\`${weeks} weeks left\` <@${snowflake}>\n`;
-        }
-        if(field.value.length === 0) field.value = "None";
-        
-        embed.fields = [];
-        embed.fields.push(field);
-
-        await channel.send({embed: embed});
     }
 }

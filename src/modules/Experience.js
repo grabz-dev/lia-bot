@@ -1,5 +1,6 @@
 'use strict';
 /** @typedef {import('discord-bot-core/src/Core').Entry} Core.Entry */
+/** @typedef {import('discord-bot-core/src/structures/SQLWrapper').Query} SQLWrapper.Query */
 /** @typedef {import('../kc/KCGameMapManager.js').KCGameMapManager} KCGameMapManager */
 /** @typedef {import('../kc/KCGameMapManager.js').MapData} KCGameMapManager.MapData */
 
@@ -10,6 +11,14 @@
  * @property {number} currentLevel
  */
 
+/**
+ * @typedef {object} Db.experience_messages
+ * @property {number} id - Primary key
+ * @property {Discord.Snowflake} guild_id
+ * @property {string} game
+ * @property {Discord.Snowflake} channel_id
+ * @property {Discord.Snowflake} message_id
+ */
 
 /**
  * @typedef {object} Db.experience_users
@@ -66,6 +75,13 @@ export default class Experience extends Bot.Module {
 
         //Experience does not separate entries by guild ID, so we create tables in constructor and not in Module.init()
         this.bot.sql.transaction(async query => {
+            await query(`CREATE TABLE IF NOT EXISTS experience_messages (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(64) NOT NULL,
+                game VARCHAR(16) NOT NULL,
+                channel_id VARCHAR(64) NOT NULL,
+                message_id VARCHAR(64) NOT NULL
+             )`);
             await query(`CREATE TABLE IF NOT EXISTS experience_users (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 user_id VARCHAR(64) NOT NULL,
@@ -98,7 +114,7 @@ export default class Experience extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'info'|'wipe'|'register'|'leaderboard'|'profile'|'new'|'ignore'|'unignore'|'ignorelist'} ext.action - Custom parameters provided to function call.
+     * @param {'info'|'wipe'|'register'|'leaderboard'|'profile'|'new'|'ignore'|'unignore'|'ignorelist'|'message'} ext.action - Custom parameters provided to function call.
      * @param {KCGameMapManager} ext.kcgmm
      * @param {import('./Champion.js').default} ext.champion
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
@@ -111,7 +127,8 @@ export default class Experience extends Bot.Module {
         case 'wipe':
         case 'ignore':
         case 'unignore':
-        case 'ignorelist': {
+        case 'ignorelist':
+        case 'message': {
             let game = args[0];
             if(game == null)
                 return this.bot.locale.category('experience', 'err_game_name_not_provided');
@@ -132,7 +149,7 @@ export default class Experience extends Bot.Module {
                 register.call(this, m, game, arg);
                 return;
             case 'leaderboard':
-                leaderboard.call(this, m, game, ext.kcgmm);
+                leaderboard.call(this, m, game, ext.kcgmm, ext.champion);
                 return;
             case 'new':
                 newMaps.call(this, m, game, ext.kcgmm, (args[1]??'').toLowerCase().includes('dm'));
@@ -160,6 +177,9 @@ export default class Experience extends Bot.Module {
             case 'ignorelist':
                 ignorelist.call(this, m, game);
                 return;
+            case 'message':
+                message.call(this, m, game, ext.kcgmm, ext.champion);
+                return;
             }
         }
         case 'profile': {
@@ -186,6 +206,47 @@ export default class Experience extends Bot.Module {
         }
     }
 
+    /** 
+     * @param {Discord.Guild} guild 
+     * @param {KCGameMapManager} kcgmm
+     * @param {import('./Champion.js').default} champion
+     * @returns {Promise<void>}
+     */
+    async loop(guild, kcgmm, champion) {
+        this.bot.sql.transaction(async query => {
+            /** @type {{game: string, userId: Discord.Snowflake}[]} */
+            let arr = [];
+
+            for(let game of this.games) {
+                /** @type {Discord.Snowflake|null} */
+                let user = this.cache.get(guild.id, `champion_${game}`);
+                if(user != null) arr.push({
+                    game: game,
+                    userId: user
+                })
+
+                /** @type {Db.experience_messages|null} */
+                var resultMessages = (await query(`SELECT * FROM experience_messages
+                    WHERE guild_id = '${guild.id}' AND game = '${game}'`)).results[0];
+                if(resultMessages == null) continue;
+
+                const channel = guild.channels.resolve(resultMessages.channel_id);
+                if(channel == null || !(channel instanceof Discord.TextChannel)) continue;
+
+                const message = await channel.messages.fetch(resultMessages.message_id).catch(() => {});
+                if(message == null) continue;
+
+                const mapListId = kcgmm.getMapListId(game);
+                if(mapListId == null) continue;
+
+                let embed = await getLeaderboardEmbed.call(this, query, kcgmm, mapListId, guild, game);
+                message.edit('', { embed: embed }).catch(logger.error);
+            }
+
+            await champion.refreshExperienceChampions(query, guild, arr);
+        }).catch(logger.error);
+    }
+
     /**
      * 
      * @param {number} total - Total maps beaten 
@@ -205,7 +266,7 @@ export default class Experience extends Bot.Module {
  */
 function register(m, game, name) {
     this.bot.sql.transaction(async query => {
-        /** @type {any} */
+        /** @type {Db.experience_users} */
         var resultUsers = (await query(`SELECT * FROM experience_users
                                         WHERE game = '${game}' AND user_id = '${m.member.id}' AND user_name = '${name}'`)).results[0];
         if(resultUsers != null) {
@@ -213,7 +274,7 @@ function register(m, game, name) {
             return;
         }
 
-        /** @type {any} */
+        /** @type {Db.experience_users} */
         var resultUsers = (await query(`SELECT * FROM experience_users
                                         WHERE game = '${game}' AND user_name = '${name}'`)).results[0];
         if(resultUsers != null) {
@@ -221,7 +282,7 @@ function register(m, game, name) {
             return;
         }
 
-        /** @type {any} */
+        /** @type {Db.experience_users} */
         var resultUsers = (await query(`SELECT * FROM experience_users
                                         WHERE game = '${game}' AND user_id = '${m.member.id}'`)).results[0];
         if(resultUsers != null) {
@@ -248,8 +309,9 @@ function register(m, game, name) {
  * @param {Bot.Message} m - Message of the user executing the command.
  * @param {string} game
  * @param {KCGameMapManager} kcgmm
+ * @param {import('./Champion.js').default} champion
  */
-function leaderboard(m, game, kcgmm) {
+function leaderboard(m, game, kcgmm, champion) {
     this.bot.sql.transaction(async query => {
         const mapListId = kcgmm.getMapListId(game);
         if(mapListId == null) {
@@ -257,99 +319,31 @@ function leaderboard(m, game, kcgmm) {
             return;
         }
 
-        /** @type {Db.experience_users[]} */
-        let resultsUsers = (await query(`SELECT * FROM experience_users
-                                         WHERE game = '${game}'`)).results;
-
-        if(resultsUsers.length <= 0) {
-            m.channel.send(this.bot.locale.category('experience', 'leaderboard_empty')).catch(logger.error);
-            return;
-        }
-
-        /** @type {{resultUser: Db.experience_users, total: ExpData}[]} */
-        let leaders = [];
-        for(let resultUser of resultsUsers) {
-            if(!m.guild.members.cache.get(resultUser.user_id)) continue;
-
-            const data_custom = await this.managers.custom.leaderboard(query, resultUser, mapListId);
-            const data_campaign = await this.managers.campaign.leaderboard(query, resultUser);
-
-            let totalCompleted = 0;
-            totalCompleted += data_custom.countTotalCompleted;
-            totalCompleted += data_campaign.countTotalCompleted;
-
-            let totalExp = 0;
-            totalExp += this.managers.custom.getExpFromMaps(data_custom.mapsTotalCompleted, kcgmm, totalCompleted);
-            totalExp += this.managers.campaign.getExpFromMaps(data_campaign.mapsTotalCompleted, totalCompleted);
-
-            leaders.push({
-                resultUser: resultUser,
-                total: getExpDataFromTotalExp(totalExp)
-            });
-        }
-        leaders.sort((a, b) => b.total.currentLevel - a.total.currentLevel || b.total.currentXP - a.total.currentXP);
-
-
-        /** @type {Db.experience_users} */
-        let resultUsers = (await query(`SELECT * FROM experience_users
-                                         WHERE game = '${game}' and user_id = '${m.member.id}'`)).results[0];
-        
-        let emote = ':game_die:';
-        await this.bot.sql.transaction(async query => {
-            let result = (await query(`SELECT * FROM emotes_game
-                                       WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
-            if(result) emote = result.emote;
-        }).catch(logger.error);
-
-
-        let embed = getEmbedTemplate(m.member);
-        embed.color = KCUtil.gameEmbedColors[game];
-        embed.description = `${emote} ${this.bot.locale.category('experience', 'leaderboard_title', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')}\n`;
-        let msgStr = '';
-
-        let selfFound = false;
-        for(let i = 0; i < Math.min(9, leaders.length); i++) {
-            let leader = leaders[i];
-
-            switch(i) {
-                case 0: msgStr += '🥇 '; break;
-                case 1: msgStr += '🥈 '; break;
-                case 2: msgStr += '🥉 '; break;
-                case 3: msgStr += '🍫 '; break;
-                default: msgStr += '🍬 ';
-            }
-
-            let member = m.guild.members.resolve(leader.resultUser.user_id);
-
-            msgStr += `\`#${i+1}\``;
-            msgStr += getFormattedXPBarString.call(this, '', leader.total, this.expBarLeadersLength, true);
-            msgStr += ` ${member ? member.nickname ?? member.user.username : leader.resultUser.user_name}\n`;
-
-            if(resultUsers && leader.resultUser.user_id === resultUsers.user_id)
-                selfFound = true;
-        }
-
-        if(resultUsers && !selfFound) {
-            msgStr += '\n:small_blue_diamond: ';
-
-            const data_custom = await this.managers.custom.leaderboard(query, resultUsers, mapListId);
-            const data_campaign = await this.managers.campaign.leaderboard(query, resultUsers);
-
-            let totalCompleted = 0;
-            totalCompleted += data_custom.countTotalCompleted;
-            totalCompleted += data_campaign.countTotalCompleted;
-
-            let totalExp = 0;
-            totalExp += this.managers.custom.getExpFromMaps(data_custom.mapsTotalCompleted, kcgmm, totalCompleted);
-            totalExp += this.managers.campaign.getExpFromMaps(data_campaign.mapsTotalCompleted, totalCompleted);
-
-            msgStr += `\`#${leaders.findIndex(v => v.resultUser.user_id === resultUsers.user_id)+1}\``;
-            msgStr += getFormattedXPBarString.call(this, '', getExpDataFromTotalExp(totalExp), this.expBarLeadersLength, true);
-            msgStr += ` ${m.member.nickname ?? m.member.user.username}\n`;
-        }
-        embed.description += msgStr;
+        const embed = await getLeaderboardEmbed.call(this, query, kcgmm, mapListId, m.guild, game, m.member);
         m.channel.send({embed: embed}).catch(logger.error);
-    });
+    }).then(async () => {
+        await this.loop(m.guild, kcgmm, champion);
+    }).catch(logger.error);
+}
+
+/**
+ * Build an autoupdating leaderboard message.
+ * @this {Experience}
+ * @param {Bot.Message} m 
+ * @param {string} game 
+ * @param {KCGameMapManager} kcgmm
+ * @param {import('./Champion.js').default} champion
+ */
+function message(m, game, kcgmm, champion) {
+    this.bot.sql.transaction(async query => {
+        let message = await m.channel.send('...');
+
+        await query(`DELETE FROM experience_messages WHERE guild_id = '${m.guild.id}' AND game = '${game}'`);
+        await query(`INSERT INTO experience_messages (guild_id, game, channel_id, message_id)
+            VALUES ('${m.guild.id}', '${game}', '${message.channel.id}', '${message.id}')`);
+    }).then(async () => {
+        await this.loop(m.guild, kcgmm, champion);
+    }).catch(logger.error);
 }
 
 /**
@@ -831,6 +825,7 @@ function getExpDataFromTotalExp(exp) {
 function getEmbedTemplate(member) {
     let embed = new Discord.MessageEmbed({
         color: 5559447,
+        timestamp: new Date(),
     });
     if(member) {
         embed.author = {
@@ -841,3 +836,111 @@ function getEmbedTemplate(member) {
     return embed;
 }
 
+/**
+ * @this {Experience}
+ * @param {SQLWrapper.Query} query
+ * @param {KCGameMapManager} kcgmm 
+ * @param {Discord.Collection<number, KCGameMapManager.MapData>} mapListId
+ * @param {Discord.Guild} guild
+ * @param {string} game 
+ * @param {Discord.GuildMember=} member
+ * @returns {Promise<Discord.MessageEmbed>}
+ */
+async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member) {
+    /** @type {Db.experience_users[]} */
+    let resultsUsers = (await query(`SELECT * FROM experience_users
+        WHERE game = '${game}'`)).results;
+
+    /** @type {{resultUser: Db.experience_users, total: ExpData}[]} */
+    let leaders = [];
+    for(let resultUser of resultsUsers) {
+        if(!guild.members.cache.get(resultUser.user_id)) continue;
+
+        const data_custom = await this.managers.custom.leaderboard(query, resultUser, mapListId);
+        const data_campaign = await this.managers.campaign.leaderboard(query, resultUser);
+
+        let totalCompleted = 0;
+        totalCompleted += data_custom.countTotalCompleted;
+        totalCompleted += data_campaign.countTotalCompleted;
+
+        let totalExp = 0;
+        totalExp += this.managers.custom.getExpFromMaps(data_custom.mapsTotalCompleted, kcgmm, totalCompleted);
+        totalExp += this.managers.campaign.getExpFromMaps(data_campaign.mapsTotalCompleted, totalCompleted);
+
+        if(totalExp > 0) {
+            leaders.push({
+                resultUser: resultUser,
+                total: getExpDataFromTotalExp(totalExp)
+            });
+        }
+    }
+    leaders.sort((a, b) => b.total.currentLevel - a.total.currentLevel || b.total.currentXP - a.total.currentXP);
+
+
+    /** @type {Db.experience_users|null} */
+    let resultUsers = member == null ? null : (await query(`SELECT * FROM experience_users
+        WHERE game = '${game}' and user_id = '${member.id}'`)).results[0];
+    
+    let emote = ':game_die:';
+    await this.bot.sql.transaction(async query => {
+        let result = (await query(`SELECT * FROM emotes_game
+                                    WHERE guild_id = '${guild.id}' AND game = '${game}'`)).results[0];
+        if(result) emote = result.emote;
+    }).catch(logger.error);
+
+
+    let embed = getEmbedTemplate(member);
+    embed.color = KCUtil.gameEmbedColors[game];
+    embed.description = `${emote} ${this.bot.locale.category('experience', 'leaderboard_title', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')}\n`;
+    let msgStr = '';
+
+    let selfFound = false;
+    for(let i = 0; i < Math.min(9, leaders.length); i++) {
+        let leader = leaders[i];
+
+        switch(i) {
+            case 0: {
+                msgStr += '🏆 ';
+                
+                this.cache.set(guild.id, `champion_${game}`, leader.resultUser.user_id);
+                break;
+            }
+            default: {
+                msgStr += '🔹 ';
+                break;
+            }
+        }
+
+        let member = guild.members.resolve(leader.resultUser.user_id);
+
+        msgStr += `\`#${i+1}\``;
+        msgStr += getFormattedXPBarString.call(this, '', leader.total, this.expBarLeadersLength, true);
+        msgStr += ` ${member ? member.nickname ?? member.user.username : leader.resultUser.user_name}\n`;
+
+        if(resultUsers && leader.resultUser.user_id === resultUsers.user_id)
+            selfFound = true;
+    }
+
+    if(member != null && resultUsers != null && !selfFound) {
+        let user = resultUsers;
+
+        msgStr += '\n🔸 ';
+
+        const data_custom = await this.managers.custom.leaderboard(query, user, mapListId);
+        const data_campaign = await this.managers.campaign.leaderboard(query, user);
+
+        let totalCompleted = 0;
+        totalCompleted += data_custom.countTotalCompleted;
+        totalCompleted += data_campaign.countTotalCompleted;
+
+        let totalExp = 0;
+        totalExp += this.managers.custom.getExpFromMaps(data_custom.mapsTotalCompleted, kcgmm, totalCompleted);
+        totalExp += this.managers.campaign.getExpFromMaps(data_campaign.mapsTotalCompleted, totalCompleted);
+
+        msgStr += `\`#${leaders.findIndex(v => v.resultUser.user_id === user.user_id)+1}\``;
+        msgStr += getFormattedXPBarString.call(this, '', getExpDataFromTotalExp(totalExp), this.expBarLeadersLength, true);
+        msgStr += ` ${member.nickname ?? member.user.username}\n`;
+    }
+    embed.description += msgStr;
+    return embed;
+}

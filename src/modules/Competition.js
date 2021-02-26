@@ -865,10 +865,65 @@ function intro(m, type) {
  * @param {import('./Champion.js').default} champion
  */
 async function buildScoreTally(guild, channel, query, champion) {
-    return await champion.processChampionRole(channel, guild, query, {
-        postScoreTally: true,
-        postExpLeaders: false,
+    /** @type {Discord.Collection<Discord.Snowflake, number>} */
+    const championsWeeks = new Discord.Collection();
+    /** @type {Discord.Collection<Discord.Snowflake, boolean>} */
+    const champions = new Discord.Collection();
+
+    const weeks = 2;
+    let i = 1;
+
+    /** @type {Db.competition_history_competitions[]} */
+    let resultsComps = (await query(`SELECT * FROM competition_history_competitions WHERE guild_id = '${guild.id}'`)).results;
+    
+    resultsComps = resultsComps.slice(resultsComps.length - weeks, resultsComps.length);
+    
+    for(let resultComps of resultsComps) {
+        /** @type {Db.competition_history_maps[]} */
+        let resultsMaps = (await query(`SELECT * FROM competition_history_maps 
+            WHERE id_competition_history_competitions = '${resultComps.id}'`)).results;
+
+        for(let resultMaps of resultsMaps) {
+            /** @type {Db.competition_history_scores[]} */
+            let resultsScores = (await query(`SELECT * FROM competition_history_scores 
+                WHERE id_competition_history_maps = '${resultMaps.id}'`)).results;
+
+            for(let resultScores of resultsScores) {
+                if(resultScores.user_rank !== 1) continue;
+                
+                championsWeeks.set(resultScores.user_id, i);
+                champions.set(resultScores.user_id, true);
+            }
+        }
+        i++;
+    }
+
+    await champion.refreshCompetitionChampions(query, guild, champions);
+
+    championsWeeks.sort((a, b) => {
+        return b - a;
     });
+
+    const embed = new Discord.MessageEmbed({
+        color: 1482885,
+    });
+    const field = {
+        name: "Current champions",
+        value: "",
+        inline: false
+    }
+    for(let champion of championsWeeks) {
+        let weeks = champion[1];
+        let snowflake = champion[0];
+
+        field.value += `\`${weeks} weeks left\` <@${snowflake}>\n`;
+    }
+    if(field.value.length === 0) field.value = "None";
+    
+    embed.fields = [];
+    embed.fields.push(field);
+
+    channel.send({embed: embed});
 }
 
 /**

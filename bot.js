@@ -88,6 +88,12 @@ core.on('ready', bot => {
                 categoryNames: [':joystick: Experience', 'experience', 'exp']
             }
 
+            setTimeout(() => {
+                core.addLoop(1000 * 60 * 27, guild => {
+                    experience.loop(guild, kcgmm, champion);
+                });
+            }, 9000);
+
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'info', kcgmm: kcgmm });
             });
@@ -101,7 +107,7 @@ core.on('ready', bot => {
                 return experience.land(message, args, arg, { action: 'new', kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['leaders', 'leaderboard', 'leaderboards'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'leaderboard', kcgmm: kcgmm });
+                return experience.land(message, args, arg, { action: 'leaderboard', kcgmm: kcgmm, champion: champion });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'wipe', authorityLevel: null}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'wipe' });
@@ -114,6 +120,9 @@ core.on('ready', bot => {
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'ignorelist', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'ignorelist' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'message', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
+                return experience.land(message, args, arg, { action: 'message', kcgmm: kcgmm, champion: champion });
             });
         }).catch(logger.error);
 
