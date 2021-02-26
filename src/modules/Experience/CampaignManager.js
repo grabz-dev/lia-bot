@@ -45,6 +45,14 @@ import Experience from '../Experience.js';
  * @property {string} gameUID
  */
 
+/**
+ * @typedef {object} CampaignMapDefinition
+ * @property {string} name
+ * @property {string} gameUID
+ * @property {number} exp
+ * @property {string=} categoryOverride
+ */
+
 export class CampaignManager {
     /**
      * 
@@ -56,7 +64,8 @@ export class CampaignManager {
         //These maps have to be plugged in as desired in selectCampaignMaps() 
         this.campaign = {
             cw4: [{
-                name: "Farsite Expedition",
+                name: 'Farsite Expedition',
+                /** @type {CampaignMapDefinition[]} */
                 maps: [
                     { name: '09 Leo, 266',              gameUID: 'c3Rvcnkw',            exp: 125 }, 
                     { name: 'Farsite',                  gameUID: 'c3Rvcnkx',            exp: 150 },
@@ -81,7 +90,8 @@ export class CampaignManager {
                     { name: 'Ever After',               gameUID: 'c3RvcnkyMA%3d%3d',    exp: 1000 },
                 ]
             }, {
-                name: "Span Experiments",
+                name: 'Span Experiments',
+                /** @type {CampaignMapDefinition[]} */
                 maps: [
                     { name: 'Special',                          gameUID: 'a251Y3JhY2tlcjEy',                exp: 250 },
                     { name: 'The Dark Side',                    gameUID: 'a251Y3JhY2tlcjE3',                exp: 250 },
@@ -112,8 +122,71 @@ export class CampaignManager {
 
                 ]
             }],
-            pf: [],
-            cw3: [],
+            pf: [{
+                name: 'Story',
+                /** @type {CampaignMapDefinition[]} */
+                maps: [
+                    { name: 'Naivety',          gameUID: '1Story',                 exp: 250 },
+                    { name: 'Indelible',        gameUID: '2Story',                 exp: 275 },
+                    { name: 'Unwise',           gameUID: '3Story',                 exp: 300 },
+                    { name: 'Insanity',         gameUID: '4Story',                 exp: 325 },
+                    { name: 'Evidence',         gameUID: '5Story',                 exp: 350 },
+                    { name: 'Stretch',          gameUID: '6Story',                 exp: 375 },
+                    { name: 'Brute',            gameUID: '7Story',                 exp: 400 },
+                    { name: 'Potential',        gameUID: '8Story',                 exp: 425 },
+                    { name: 'Emergent',         gameUID: '9Story',                 exp: 450 },
+                    { name: 'Ties',             gameUID: '10Story',                exp: 475 },
+                    { name: 'Secrets',          gameUID: '11Story',                exp: 500 },
+                    { name: 'Doppelgangers',    gameUID: '12Story',                exp: 525 },
+                    { name: 'Intent',           gameUID: '13Story',                exp: 550 },
+                    { name: 'The 145th',        gameUID: '14Story',                exp: 575 },
+                    { name: 'Origin',           gameUID: '15Story',                exp: 600 },
+                ]
+            }, {
+                name: 'Inception',
+                /** @type {CampaignMapDefinition[]} */
+                maps: [
+                    { name: 'The Melt',                 gameUID: '1Inception',                 exp: 260 },
+                    { name: 'Fountains of Betelgeuse',  gameUID: '2Inception',                 exp: 270 },
+                    { name: 'Daisy Chain',              gameUID: '3Inception',                 exp: 280 },
+                    { name: 'Industrial Complex',       gameUID: '4Inception',                 exp: 290 },
+                    { name: 'Square Land',              gameUID: '5Inception',                 exp: 300 },
+                    { name: 'CEO\'s Landing',           gameUID: '6Inception',                 exp: 310 },
+                    { name: 'Archipelago',              gameUID: '7Inception',                 exp: 320 },
+                    { name: 'The Nest',                 gameUID: '8Inception',                 exp: 330 },
+                    { name: 'Warp Never Changes',       gameUID: '9Inception',                 exp: 340 },
+                ]
+            }],
+            cw3: [{
+                name: 'Arc Eternal',
+                /** @type {CampaignMapDefinition[]} */
+                maps: [
+                    { name: 'Inceptus : Tempus',        gameUID: 'Tempus',              exp: 125 },
+                    { name: 'Inceptus : Carcere',       gameUID: 'Carcere',             exp: 150 },
+                    { name: 'Abitus : Telos',           gameUID: 'Telos',               exp: 175 },
+                    { name: 'Abitus : Far York',        gameUID: 'Far+York',            exp: 200 },
+                    { name: 'Abitus : Starsync',        gameUID: 'Starsync',            exp: 225 },
+                    { name: 'Navox : Jojo',             gameUID: 'Jojo',                exp: 250 },
+                    { name: 'Navox : Ormos',            gameUID: 'Ormos',               exp: 275 },
+                    { name: 'Navox : Seedet',           gameUID: 'Seedet',              exp: 300 },
+                    { name: 'Navox : Flick',            gameUID: 'Flick',               exp: 325 },
+                    { name: 'Navox : Tiplex',           gameUID: 'Tiplex',              exp: 350 },
+                    { name: 'Egos : Lemal',             gameUID: 'Lemal',               exp: 375 },
+                    { name: 'Egos : Ruine',             gameUID: 'Ruine',               exp: 400 },
+                    { name: 'Egos : Defi',              gameUID: 'Defi',                exp: 425 },
+                    { name: 'Egos : Choix',             gameUID: 'Choix',               exp: 450 },
+                    { name: 'Egos : Chanson',           gameUID: 'Chanson',             exp: 475 },
+                    { name: 'Frykt : Mistet',           gameUID: 'Mistet',              exp: 500 },
+                    { name: 'Frykt : Crosslaw',         gameUID: 'Crosslaw',            exp: 525 },
+                    { name: 'Frykt : Vapen',            gameUID: 'Vapen',               exp: 550 },
+                    { name: 'Apex : Meso',              gameUID: 'Meso',                exp: 575 },
+                    { name: 'Cliff : Krig',             gameUID: 'Krig',                exp: 600 },
+                    { name: 'Andere : Otrav',           gameUID: 'Otrav',               exp: 625 },
+                    { name: 'Andere : Farbor',          gameUID: 'Farbor',              exp: 650 },
+                    { name: 'Cricket : Arca',           gameUID: 'Arca',                exp: 675 },
+                    { name: 'Adventure : Fortress of Ultimate Darkness', gameUID: 'credits', exp: 1000, categoryOverride: 'Credits' },
+                ]
+            }],
             cw2: []
         }
 
@@ -126,7 +199,7 @@ export class CampaignManager {
                     if(this.maps[keyval[0]] == null) this.maps[keyval[0]] = {};
                     this.maps[keyval[0]][map.gameUID] = {
                         mapName: map.name,
-                        campaignName: category.name,
+                        campaignName: map.categoryOverride != null ? map.categoryOverride : category.name,
                         exp: map.exp
                     }
                 }
@@ -339,6 +412,13 @@ function selectCampaignMaps(arr, user, allMapsCompleted, allMapsIgnored) {
         case 'cw4':
             campaigns.ordered.push(0);
             break;
+        case 'pf':
+            campaigns.ordered.push(0);
+            campaigns.ordered.push(1);
+            break;
+        case 'cw3':
+            campaigns.ordered.push(0);
+            break;
         }
     
         //Select random campaign(s)
@@ -358,7 +438,7 @@ function selectCampaignMaps(arr, user, allMapsCompleted, allMapsIgnored) {
                 arr.push({
                     game: user.game,
                     gameUID: cmap.gameUID,
-                    campaignName: category.name,
+                    campaignName: cmap.categoryOverride != null ? cmap.categoryOverride : category.name,
                     mapName: this.maps[user.game][cmap.gameUID].mapName
                 });
                 break;
@@ -380,12 +460,13 @@ function selectCampaignMaps(arr, user, allMapsCompleted, allMapsIgnored) {
                 arr.push({
                     game: user.game,
                     gameUID: cmap.gameUID,
-                    campaignName: category.name,
+                    campaignName: cmap.categoryOverride != null ? cmap.categoryOverride : category.name,
                     mapName: this.maps[user.game][cmap.gameUID].mapName
                 });
                 break;
             }
         }
+
         break;
     }
     }
