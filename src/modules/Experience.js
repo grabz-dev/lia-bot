@@ -240,6 +240,9 @@ export default class Experience extends Bot.Module {
                 if(mapListId == null) continue;
 
                 let embed = await getLeaderboardEmbed.call(this, query, kcgmm, mapListId, guild, game);
+                embed.footer = {
+                    text: '!exp'
+                }
                 message.edit('', { embed: embed }).catch(logger.error);
             }
 
@@ -524,8 +527,8 @@ function newMaps(m, game, kcgmm, dm) {
         const expDataOld = getExpDataFromTotalExp(totalExpOld);
 
         const expDataNew = getExpDataFromTotalExp(totalExpNew);
-        const expBarOld = getFormattedXPBarString.call(this, null, expDataOld, this.expBarLength, false, true);
-        const expBarNew = getFormattedXPBarString.call(this, null, expDataNew, this.expBarLength, false, true);
+        const expBarOld = getFormattedXPBarString.call(this, null, expDataOld, this.expBarLength, false, false, true);
+        const expBarNew = getFormattedXPBarString.call(this, null, expDataNew, this.expBarLength, false, false, true);
 
         
         let embed = getEmbedTemplate(m.member);
@@ -751,16 +754,17 @@ function ignorelist(m, game) {
  * @param {ExpData} expData
  * @param {number} expBarsMax 
  * @param {boolean=} noXpCur 
+ * @param {boolean=} noXpMax
  * @param {boolean=} noCode 
- * @param {boolean=} arrowOnly
+ * @param {boolean=} noBars 
  * @returns {string}
  */
-function getFormattedXPBarString(emote, expData, expBarsMax, noXpCur, noCode, arrowOnly) {
-    let lvl = arrowOnly ? '' : `Lv.${expData.currentLevel}`;
+function getFormattedXPBarString(emote, expData, expBarsMax, noXpCur, noXpMax, noCode, noBars) {
+    let lvl = `Lv.${expData.currentLevel}`;
     expBarsMax -= lvl.length;
-    let xpCur = noXpCur ? '' : Bot.Util.String.fixedWidth(arrowOnly ? '' : expData.currentXP+'', 5, ' ');
+    let xpCur = noXpCur ? '' : Bot.Util.String.fixedWidth(expData.currentXP+'', 5, ' ');
     expBarsMax -= xpCur.length;
-    let xpMax = Bot.Util.String.fixedWidth(arrowOnly ? '' : expData.maxXP+'', 5, ' ', true);
+    let xpMax = noXpMax ? '' : Bot.Util.String.fixedWidth(expData.maxXP+'', 5, ' ', true);
     expBarsMax -= xpMax.length;
     //Miscellaneous characters:
     expBarsMax -= 2;
@@ -775,12 +779,12 @@ function getFormattedXPBarString(emote, expData, expBarsMax, noXpCur, noCode, ar
         let dots = Math.min(this.dots.length - 1, dotsRemaining);
         dotsRemaining -= dots;
 
-        bar = `${bar}${arrowOnly ? (i === half1 || i === half2 ? '↓' : this.dots[0]) : this.dots[dots]}`;
+        bar = `${bar}${this.dots[dots]}`;
     }
 
     let half = Math.floor(expBarsMax / 2);
     bar = `${bar.substring(0, half)}${lvl}${bar.substring(half)}`;
-    bar = arrowOnly ? ` ${bar} ` : `|${bar}|`;
+    if(!noBars) bar = `|${bar}|`;
 
     let str = '';
     str = `${str}${xpCur}${bar}${xpMax}`;
@@ -897,25 +901,31 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
     let selfFound = false;
     for(let i = 0; i < Math.min(9, leaders.length); i++) {
         let leader = leaders[i];
+        let leaderMember = guild.members.resolve(leader.resultUser.user_id);
+        if(i === 0) this.cache.set(guild.id, `champion_${game}`, leader.resultUser.user_id);
 
-        switch(i) {
-            case 0: {
-                msgStr += '🏆 ';
-                
-                this.cache.set(guild.id, `champion_${game}`, leader.resultUser.user_id);
-                break;
+        if(member) {
+            switch(i) {
+                case 0: {
+                    msgStr += '🏆 ';
+                    break;
+                }
+                default: {
+                    msgStr += '🔹 ';
+                    break;
+                }
             }
-            default: {
-                msgStr += '🔹 ';
-                break;
-            }
+            msgStr += `\`#${i+1}\``;
+            msgStr += getFormattedXPBarString.call(this, '', leader.total, this.expBarLeadersLength, true);
+            msgStr += ` ${leaderMember ? leaderMember.nickname ?? leaderMember.user.username : leader.resultUser.user_name}\n`;
         }
-
-        let member = guild.members.resolve(leader.resultUser.user_id);
-
-        msgStr += `\`#${i+1}\``;
-        msgStr += getFormattedXPBarString.call(this, '', leader.total, this.expBarLeadersLength, true);
-        msgStr += ` ${member ? member.nickname ?? member.user.username : leader.resultUser.user_name}\n`;
+        else {
+            let name = leaderMember ? leaderMember.nickname ?? leaderMember.user.username : leader.resultUser.user_name;
+            if(name.length > 18) {
+                name = `${name.substring(0, 18)}...`;
+            }
+            msgStr += `\`#${i+1}${getFormattedXPBarString.call(this, '', leader.total, 14, true, true, true)}\` ${name}\n`;
+        }
 
         if(resultUsers && leader.resultUser.user_id === resultUsers.user_id)
             selfFound = true;
