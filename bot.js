@@ -194,22 +194,23 @@ core.on('ready', bot => {
 
         (() => {
             const strings = [
-                '[Gel maintenance]',
-                'Drifting through space',
-                'Looking over Skars',
-                'Maintaining ship',
-                'Installing OS updates',
-                'Anticipating destiny',
-                'Monitoring Earth'
-            ]
+                { v: 'Looking over Skars',      minMins: 60, maxMins: 120 },
+                { v: '[Gel maintenance]',       minMins: 30, maxMins: 60 },
+                { v: 'Drifting through space',  minMins: 30, maxMins: 60 },
+                { v: 'Maintaining ship',        minMins: 15, maxMins: 30 },
+                { v: 'Installing OS updates',   minMins: 15, maxMins: 30 },
+                { v: 'Anticipating destiny',    minMins: 15, maxMins: 30 },
+                { v: 'Monitoring Earth',        minMins: 15, maxMins: 30 }
+            ];
+
             let update = () => {
-                core.client.setTimeout(update, Bot.Util.getRandomInt(1000 * 60 * 15, 1000 * 60 * 45));
+                let obj = strings[Bot.Util.getRandomInt(0, strings.length)];
+                core.client.setTimeout(update, Bot.Util.getRandomInt(1000 * 60 * obj.minMins, 1000 * 60 * obj.maxMins));
 
                 if(core.client.user == null) return;
-    
                 core.client.user.setActivity({
                     type: 'PLAYING',
-                    name: `| ${strings[Bot.Util.getRandomInt(0, strings.length)]}`
+                    name: `| ${obj.v}`
                 }).catch(logger.error);
             }
             update();
