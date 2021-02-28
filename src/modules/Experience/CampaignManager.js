@@ -187,7 +187,47 @@ export class CampaignManager {
                     { name: 'Adventure : Fortress of Ultimate Darkness', gameUID: 'credits', exp: 1000, categoryOverride: 'Credits' },
                 ]
             }],
-            cw2: []
+            cw2: [{
+                name: 'Story',
+                /** @type {CampaignMapDefinition[]} */
+                maps: [
+                    { name: 'Day 1: Novus Orsa',        gameUID: 's0',              exp: 125 },
+                    { name: 'Day 2: Far York',          gameUID: 's1',              exp: 150 },
+                    { name: 'Day 3: Taurus',            gameUID: 's2',              exp: 175 },
+                    { name: 'Day 4: UC-1004',           gameUID: 's3',              exp: 200 },
+                    { name: 'Day 5: The Maxia Choice',  gameUID: 's4',              exp: 225 },
+                    { name: 'Day 6: Chaos',             gameUID: 's5',              exp: 250 },
+                    { name: 'Day 7: Lost',              gameUID: 's6',              exp: 275 },
+                    { name: 'Day 8: Sliver',            gameUID: 's7',              exp: 300 },
+                    { name: 'Day 9: Intelligence',      gameUID: 's8',              exp: 325 },
+                    { name: 'Day 10: The Experiment',   gameUID: 's9',              exp: 350 },
+                    { name: 'Day 11: The Cooker',       gameUID: 's10',             exp: 375 },
+                    { name: 'Day 12: Answer',           gameUID: 's11',             exp: 400 },
+                    { name: 'Day 13: Horror',           gameUID: 's12',             exp: 425 },
+                    { name: 'Day 14: Phoenix',          gameUID: 's13',             exp: 450 },
+                    { name: 'Day 15: Exterminate!',     gameUID: 's14',             exp: 475 },
+                    { name: 'Day 16: Purpose',          gameUID: 's15',             exp: 500 },
+                    { name: 'Day 17: Trickery',         gameUID: 's16',             exp: 525 },
+                    { name: 'Day 18: The Tide',         gameUID: 's17',             exp: 550 },
+                    { name: 'Day 19: Colony Prime',     gameUID: 's18',             exp: 575 },
+                    { name: 'Day 20: All Things',       gameUID: 's19',             exp: 600 },
+                ]
+            }, {
+                name: 'Bonus',
+                /** @type {CampaignMapDefinition[]} */
+                maps: [
+                    { name: 'Positronic',       gameUID: 'b0',              exp: 260 },
+                    { name: 'The Tree',         gameUID: 'b1',              exp: 270 },
+                    { name: 'Minion Surprise',  gameUID: 'b2',              exp: 280 },
+                    { name: 'Shields Up!',      gameUID: 'b3',              exp: 290 },
+                    { name: 'Stygian Depths',   gameUID: 'b4',              exp: 300 },
+                    { name: 'Odyssey',          gameUID: 'b5',              exp: 310 },
+                    { name: 'Barbarian Hordes', gameUID: 'b6',              exp: 320 },
+                    { name: 'Assault',          gameUID: 'b7',              exp: 330 },
+                    { name: 'Cubic',            gameUID: 'b8',              exp: 340 },
+                    { name: 'Abyss',            gameUID: 'b9',              exp: 350 },
+                ]
+            }]
         }
 
         /** @type {Object.<string, Object.<string, {mapName: string, campaignName: string, exp: number}>>} */
@@ -407,10 +447,11 @@ function selectCampaignMaps(arr, user, allMapsCompleted, allMapsIgnored) {
     case 'pf':
     case 'cw3':
     case 'cw2': {
-        //Select ordered campaign(s)
+        //Select campaign(s) for each game
         switch(user.game) {
         case 'cw4':
             campaigns.ordered.push(0);
+            campaigns.random.push(1);
             break;
         case 'pf':
             campaigns.ordered.push(0);
@@ -419,12 +460,9 @@ function selectCampaignMaps(arr, user, allMapsCompleted, allMapsIgnored) {
         case 'cw3':
             campaigns.ordered.push(0);
             break;
-        }
-    
-        //Select random campaign(s)
-        switch(user.game) {
-        case 'cw4':
-            campaigns.random.push(1);
+        case 'cw2':
+            campaigns.ordered.push(0);
+            campaigns.ordered.push(1);
             break;
         }
 

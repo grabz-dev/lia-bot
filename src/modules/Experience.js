@@ -533,7 +533,7 @@ function newMaps(m, game, kcgmm, dm) {
         
         let embed = getEmbedTemplate(m.member);
         embed.color = KCUtil.gameEmbedColors[game];
-        embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou completed ${totalCompletedNew} maps (XP mult: ${Math.ceil(this.getExpMultiplier(totalCompletedNew) * 100)/100}x)`;
+        embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed ${totalCompletedNew} maps (XP mult: ${Math.ceil(this.getExpMultiplier(totalCompletedNew) * 100)/100}x)`;
         
         embed.fields = [];
         
