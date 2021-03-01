@@ -65,11 +65,11 @@
             "leaderboard_empty": "Nothing to show.",
             "leaderboard_title": "%0 leaderboards:",
 
-            "already_ignoring_map": "You are already ignoring this map.",
-            "already_completed_map": "You have already completed this map.",
-            "not_ignoring_map": "This map is not in your ignore list.",
-            "map_ignored": "Map #%0 will no longer show up. To unignore, see `!exp unignore help`. To see all ignored maps, see `!exp ignorelist %1`.",
-            "map_unignored": "Map #%0 will now show up again. To see all ignored maps, see `!exp ignorelist %1`.",
+            "already_ignoring_map": "You are already ignoring %0.",
+            "already_completed_map": "You have already completed %0.",
+            "not_ignoring_map": "%0 is/are not in your ignore list.",
+            "map_ignored": "%0 will no longer show up. To unignore, see `!exp unignore help`. To see all ignored maps, see `!exp ignorelist %1`.",
+            "map_unignored": "%0 will now show up again. To see all ignored maps, see `!exp ignorelist %1`.",
             "maps_ignored": "The following maps are on your ignore list:"
         },
         "mapdata": {

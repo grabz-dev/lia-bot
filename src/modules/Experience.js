@@ -168,11 +168,20 @@ export default class Experience extends Bot.Module {
                 return;
             case 'ignore':
             case 'unignore':
-                let mapId = +args[1];
-                if(!Number.isFinite(mapId)) {
+                let mapIdsStr = args.slice(1);
+                /** @type {number[]} */
+                let mapIdsNum = [];
+                for(let mapIdStr of mapIdsStr) {
+                    let mapId = +mapIdStr;
+                    if(Number.isFinite(mapId)) {
+                        mapIdsNum.push(mapId);
+                    }
+                }
+                if(mapIdsNum.length <= 0) {
                     return this.bot.locale.category('experience', 'err_map_id_invalid');
                 }
-                ext.action === 'ignore' ? ignore.call(this, m, game, mapId) : unignore.call(this, m, game, mapId);
+                mapIdsNum = mapIdsNum.slice(0, 10);
+                ext.action === 'ignore' ? ignore.call(this, m, game, mapIdsNum) : unignore.call(this, m, game, mapIdsNum);
                 return;
             case 'ignorelist':
                 ignorelist.call(this, m, game);
@@ -641,9 +650,9 @@ function info(m) {
  * @this {Experience}
  * @param {Bot.Message} m - Message of the user executing the command.
  * @param {string} game 
- * @param {number} map_id
+ * @param {number[]} mapIds
  */
-function ignore(m, game, map_id) {
+function ignore(m, game, mapIds) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.experience_users} */
         var resultUsers = (await query(`SELECT * FROM experience_users
@@ -654,31 +663,41 @@ function ignore(m, game, map_id) {
             return;
         }
 
-        /** @type {Db.experience_maps_custom|undefined} */
-        var resultMapsCustom = (await query(`SELECT * FROM experience_maps_custom
-        WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${map_id}'`)).results[0];
+        //0 - selected
+        //1 - finished
+        //2 - ignored
+        /** @type {string[][]} */
+        const mapsDb = [[], [], []];
+        /** @type {string[]} */
+        const mapsNewIgnored = [];
+        for(let mapId of mapIds) {
+            /** @type {Db.experience_maps_custom|undefined} */
+            var resultMapsCustom = (await query(`SELECT * FROM experience_maps_custom
+            WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${mapId}'`)).results[0];
 
-        if(resultMapsCustom) {
-            if(resultMapsCustom.state === 1) {
-                m.message.reply(this.bot.locale.category('experience', 'already_completed_map')).catch(logger.error);
-                return;
-            }
-            else if(resultMapsCustom.state === 2) {
-                m.message.reply(this.bot.locale.category('experience', 'already_ignoring_map')).catch(logger.error);
-                return;
-            }
-        }
-
-        if(!resultMapsCustom || (resultMapsCustom && resultMapsCustom.state === 0)) {
             if(resultMapsCustom) {
-                await query(`DELETE FROM experience_maps_custom
-                    WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${map_id}' AND state = '0'`);
+                mapsDb[resultMapsCustom.state].push(`#${mapId}`);
             }
-            await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state)
-                VALUES ('${resultUsers.id}', '${map_id}', '2')`);
 
-            m.message.reply(this.bot.locale.category('experience', 'map_ignored', map_id+'', game)).catch(logger.error);
+            if(!resultMapsCustom || (resultMapsCustom && resultMapsCustom.state === 0)) {
+                mapsNewIgnored.push(`#${mapId}`);
+
+                if(resultMapsCustom) {
+                    await query(`DELETE FROM experience_maps_custom
+                        WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${mapId}' AND state = '0'`);
+                }
+                await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state)
+                    VALUES ('${resultUsers.id}', '${mapId}', '2')`);
+            }
         }
+
+        let str = '';
+        if(mapsNewIgnored.length > 0) str += `${this.bot.locale.category('experience', 'map_ignored', mapsNewIgnored.join(', '), game)}\n`;
+        if(mapsDb[1].length > 0) str += `${this.bot.locale.category('experience', 'already_completed_map', mapsDb[1].join(', '))}\n`;
+        if(mapsDb[2].length > 0) str += `${this.bot.locale.category('experience', 'already_ignoring_map', mapsDb[2].join(', '))}\n`;
+        if(str.length === 0) str = 'Nothing happened.';
+
+        m.message.reply(str).catch(logger.error);
     }).catch(logger.error);
 }
 
@@ -687,9 +706,9 @@ function ignore(m, game, map_id) {
  * @this {Experience}
  * @param {Bot.Message} m - Message of the user executing the command.
  * @param {string} game 
- * @param {number} map_id
+ * @param {number[]} mapIds
  */
-function unignore(m, game, map_id) {
+function unignore(m, game, mapIds) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.experience_users} */
         var resultUsers = (await query(`SELECT * FROM experience_users
@@ -700,19 +719,32 @@ function unignore(m, game, map_id) {
             return;
         }
 
-        /** @type {Db.experience_maps_custom|undefined} */
-        var resultMapsCustom = (await query(`SELECT * FROM experience_maps_custom
-        WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${map_id}' AND state = '2'`)).results[0];
+        /** @type {string[]} */
+        const mapsNotIgnoring = [];
+        /** @type {string[]} */
+        const mapsUnignored = [];
 
-        if(resultMapsCustom == null) {
-            m.message.reply(this.bot.locale.category('experience', 'not_ignoring_map')).catch(logger.error);
-            return;
+        for(let mapId of mapIds) {
+            /** @type {Db.experience_maps_custom|undefined} */
+            var resultMapsCustom = (await query(`SELECT * FROM experience_maps_custom
+            WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${mapId}' AND state = '2'`)).results[0];
+
+            if(resultMapsCustom == null) {
+                mapsNotIgnoring.push(`#${mapId}`);
+                continue;
+            }
+
+            mapsUnignored.push(`#${mapId}`);
+            await query(`DELETE FROM experience_maps_custom
+                WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${mapId}' AND state = '2'`);
         }
 
-        await query(`DELETE FROM experience_maps_custom
-            WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${map_id}' AND state = '2'`);
+        let str = '';
+        if(mapsNotIgnoring.length > 0) str += `${this.bot.locale.category('experience', 'not_ignoring_map', mapsNotIgnoring.join(', '))}\n`;
+        if(mapsUnignored.length > 0) str += `${this.bot.locale.category('experience', 'map_unignored', mapsUnignored.join(', '), game)}\n`;
+        if(str.length === 0) str = 'Nothing happened.';
 
-        m.message.reply(this.bot.locale.category('experience', 'map_unignored', map_id+'', game)).catch(logger.error);
+        m.message.reply(str).catch(logger.error);
     }).catch(logger.error);
 }
 
