@@ -227,13 +227,6 @@ export default class Experience extends Bot.Module {
             let arr = [];
 
             for(let game of this.games) {
-                /** @type {Discord.Snowflake|null} */
-                let user = this.cache.get(guild.id, `champion_${game}`);
-                if(user != null) arr.push({
-                    game: game,
-                    userId: user
-                })
-
                 /** @type {Db.experience_messages|null} */
                 var resultMessages = (await query(`SELECT * FROM experience_messages
                     WHERE guild_id = '${guild.id}' AND game = '${game}'`)).results[0];
@@ -253,6 +246,13 @@ export default class Experience extends Bot.Module {
                     text: '!exp'
                 }
                 message.edit('', { embed: embed }).catch(logger.error);
+
+                /** @type {Discord.Snowflake|null} */
+                let user = this.cache.get(guild.id, `champion_${game}`);
+                if(user != null) arr.push({
+                    game: game,
+                    userId: user
+                })
             }
 
             await champion.refreshExperienceChampions(query, guild, arr);
