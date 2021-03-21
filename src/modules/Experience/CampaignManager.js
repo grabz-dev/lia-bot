@@ -211,6 +211,7 @@ export class CampaignManager {
                     { name: 'Day 18: The Tide',         gameUID: 's17',             exp: 550 },
                     { name: 'Day 19: Colony Prime',     gameUID: 's18',             exp: 575 },
                     { name: 'Day 20: All Things',       gameUID: 's19',             exp: 600 },
+                    { name: 'Credits', gameUID: 'credits', exp: 1000, categoryOverride: 'Credits' },
                 ]
             }, {
                 name: 'Bonus',
