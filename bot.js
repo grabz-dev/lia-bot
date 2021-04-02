@@ -5,7 +5,7 @@ import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCGameMapManager } from './src/kc/KCGameMapManager.js'; 
 
-const core = new Bot.Core('371018033298276353');
+const core = new Bot.Core('371018033298276353', 'lia_bot');
 
 core.on('ready', bot => {
     (async () => {
