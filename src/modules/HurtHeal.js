@@ -1,11 +1,20 @@
 'use strict';
 /** @typedef {import('discord-bot-core/src/Core').Entry} Core.Entry */
+/** @typedef {import('discord-bot-core/src/structures/SQLWrapper').Query} SQLWrapper.Query */
 
 import Discord from 'discord.js';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
+
+/**
+ * @typedef {object} Db.hurtheal_setup
+ * @property {number} id - Primary key
+ * @property {Discord.Snowflake} guild_id
+ * @property {Discord.Snowflake=} last_message_id
+ * @property {Discord.Snowflake=} last_channel_id
+ */
 
 /**
  * @typedef {object} Db.hurtheal_games
@@ -42,6 +51,13 @@ export default class HurtHeal extends Bot.Module {
         super(bot);
 
         this.bot.sql.transaction(async query => {
+            await query(`CREATE TABLE IF NOT EXISTS hurtheal_setup (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(64) NOT NULL,
+                last_message_id VARCHAR(64),
+                last_channel_id VARCHAR(64)
+             )`);
+
             await query(`CREATE TABLE IF NOT EXISTS hurtheal_games (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 guild_id VARCHAR(64) NOT NULL,
@@ -163,7 +179,9 @@ function help(m) {
         inline: false
     });
 
-    m.channel.send({ embed: embed }).catch(logger.error);
+    m.channel.send({ embed: embed }).then(message => {
+        message.delete({ timeout: 1000 * 120 }).catch(logger.error);
+    }).catch(logger.error);
 }
 
 /**
@@ -231,22 +249,22 @@ async function action(m, type, thingName) {
         let resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ${resultGames.id} ORDER BY id DESC LIMIT 0, 2`)).results;
 
         if(type === 'show') {
-            m.channel.send({ embed: getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions) }).catch(logger.error);
+            await sendNewGameMessage(m, query, '', getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
             return;
         }
 
         if(resultsActions.find((v => v.user_id === m.member.id))) {
-            m.channel.send(`You have already played within the last 2 actions! Please wait your turn.`, { embed: getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions) }).catch(logger.error);
+            await sendNewGameMessage(m, query, 'You have already played within the last 2 actions! Please wait your turn.', getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
             return;
         }
 
         if(thingName == null) {
-            m.channel.send(`You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, { embed: getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions) }).catch(logger.error);
+            await sendNewGameMessage(m, query, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
             return;
         }
 
         if(mode === 'last') {
-            m.channel.send('A game is not currently running.', { embed: getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions) }).catch(logger.error);
+            await sendNewGameMessage(m, query, 'A game is not currently running.', getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
             return;
         }
 
@@ -257,11 +275,11 @@ async function action(m, type, thingName) {
         
         let currentThing = resultsThings.find((v => v.name === thingName));
         if(currentThing == null) {
-            m.channel.send(`**${thingName}** is not part of the current game.\nYou can select from: **${resultsThingsAlive.map((v => v.name)).join(', ')}**`, { embed: getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions) }).catch(logger.error);
+            await sendNewGameMessage(m, query, `**${thingName}** is not part of the current game.\nYou can select from: **${resultsThingsAlive.map((v => v.name)).join(', ')}**`, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
             return;
         }
         if(currentThing.health_cur <= 0) {
-            m.channel.send(`**${thingName}** is out of the game. You can only select from: **${resultsThingsAlive.map((v => v.name)).join(', ')}**`, { embed: getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions) }).catch(logger.error);
+            await sendNewGameMessage(m, query, `**${thingName}** is out of the game. You can only select from: **${resultsThingsAlive.map((v => v.name)).join(', ')}**`, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
             return;
         }
 
@@ -285,8 +303,34 @@ async function action(m, type, thingName) {
             isGameOver = true;
         }
 
-        m.channel.send(`**${currentThing.name}** was ${this.dictionary[type]} and is now at **${currentThing.health_cur}** health.${isGameOver ? `\n**The game is over!**`:''}`, { embed: getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions, type) }).catch(logger.error);
+        await sendNewGameMessage(m, query, `**${currentThing.name}** was ${this.dictionary[type]} and is now at **${currentThing.health_cur}** health.${isGameOver ? `\n**The game is over!**`:''}`, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions, type));
     }).catch(logger.error);
+}
+
+/**
+ * @param {Bot.Message} m
+ * @param {SQLWrapper.Query} query 
+ * @param {string} str
+ * @param {Discord.MessageEmbed} embed
+ */
+async function sendNewGameMessage(m, query, str, embed) {
+    const message = await m.channel.send(str, { embed: embed });
+
+    /** @type {Db.hurtheal_setup=} */
+    let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ${m.guild.id}`)).results[0];
+
+    if(resultSetup == null)
+        await query(`INSERT INTO hurtheal_setup (guild_id, last_message_id, last_channel_id) VALUES ('${m.guild.id}', '${message.id}', '${message.channel.id}')`);
+    else {
+        if(resultSetup.last_channel_id && resultSetup.last_message_id) {
+            let channel = m.guild.channels.resolve(resultSetup.last_channel_id);
+            if(channel instanceof Discord.TextChannel) {
+                let message = channel.messages.resolve(resultSetup.last_message_id);
+                if(message) message.delete().catch(logger.error);
+            }
+        }
+        await query(`UPDATE hurtheal_setup SET last_message_id = '${message.id}', last_channel_id = '${message.channel.id}' WHERE guild_id = ${m.guild.id}`);
+    }
 }
 
 
@@ -315,18 +359,15 @@ function getGameStandingsEmbed(m, mode, things, game, actions, action) {
     if(action == 'hurt') embed.color = 16746895;
     else if(action == 'heal') embed.color = 8904191;
 
-    embed.description = `${mode === 'current' ? 'Current standings' : 'Last game\'s results'}:\n`;
+    embed.description = `${mode === 'current' ? '' : 'Last game\'s results:\n'}`;
     if(game && game.theme) {
-        embed.description += `The theme of this game ${mode === 'current' ? 'is' : 'was'}: **${game.theme}**`;
+        embed.description += `Theme: **${game.theme}**\n`;
     }
 
     embed.fields = [];
-
-    let fieldThings = { name: 'Current items', value: '', inline: false }
     for(let thing of things) {
-        fieldThings.value += `\`${getHealthBar.call(this, thing)}\` **${thing.name}**\n`;
+        embed.description += `\`${getHealthBar.call(this, thing)}\` **${thing.name}**\n`;
     }
-    if(fieldThings.value.length > 0) embed.fields.push(fieldThings);
 
     if(actions) {
         let fieldActions = { name: 'Last two actions', value: '', inline: false }
