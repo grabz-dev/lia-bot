@@ -15,10 +15,10 @@ export default class Stream extends Bot.Module {
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS stream_main (
-                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                            guild_id VARCHAR(64) NOT NULL,
-                            channel_id VARCHAR(64) NOT NULL
-                         )`);
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                guild_id VARCHAR(64) NOT NULL,
+                channel_id VARCHAR(64) NOT NULL
+            )`);
         }).catch(logger.error);
     }
 

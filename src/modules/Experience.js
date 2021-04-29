@@ -73,7 +73,6 @@ export default class Experience extends Bot.Module {
             campaign: new CampaignManager(this)
         }
 
-        //Experience does not separate entries by guild ID, so we create tables in constructor and not in Module.init()
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS experience_messages (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -35,18 +35,12 @@ core.on('ready', bot => {
         const champion = await core.getModule((await import('./src/modules/Champion.js')).default);
         /** @type {import('./src/modules/Wiki.js').default} */
         const wiki = await core.getModule((await import('./src/modules/Wiki.js')).default);
+        /** @type {import('./src/modules/HurtHeal.js').default} */
+        const hurtheal = await core.getModule((await import('./src/modules/HurtHeal.js')).default);
         (() => {
             const obj = {
                 categoryNames: [':game_die: Miscellaneous', 'miscellaneous', 'misc']
             }
-
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['roll', 'dice', 'die'], commandNames: null, authorityLevel: 'EVERYONE'}), (m, args, arg) => {
-                let param = Number(args[0]);
-                let sides = Number.isNaN(param) ? 6 : param;
-                let roll = Bot.Util.getRandomInt(1, sides + 1);
-    
-                m.message.reply(`[:game_die: D${sides}] rolled \`${roll}\`!`).catch(logger.error);
-            });
 
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'map', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return map.land(message, args, arg, { action: 'map', kcgmm: kcgmm });
@@ -72,6 +66,39 @@ core.on('ready', bot => {
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: '4rpl', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return wiki.land(message, args, arg, { action: '4rpl' });
+            });
+        })();
+
+        (() => {
+            const obj = {
+                categoryNames: [':video_game: Fun', 'fun']
+            }
+
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['roll', 'dice', 'die'], commandNames: null, authorityLevel: 'EVERYONE'}), (m, args, arg) => {
+                let param = Number(args[0]);
+                let sides = Number.isNaN(param) ? 6 : param;
+                let roll = Bot.Util.getRandomInt(0, sides) + 1;
+    
+                m.message.reply(`[:game_die: D${sides}] rolled \`${roll}\`!`).catch(logger.error);
+            });
+
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return hurtheal.land(message, args, arg, { action: 'show' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'help', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return hurtheal.land(message, args, arg, { action: 'help' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'start', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
+                return hurtheal.land(message, args, arg, { action: 'start' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'theme', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
+                return hurtheal.land(message, args, arg, { action: 'theme' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'hurt', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return hurtheal.land(message, args, arg, { action: 'hurt' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'heal', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return hurtheal.land(message, args, arg, { action: 'heal' });
             });
         })();
         

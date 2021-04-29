@@ -97,8 +97,6 @@ export default class Competition extends Bot.Module {
         this.maxScoresInTable = 8;
 
         this.bot.sql.transaction(async query => {
-            
-
             await query(`CREATE TABLE IF NOT EXISTS competition_main (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 guild_id VARCHAR(64) NOT NULL,

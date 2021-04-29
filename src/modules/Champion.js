@@ -25,11 +25,6 @@ export default class Champion extends Bot.Module {
      */
     constructor(bot) {
         super(bot);
-    }
-
-    /** @param {Discord.Guild} guild - Current guild. */
-    init(guild) {
-        super.init(guild);
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS champion_champions (
@@ -39,6 +34,11 @@ export default class Champion extends Bot.Module {
                 user_id VARCHAR(64) NOT NULL
              )`);
         }).catch(logger.error);
+    }
+
+    /** @param {Discord.Guild} guild - Current guild. */
+    init(guild) {
+        super.init(guild);
     }
 
     /**
