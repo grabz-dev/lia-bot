@@ -275,7 +275,7 @@ async function action(m, type, thingName) {
 
         //refresh actions
         /** @type {Db.hurtheal_actions[]} */
-        resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ${resultGames.id} ORDER BY id DESC`)).results;
+        resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ${resultGames.id} ORDER BY id DESC LIMIT 0, 2`)).results;
 
 
         let isGameOver = false;
