@@ -251,7 +251,7 @@ async function action(m, type, thingName) {
         let resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ${resultGames.id} ORDER BY id DESC LIMIT 0, 2`)).results;
 
         //Sort results for exit commands
-        resultsThings.sort((a, b) => (a.death_order??0) - (b.death_order??0) || b.health_cur - a.health_cur);
+        sortThings(resultsThings);
 
         if(type === 'show') {
             await sendNewGameMessage(m, query, '', getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
@@ -293,20 +293,6 @@ async function action(m, type, thingName) {
         case 'heal': { currentThing.health_cur += 1; break; }
         case 'hurt': { currentThing.health_cur -= 2; break; }
         }
-        if(currentThing.health_cur <= 0) {
-            currentThing.death_order = resultsThings.filter((v => v.health_cur <= 0)).length;
-        }
-
-        //Sort things again for final message after changes
-        resultsThings.sort((a, b) => (a.death_order??0) - (b.death_order??0) || b.health_cur - a.health_cur);
-
-        //Update database
-        await query(`UPDATE hurtheal_things SET health_cur = ${currentThing.health_cur}${currentThing.death_order != null ? `, death_order = ${currentThing.death_order}` : ''} WHERE id_hurtheal_games = '${resultGames.id}' AND name = '${currentThing.name}'`);
-        await query(`INSERT INTO hurtheal_actions (id_hurtheal_games, id_hurtheal_things, timestamp, user_id, action) VALUES ('${resultGames.id}', '${currentThing.id}', '${Date.now()}', '${m.member.id}', '${type}')`);
-
-        //refresh actions
-        /** @type {Db.hurtheal_actions[]} */
-        resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ${resultGames.id} ORDER BY id DESC LIMIT 0, 2`)).results;
 
         //Decide if game is over
         let isGameOver = false;
@@ -315,6 +301,28 @@ async function action(m, type, thingName) {
             await query(`UPDATE hurtheal_games SET finished = TRUE WHERE id = '${resultGames.id}'`);
             isGameOver = true;
         }
+
+        //Give out placement
+        if(currentThing.health_cur <= 0)
+            currentThing.death_order = resultsThings.filter((v => v.health_cur <= 0)).length;
+        if(isGameOver) {
+            let winnerThing = resultsThings.find((v => v.health_cur > 0));
+            if(winnerThing) {
+                winnerThing.death_order = resultsThings.length;
+                await query(`UPDATE hurtheal_things SET death_order = '${winnerThing.death_order}' WHERE id_hurtheal_games = '${resultGames.id}' AND id = '${winnerThing.id}'`);
+            }
+        }
+
+        //Update database
+        await query(`UPDATE hurtheal_things SET health_cur = ${currentThing.health_cur}${currentThing.death_order != null ? `, death_order = ${currentThing.death_order}` : ''} WHERE id_hurtheal_games = '${resultGames.id}' AND id = '${currentThing.id}'`);
+        await query(`INSERT INTO hurtheal_actions (id_hurtheal_games, id_hurtheal_things, timestamp, user_id, action) VALUES ('${resultGames.id}', '${currentThing.id}', '${Date.now()}', '${m.member.id}', '${type}')`);
+
+        //Refresh actions
+        /** @type {Db.hurtheal_actions[]} */
+        resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ${resultGames.id} ORDER BY id DESC LIMIT 0, 2`)).results;
+
+        //Sort things again for final message after changes
+        sortThings(resultsThings);
 
         //Send final message
         await sendNewGameMessage(m, query, `**${currentThing.name}** was ${this.dictionary[type]} and is now at **${currentThing.health_cur}** health.${isGameOver ? `\n**The game is over!**`:''}`, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions, type), isGameOver ? true : false);
@@ -437,4 +445,12 @@ function getThingPlace(thing, things) {
     case 3: return ':third_place:';
     default: return `*#${place} place*`;
     }
+}
+
+/**
+ * 
+ * @param {Db.hurtheal_things[]} things 
+ */
+function sortThings(things) {
+    things.sort((a, b) => b.health_cur - a.health_cur || (b.death_order??0) - (a.death_order??0));
 }
