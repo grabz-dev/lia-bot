@@ -32,6 +32,7 @@ import { KCUtil } from '../kc/KCUtil.js';
  * @property {string} name
  * @property {number} health_cur
  * @property {number} health_max
+ * @property {number=} death_order
  */
 
 /**
@@ -71,7 +72,8 @@ export default class HurtHeal extends Bot.Module {
                 id_hurtheal_games INT UNSIGNED NOT NULL,
                 name VARCHAR(32) NOT NULL,
                 health_cur TINYINT NOT NULL,
-                health_max TINYINT NOT NULL
+                health_max TINYINT NOT NULL,
+                death_order TINYINT
              )`);
 
             await query(`CREATE TABLE IF NOT EXISTS hurtheal_actions (
@@ -248,6 +250,9 @@ async function action(m, type, thingName) {
         /** @type {Db.hurtheal_actions[]} */
         let resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ${resultGames.id} ORDER BY id DESC LIMIT 0, 2`)).results;
 
+        //Sort results for exit commands
+        resultsThings.sort((a, b) => (a.death_order??0) - (b.death_order??0) || b.health_cur - a.health_cur);
+
         if(type === 'show') {
             await sendNewGameMessage(m, query, '', getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
             return;
@@ -283,19 +288,27 @@ async function action(m, type, thingName) {
             return;
         }
 
+        //Modify current thing
         switch(type) {
         case 'heal': { currentThing.health_cur += 1; break; }
         case 'hurt': { currentThing.health_cur -= 2; break; }
         }
+        if(currentThing.health_cur <= 0) {
+            currentThing.death_order = resultsThings.filter((v => v.health_cur <= 0)).length;
+        }
 
-        await query(`UPDATE hurtheal_things SET health_cur = ${currentThing.health_cur} WHERE id_hurtheal_games = '${resultGames.id}' AND name = '${currentThing.name}'`);
+        //Sort things again for final message after changes
+        resultsThings.sort((a, b) => (a.death_order??0) - (b.death_order??0) || b.health_cur - a.health_cur);
+
+        //Update database
+        await query(`UPDATE hurtheal_things SET health_cur = ${currentThing.health_cur}${currentThing.death_order != null ? `, death_order = ${currentThing.death_order}` : ''} WHERE id_hurtheal_games = '${resultGames.id}' AND name = '${currentThing.name}'`);
         await query(`INSERT INTO hurtheal_actions (id_hurtheal_games, id_hurtheal_things, timestamp, user_id, action) VALUES ('${resultGames.id}', '${currentThing.id}', '${Date.now()}', '${m.member.id}', '${type}')`);
 
         //refresh actions
         /** @type {Db.hurtheal_actions[]} */
         resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ${resultGames.id} ORDER BY id DESC LIMIT 0, 2`)).results;
 
-
+        //Decide if game is over
         let isGameOver = false;
         if(currentThing.health_cur <= 0) resultsThingsAlive.splice(resultsThingsAlive.indexOf(currentThing), 1);
         if(resultsThingsAlive.length <= 1) {
@@ -303,7 +316,8 @@ async function action(m, type, thingName) {
             isGameOver = true;
         }
 
-        await sendNewGameMessage(m, query, `**${currentThing.name}** was ${this.dictionary[type]} and is now at **${currentThing.health_cur}** health.${isGameOver ? `\n**The game is over!**`:''}`, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions, type));
+        //Send final message
+        await sendNewGameMessage(m, query, `**${currentThing.name}** was ${this.dictionary[type]} and is now at **${currentThing.health_cur}** health.${isGameOver ? `\n**The game is over!**`:''}`, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions, type), isGameOver ? true : false);
     }).catch(logger.error);
 }
 
@@ -312,16 +326,15 @@ async function action(m, type, thingName) {
  * @param {SQLWrapper.Query} query 
  * @param {string} str
  * @param {Discord.MessageEmbed} embed
+ * @param {boolean=} noRegister - Don't register this message as one that should be deleted later
  */
-async function sendNewGameMessage(m, query, str, embed) {
+async function sendNewGameMessage(m, query, str, embed, noRegister) {
     const message = await m.channel.send(str, { embed: embed });
 
     /** @type {Db.hurtheal_setup=} */
     let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ${m.guild.id}`)).results[0];
 
-    if(resultSetup == null)
-        await query(`INSERT INTO hurtheal_setup (guild_id, last_message_id, last_channel_id) VALUES ('${m.guild.id}', '${message.id}', '${message.channel.id}')`);
-    else {
+    if(resultSetup != null) {
         if(resultSetup.last_channel_id && resultSetup.last_message_id) {
             let channel = m.guild.channels.resolve(resultSetup.last_channel_id);
             if(channel instanceof Discord.TextChannel) {
@@ -329,8 +342,15 @@ async function sendNewGameMessage(m, query, str, embed) {
                 if(message) message.delete().catch(logger.error);
             }
         }
-        await query(`UPDATE hurtheal_setup SET last_message_id = '${message.id}', last_channel_id = '${message.channel.id}' WHERE guild_id = ${m.guild.id}`);
     }
+
+    if(noRegister)
+        return;
+
+    if(resultSetup == null)
+        await query(`INSERT INTO hurtheal_setup (guild_id, last_message_id, last_channel_id) VALUES ('${m.guild.id}', '${message.id}', '${message.channel.id}')`);
+    else 
+        await query(`UPDATE hurtheal_setup SET last_message_id = '${message.id}', last_channel_id = '${message.channel.id}' WHERE guild_id = ${m.guild.id}`);
 }
 
 
@@ -366,7 +386,7 @@ function getGameStandingsEmbed(m, mode, things, game, actions, action) {
 
     embed.fields = [];
     for(let thing of things) {
-        embed.description += `\`${getHealthBar.call(this, thing)}\` **${thing.name}**\n`;
+        embed.description += `\`${getHealthBar.call(this, thing)}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
     }
 
     if(actions) {
@@ -390,9 +410,31 @@ function getHealthBar(thing) {
     let str = '';
     let health = thing.health_cur <= 0 ? 0 : thing.health_cur;
     let bars = Math.ceil(health / thing.health_max * this.barLength);
+    let overheal = thing.health_cur - thing.health_max;
+    let overhealBars = Math.ceil(overheal / thing.health_max * this.barLength);
 
-    for(let i = 0; i < this.barLength; i++)
-        str += i < bars ? `#` : ' ';
+    for(let i = 0; i < this.barLength; i++) {
+        if(i < overhealBars)    str += '$';
+        else if(i < bars)       str += '#';
+        else                    str += ' ';
+    }
 
     return `${health < 10 ? ' ':''}${health}|${str}|`;
+}
+
+/**
+ * 
+ * @param {Db.hurtheal_things} thing
+ * @param {Db.hurtheal_things[]} things
+ * @returns {string}
+ */
+function getThingPlace(thing, things) {
+    if(thing.death_order == null) return '';
+    const place = things.length - thing.death_order + 1;
+    switch(place) {
+    case 1: return ':first_place:';
+    case 2: return ':second_place:';
+    case 3: return ':third_place:';
+    default: return `*#${place} place*`;
+    }
 }
