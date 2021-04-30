@@ -417,14 +417,35 @@ function getGameStandingsEmbed(m, mode, things, game, actions, action) {
 function getHealthBar(thing) {
     let str = '';
     let health = thing.health_cur <= 0 ? 0 : thing.health_cur;
-    let bars = Math.ceil(health / thing.health_max * this.barLength);
-    let overheal = thing.health_cur - thing.health_max;
-    let overhealBars = Math.ceil(overheal / thing.health_max * this.barLength);
+    let overheals = 10;
+
+    let bars = [];
+    for(let i = 0; i < overheals; i++) {
+        bars[i] = thing.health_cur - thing.health_max * i;
+    }
 
     for(let i = 0; i < this.barLength; i++) {
-        if(i < overhealBars)    str += '$';
-        else if(i < bars)       str += '#';
-        else                    str += ' ';
+        let type = -1;
+        for(let j = overheals - 1; j >= 0; j--) {
+            if(i < Math.ceil(bars[j] / thing.health_max * this.barLength)) {
+                type = j;
+                break;
+            }
+        }
+
+        switch(type) {
+        case 9: str += '^'; break;
+        case 8: str += 'W'; break;
+        case 7: str += 'O'; break;
+        case 6: str += 'P'; break;
+        case 5: str += '@'; break;
+        case 4: str += '€'; break;
+        case 3: str += '&'; break;
+        case 2: str += '%'; break;
+        case 1: str += '$'; break;
+        case 0: str += '#'; break;
+        default: str += ' '; break;
+        }
     }
 
     return `${health < 10 ? ' ':''}${health}|${str}|`;
