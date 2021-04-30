@@ -338,7 +338,7 @@ async function sendNewGameMessage(m, query, str, embed, noRegister) {
         if(resultSetup.last_channel_id && resultSetup.last_message_id) {
             let channel = m.guild.channels.resolve(resultSetup.last_channel_id);
             if(channel instanceof Discord.TextChannel) {
-                let message = await channel.messages.fetch(resultSetup.last_message_id);
+                let message = await channel.messages.fetch(resultSetup.last_message_id).catch(() => {});
                 if(message) message.delete().catch(logger.error);
             }
         }
