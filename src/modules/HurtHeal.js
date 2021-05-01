@@ -473,5 +473,5 @@ function getThingPlace(thing, things) {
  * @param {Db.hurtheal_things[]} things 
  */
 function sortThings(things) {
-    things.sort((a, b) => b.health_cur - a.health_cur || (b.death_order??0) - (a.death_order??0));
+    things.sort((a, b) => Math.max(0, b.health_cur) - Math.max(0, a.health_cur) || (b.death_order??0) - (a.death_order??0));
 }
