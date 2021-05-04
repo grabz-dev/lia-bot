@@ -143,7 +143,8 @@ export default class HurtHeal extends Bot.Module {
         case 'show':
         case 'hurt':
         case 'heal': {
-            let str = args[0];
+            /** @type {string=} */ let str = args[0];
+            if(str) str = (str.match(/[a-zA-Z0-9]*/g)??[])[0]
             if(str) str = str.toLowerCase();
 
             action.call(this, m, ext.action, str);    
