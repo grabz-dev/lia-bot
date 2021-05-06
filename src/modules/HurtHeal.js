@@ -8,6 +8,8 @@ const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
 
+import Diacritics from 'diacritics';
+
 /**
  * @typedef {object} Db.hurtheal_setup
  * @property {number} id - Primary key
@@ -497,5 +499,5 @@ function sortThings(things) {
  * @returns {string} 
  */
 function simplifyForTest(str) {
-    return str.normalize('NFKD').replace(/[^\w]/g, '').toLowerCase();
+    return Diacritics.remove(str).toLowerCase();
 }
