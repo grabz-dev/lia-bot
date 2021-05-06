@@ -199,6 +199,10 @@
                 "!%name% <text>",
                 "Set a short description for what the currently running round of Hurt or Heal is about."
             ],
+            "end": [
+                "!%name%",
+                "End current Hurt or Heal game forcefully."
+            ],
             "hurt": [
                 "!%name% <item>",
                 "Hurt an item in Hurt or Heal."

@@ -94,6 +94,9 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'theme', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'theme' });
             });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'end', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
+                return hurtheal.land(message, args, arg, { action: 'end' });
+            });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'hurt', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'hurt' });
             });

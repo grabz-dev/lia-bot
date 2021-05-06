@@ -104,7 +104,7 @@ export default class HurtHeal extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'hurt'|'heal'|'start'|'help'|'show'|'theme'} ext.action - Custom parameters provided to function call.
+     * @param {'hurt'|'heal'|'start'|'help'|'show'|'theme'|'end'} ext.action - Custom parameters provided to function call.
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
@@ -123,13 +123,12 @@ export default class HurtHeal extends Bot.Module {
                 argsThing = argsThing.trim();
                 let thingValues = argsThing.split(' ');
                 let name = thingValues[0];
-                name = (name.match(/[a-zA-Z0-9]*/g)??[]).join('');
                 if(name.length <= 0)         return error.replace('%0', 'empty').replace('%1', 'Name is empty or invalid');
                 let health = Math.ceil(+thingValues[1]);
                 if(health < 1)               return error.replace('%0', name).replace('%1', 'Health must be 1 or more');
                 if(!Number.isFinite(health)) return error.replace('%0', name).replace('%1', 'Health is not a valid number');
 
-                obj[name.toLowerCase()] = health;
+                obj[name] = health;
             }
 
             /** @type {{name: string, health: number}[]} */
@@ -143,10 +142,7 @@ export default class HurtHeal extends Bot.Module {
         case 'show':
         case 'hurt':
         case 'heal': {
-            /** @type {string=} */ let str = args[0];
-            if(str) str = (str.match(/[a-zA-Z0-9]*/g)??[])[0]
-            if(str) str = str.toLowerCase();
-
+            let str = args[0];
             action.call(this, m, ext.action, str);    
             break;
         }
@@ -156,9 +152,11 @@ export default class HurtHeal extends Bot.Module {
         }
         case 'theme': {
             let str = arg;
-            str = (str.match(/[a-zA-Z0-9.,?' ]*/g)??[]).join('');
-
             theme.call(this, m, str);
+            break;
+        }
+        case 'end': {
+            end.call(this, m);
             break;
         }
         }
@@ -194,7 +192,7 @@ function help(m) {
  */
 function theme(m, str) {
     this.bot.sql.transaction(async query => {
-        await query(`UPDATE hurtheal_games SET theme = "${str}" WHERE finished = FALSE`);
+        await query(`UPDATE hurtheal_games SET theme = ? WHERE finished = FALSE`, [str]);
 
         m.message.reply('Theme set.').catch(logger.error);
     }).catch(logger.error);
@@ -203,17 +201,33 @@ function theme(m, str) {
 /**
  * @this {HurtHeal}
  * @param {Bot.Message} m - Message of the user executing the command.
- * @param {{name: string, health: number}[]} things
  */
-async function start(m, things) {
+function end(m) {
     this.bot.sql.transaction(async query => {
         await query(`UPDATE hurtheal_games SET finished = TRUE`);
+
+        m.message.reply('Previous game ended.').catch(logger.error);
+    }).catch(logger.error);
+}
+
+/**
+ * @this {HurtHeal}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {{name: string, health: number}[]} things
+ */
+function start(m, things) {
+    this.bot.sql.transaction(async (query, mysql) => {
+        let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
+        if(resultGames != null) {
+            m.message.reply('A game is already running, to force finish it use `!hh end`').catch(logger.error);
+            return;
+        }
 
         /** @type {number} */
         let insertId = (await query(`INSERT INTO hurtheal_games (guild_id, timestamp, finished) VALUES ('${m.guild.id}', '${Date.now()}', FALSE)`)).results.insertId;
 
         for(let thing of things) {
-            await query(`INSERT INTO hurtheal_things (id_hurtheal_games, name, health_cur, health_max) VALUES ('${insertId}', '${thing.name}', '${thing.health}', '${thing.health}')`);
+            await query(`INSERT INTO hurtheal_things (id_hurtheal_games, name, health_cur, health_max) VALUES ('${insertId}', ${mysql.escape(thing.name)}, '${thing.health}', '${thing.health}')`);
         }
 
         /** @type {Db.hurtheal_things[]} */
@@ -229,8 +243,8 @@ async function start(m, things) {
  * @param {'hurt'|'heal'|'show'} type
  * @param {string=} thingName
  */
-async function action(m, type, thingName) {
-    this.bot.sql.transaction(async query => {
+function action(m, type, thingName) {
+    this.bot.sql.transaction(async (query, mysql) => {
         /** @type {Db.hurtheal_games=} */ let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
         /** @type {'current'|'last'} */ let mode = 'current';
 
@@ -279,7 +293,7 @@ async function action(m, type, thingName) {
         for(let resultThings of resultsThings)
             if(resultThings.health_cur > 0) resultsThingsAlive.push(resultThings);
         
-        let currentThing = resultsThings.find((v => v.name === thingName));
+        let currentThing = resultsThings.find((v => simplifyForTest(v.name) === simplifyForTest(thingName)));
         if(currentThing == null) {
             await sendNewGameMessage(m, query, `**${thingName}** is not part of the current game.\nYou can select from: **${resultsThingsAlive.map((v => v.name)).join(', ')}**`, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
             return;
@@ -475,4 +489,13 @@ function getThingPlace(thing, things) {
  */
 function sortThings(things) {
     things.sort((a, b) => Math.max(0, b.health_cur) - Math.max(0, a.health_cur) || (b.death_order??0) - (a.death_order??0));
+}
+
+/**
+ * 
+ * @param {string} str 
+ * @returns {string} 
+ */
+function simplifyForTest(str) {
+    return str.normalize('NFKD').replace(/[^\w]/g, '').toLowerCase();
 }
