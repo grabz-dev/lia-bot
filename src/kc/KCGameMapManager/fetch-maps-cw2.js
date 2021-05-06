@@ -135,6 +135,11 @@ function getCW2MapDataFromMapBrowser(data) {
         data = data.substring(data.indexOf(">"));
         let author = data.substring(1, data.indexOf("<"));
 
+        data = data.substring(data.indexOf("Comments:</td>"));
+        data = data.substring(data.indexOf("?topic="));
+        data = data.substring(7);
+        let forumId = data.substring(0, data.indexOf('&'));
+
         data = data.substring(data.indexOf("Scores:</td>"));
         data = data.substring(12);
         data = data.substring(data.indexOf(">"));
@@ -176,6 +181,7 @@ function getCW2MapDataFromMapBrowser(data) {
                 width: 32,
                 downloads: +downloads,
                 desc: desc,
+                forumId: +forumId
             })
         }
     }

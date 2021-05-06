@@ -333,9 +333,12 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
     str += '\n';
 
     //Tags
-    if(mapData.tags)
-        str += `Tags: ${mapData.tags.join(', ')}`;
-    str += '\n';
+    if(mapData.tags) {
+        str += `Tags: ${mapData.tags.join(', ')}\n`;
+    }
+    
+    //Forum link
+    str += `[Forum Thread](https://knucklecracker.com/forums/index.php?topic=${mapData.forumId})\n`;
 
     //ID/Title
     embed.fields = [{

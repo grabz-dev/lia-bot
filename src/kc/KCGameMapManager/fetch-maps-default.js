@@ -55,7 +55,8 @@ export async function fetchMapsDefault(game) {
             title: map.l[0],
             width: +map.w[0],
             height: +map.h[0],
-            timestamp: +(map.t[0]+'000')
+            timestamp: +(map.t[0]+'000'),
+            forumId: +map.p[0]
         }
 
         let obj;

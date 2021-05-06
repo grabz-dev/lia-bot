@@ -27,6 +27,7 @@
  * @property {string} title - The title of the map.
  * @property {number} width - The width of the map.
  * @property {number} height - The height of the map.
+ * @property {number} forumId - Forum thread ID.
  * @property {string=} desc - CW2, CW3 and PF only. The map description. 
  * @property {number=} downloads - CW2, CW3 and PF only. The amount of times the map was downloaded. 
  * @property {number=} scores - CW2, CW3 and PF only. The amount of scores submitted.
