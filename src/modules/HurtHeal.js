@@ -145,6 +145,7 @@ export default class HurtHeal extends Bot.Module {
         case 'hurt':
         case 'heal': {
             let str = args[0];
+            if(str) str = str.split(',')[0];
             action.call(this, m, ext.action, str);    
             break;
         }
