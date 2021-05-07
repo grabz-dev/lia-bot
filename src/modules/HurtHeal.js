@@ -272,22 +272,22 @@ function action(m, type, thingName) {
         sortThings(resultsThings);
 
         if(type === 'show') {
-            await sendNewGameMessage(m, query, '', getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, '', resultGames, resultsActions));
             return;
         }
 
         if(resultsActions.find((v => v.user_id === m.member.id))) {
-            await sendNewGameMessage(m, query, 'You have already played within the last 2 actions! Please wait your turn.', getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, 'You have already played within the last 2 actions! Please wait your turn.', resultGames, resultsActions));
             return;
         }
 
         if(thingName == null) {
-            await sendNewGameMessage(m, query, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, resultGames, resultsActions));
             return;
         }
 
         if(mode === 'last') {
-            await sendNewGameMessage(m, query, 'A game is not currently running.', getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, 'A game is not currently running.', resultGames, resultsActions));
             return;
         }
 
@@ -298,11 +298,15 @@ function action(m, type, thingName) {
         
         let currentThing = resultsThings.find((v => simplifyForTest(v.name) === simplifyForTest(thingName)));
         if(currentThing == null) {
-            await sendNewGameMessage(m, query, `**${thingName}** is not part of the current game.\nYou can select from: **${resultsThingsAlive.map((v => v.name)).join(', ')}**`, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, `**${thingName}** is not part of the current game.\nYou can select from: **${resultsThingsAlive.map((v => v.name)).join(', ')}**`, resultGames, resultsActions));
             return;
         }
         if(currentThing.health_cur <= 0) {
-            await sendNewGameMessage(m, query, `**${thingName}** is out of the game. You can only select from: **${resultsThingsAlive.map((v => v.name)).join(', ')}**`, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions));
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, `**${currentThing.name}** is out of the game. You can only select from: **${resultsThingsAlive.map((v => v.name)).join(', ')}**`, resultGames, resultsActions));
+            return;
+        }
+        if(type === 'heal' && currentThing.health_cur >= currentThing.health_max) {
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, `**${currentThing.name}** is already at max health.`, resultGames, resultsActions));
             return;
         }
 
@@ -343,19 +347,18 @@ function action(m, type, thingName) {
         sortThings(resultsThings);
 
         //Send final message
-        await sendNewGameMessage(m, query, `**${currentThing.name}** was ${this.dictionary[type]} and is now at **${currentThing.health_cur}** health.${isGameOver ? `\n**The game is over!**`:''}`, getGameStandingsEmbed.call(this, m, mode, resultsThings, resultGames, resultsActions, type), isGameOver ? true : false);
+        await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, `**${currentThing.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentThing.health_cur)}** health.${isGameOver ? `\n**The game is over!**`:''}`, resultGames, resultsActions, type), isGameOver ? true : false);
     }).catch(logger.error);
 }
 
 /**
  * @param {Bot.Message} m
  * @param {SQLWrapper.Query} query 
- * @param {string} str
  * @param {Discord.MessageEmbed} embed
  * @param {boolean=} noRegister - Don't register this message as one that should be deleted later
  */
-async function sendNewGameMessage(m, query, str, embed, noRegister) {
-    const message = await m.channel.send(str, { embed: embed });
+async function sendNewGameMessage(m, query, embed, noRegister) {
+    const message = await m.channel.send({ embed: embed });
 
     /** @type {Db.hurtheal_setup=} */
     let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ${m.guild.id}`)).results[0];
@@ -385,27 +388,30 @@ async function sendNewGameMessage(m, query, str, embed, noRegister) {
  * @param {Bot.Message} m
  * @param {'current'|'last'} mode
  * @param {Db.hurtheal_things[]} things
+ * @param {string=} str
  * @param {Db.hurtheal_games=} game
  * @param {(Db.hurtheal_actions[])=} actions
  * @param {('hurt'|'heal')=} action
  * @returns {Discord.MessageEmbed}
  */
-function getGameStandingsEmbed(m, mode, things, game, actions, action) {
+function getGameStandingsEmbed(m, mode, things, str, game, actions, action) {
     var embed = new Discord.MessageEmbed({
         color: 14211288,
         author: {
-            name: m.member.user.username + '#' + m.member.user.discriminator,
-            iconURL: m.member.user.avatarURL() || m.member.user.defaultAvatarURL,
+            name: '🎮 Hurt or Heal',
         },
         timestamp: Date.now(),
         footer: {
             text: '`!hh help` for help'
         }
     });
-    if(action == 'hurt') embed.color = 16746895;
-    else if(action == 'heal') embed.color = 8904191;
+    if(action == 'hurt') embed.color = 16731994;
+    else if(action == 'heal') embed.color = 6214143;
 
-    embed.description = `${mode === 'current' ? '' : 'Last game\'s results:\n'}`;
+    embed.description = '';
+    if(str != null && str.length > 0) embed.description += `<@${m.member.id}>, ${str}\n\n`;
+
+    embed.description += `${mode === 'current' ? '' : 'Last game\'s results:\n'}`;
     if(game && game.theme) {
         embed.description += `Theme: **${game.theme}**\n`;
     }
@@ -491,7 +497,16 @@ function getThingPlace(thing, things) {
  * @param {Db.hurtheal_things[]} things 
  */
 function sortThings(things) {
-    things.sort((a, b) => (Math.max(0, b.health_cur) - Math.max(0, a.health_cur)) || ((b.death_order??0) - (a.death_order??0)) || (a.name.localeCompare(b.name)));
+    things.sort((a, b) => {
+        let defeat = (b.death_order??0) - (a.death_order??0);
+        let alphabetic = a.name.localeCompare(b.name);
+
+        if(defeat !== 0) {
+            let health = Math.max(0, b.health_cur) - Math.max(0, a.health_cur);
+            return health || defeat;
+        }
+        else return alphabetic;
+    });
 }
 
 /**
