@@ -75,7 +75,7 @@ export default class HurtHeal extends Bot.Module {
             await query(`CREATE TABLE IF NOT EXISTS hurtheal_things (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 id_hurtheal_games INT UNSIGNED NOT NULL,
-                name VARCHAR(32) NOT NULL,
+                name VARCHAR(128) NOT NULL,
                 health_cur TINYINT NOT NULL,
                 health_max TINYINT NOT NULL,
                 death_order TINYINT
