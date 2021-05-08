@@ -318,7 +318,7 @@ function action(m, type, args, arg) {
 
         //Search for ID first
         if(args.length > 0) {
-            let id = args[0];
+            let id = args[0].split(',')[0];
             currentItem = items.find(v => `${v.orderId}` === id || `#${v.orderId}` === id);
 
             //If an item is found, cut ID from reason string
