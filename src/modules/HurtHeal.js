@@ -45,7 +45,10 @@ import Diacritics from 'diacritics';
  * @property {number} timestamp
  * @property {Discord.Snowflake} user_id
  * @property {'hurt'|'heal'} action
+ * @property {string} reason
  */
+
+/** @typedef {Db.hurtheal_things & {orderId: number}} Item */
 
 
 export default class HurtHeal extends Bot.Module {
@@ -84,7 +87,8 @@ export default class HurtHeal extends Bot.Module {
                 id_hurtheal_things INT UNSIGNED NOT NULL,
                 timestamp BIGINT NOT NULL,
                 user_id VARCHAR(64) NOT NULL,
-                action VARCHAR(16) NOT NULL
+                action VARCHAR(16) NOT NULL,
+                reason VARCHAR(256)
              )`);
         }).catch(logger.error);
 
@@ -118,8 +122,10 @@ export default class HurtHeal extends Bot.Module {
 
             if(arg.length === 0) return 'Must provide some arguments';
 
-            /** @type {Object.<string, number>} */
-            let obj = {}
+            /** @type {Object.<string, boolean>} */
+            let indexer = {}
+            /** @type {{name: string, health: number}[]} */
+            let things = [];
 
             for(let argsThing of argsThings) {
                 argsThing = argsThing.trim();
@@ -130,13 +136,10 @@ export default class HurtHeal extends Bot.Module {
                 if(health < 1)               return error.replace('%0', name).replace('%1', 'Health must be 1 or more');
                 if(!Number.isFinite(health)) return error.replace('%0', name).replace('%1', 'Health is not a valid number');
 
-                obj[name] = health;
+                if(indexer[name] == null)
+                    things.push({name: name, health: health});
+                indexer[name] = true;
             }
-
-            /** @type {{name: string, health: number}[]} */
-            let things = [];
-            for(let o of Object.entries(obj))
-                things.push({name: o[0], health: o[1]});
 
             start.call(this, m, things);
             break;
@@ -146,7 +149,10 @@ export default class HurtHeal extends Bot.Module {
         case 'heal': {
             let str = args[0];
             if(str) str = str.split(',')[0];
-            action.call(this, m, ext.action, str);    
+            let reason = str ? arg.substring(arg.indexOf(str) + str.length) : null;
+            if(reason) reason = reason.trim().substring(0, 256);
+            
+            action.call(this, m, ext.action, str ? str : null, reason ? reason : null);    
             break;
         }
         case 'help': {
@@ -227,16 +233,17 @@ function start(m, things) {
         }
 
         /** @type {number} */
-        let insertId = (await query(`INSERT INTO hurtheal_games (guild_id, timestamp, finished) VALUES ('${m.guild.id}', '${Date.now()}', FALSE)`)).results.insertId;
+        let insertId = (await query(`INSERT INTO hurtheal_games (guild_id, timestamp, finished) VALUES (?, ?, FALSE)`, [m.guild.id, Date.now()])).results.insertId;
 
         for(let thing of things) {
-            await query(`INSERT INTO hurtheal_things (id_hurtheal_games, name, health_cur, health_max) VALUES ('${insertId}', ${mysql.escape(thing.name)}, '${thing.health}', '${thing.health}')`);
+            await query(`INSERT INTO hurtheal_things (id_hurtheal_games, name, health_cur, health_max) VALUES (?, ?, ?, ?)`, [insertId, thing.name, thing.health, thing.health]);
         }
 
         /** @type {Db.hurtheal_things[]} */
-        let resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ${insertId} ORDER BY health_cur DESC`)).results;
+        let resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ? ORDER BY id ASC`, [insertId])).results;
+        let items = getItemsFromDb(resultsThings);
 
-        m.message.reply('New game started!', { embed: getGameStandingsEmbed.call(this, m, 'current', resultsThings) }).catch(logger.error);
+        m.message.reply('New game started!', { embed: getGameStandingsEmbed.call(this, m, 'current', items) }).catch(logger.error);
     }).catch(logger.error);
 }
 
@@ -244,9 +251,10 @@ function start(m, things) {
  * @this {HurtHeal}
  * @param {Bot.Message} m - Message of the user executing the command.
  * @param {'hurt'|'heal'|'show'} type
- * @param {string=} thingName
+ * @param {string|null} thingName
+ * @param {string|null} reason
  */
-function action(m, type, thingName) {
+function action(m, type, thingName, reason) {
     this.bot.sql.transaction(async (query, mysql) => {
         /** @type {Db.hurtheal_games=} */ let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
         /** @type {'current'|'last'} */ let mode = 'current';
@@ -264,90 +272,93 @@ function action(m, type, thingName) {
         //Checks passed
 
         /** @type {Db.hurtheal_things[]} */
-        let resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ${resultGames.id} ORDER BY health_cur DESC`)).results;
+        let resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ? ORDER BY id ASC`, [resultGames.id])).results;
+        let items = getItemsFromDb(resultsThings);
         /** @type {Db.hurtheal_actions[]} */
-        let resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ${resultGames.id} ORDER BY id DESC LIMIT 0, 2`)).results;
+        let resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ? ORDER BY id DESC LIMIT 0, 2`, [resultGames.id])).results;
 
         //Sort results for exit commands
-        sortThings(resultsThings);
+        sortThings(items);
 
         if(type === 'show') {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, '', resultGames, resultsActions));
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, '', resultGames, resultsActions));
             return;
         }
 
         if(resultsActions.find((v => v.user_id === m.member.id))) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, 'You have already played within the last 2 actions! Please wait your turn.', resultGames, resultsActions));
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, 'You have already played within the last 2 actions! Please wait your turn.', resultGames, resultsActions));
             return;
         }
 
         if(thingName == null) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, resultGames, resultsActions));
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, resultGames, resultsActions));
             return;
         }
 
         if(mode === 'last') {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, 'A game is not currently running.', resultGames, resultsActions));
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, 'A game is not currently running.', resultGames, resultsActions));
             return;
         }
 
-        /** @type {Db.hurtheal_things[]} */
-        let resultsThingsAlive = [];
-        for(let resultThings of resultsThings)
-            if(resultThings.health_cur > 0) resultsThingsAlive.push(resultThings);
+        /** @type {Item[]} */
+        let itemsAlive = [];
+        for(let item of items)
+            if(item.health_cur > 0) itemsAlive.push(item);
         
-        let currentThing = resultsThings.find((v => simplifyForTest(v.name) === simplifyForTest(thingName)));
-        if(currentThing == null) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, `**${thingName}** is not part of the current game.\nYou can select from: **${resultsThingsAlive.map((v => v.name)).join(', ')}**`, resultGames, resultsActions));
+        let currentItem = items.find(v => simplifyForTest(v.name) === simplifyForTest(thingName));
+        if(currentItem == null)
+            currentItem = items.find(v => `${v.orderId}` === thingName || `#${v.orderId}` === thingName);
+        if(currentItem == null) {
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `**${thingName}** is not part of the current game.\nYou can select from: **${itemsAlive.map((v => v.name)).join(', ')}**`, resultGames, resultsActions));
             return;
         }
-        if(currentThing.health_cur <= 0) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, `**${currentThing.name}** is out of the game. You can only select from: **${resultsThingsAlive.map((v => v.name)).join(', ')}**`, resultGames, resultsActions));
+        if(currentItem.health_cur <= 0) {
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`, resultGames, resultsActions));
             return;
         }
-        if(type === 'heal' && currentThing.health_cur >= currentThing.health_max) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, `**${currentThing.name}** is already at max health.`, resultGames, resultsActions));
+        if(type === 'heal' && currentItem.health_cur >= currentItem.health_max) {
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `**${currentItem.name}** is already at max health.`, resultGames, resultsActions));
             return;
         }
 
         //Modify current thing
         switch(type) {
-        case 'heal': { currentThing.health_cur += 1; break; }
-        case 'hurt': { currentThing.health_cur -= 2; break; }
+        case 'heal': { currentItem.health_cur += 1; break; }
+        case 'hurt': { currentItem.health_cur -= 2; break; }
         }
 
         //Decide if game is over
         let isGameOver = false;
-        if(currentThing.health_cur <= 0) resultsThingsAlive.splice(resultsThingsAlive.indexOf(currentThing), 1);
-        if(resultsThingsAlive.length <= 1) {
-            await query(`UPDATE hurtheal_games SET finished = TRUE WHERE id = '${resultGames.id}'`);
+        if(currentItem.health_cur <= 0) itemsAlive.splice(itemsAlive.indexOf(currentItem), 1);
+        if(itemsAlive.length <= 1) {
+            await query(`UPDATE hurtheal_games SET finished = TRUE WHERE id = ?`, [resultGames.id]);
             isGameOver = true;
         }
 
         //Give out placement
-        if(currentThing.health_cur <= 0)
-            currentThing.death_order = resultsThings.filter((v => v.health_cur <= 0)).length;
+        if(currentItem.health_cur <= 0)
+            currentItem.death_order = items.filter((v => v.health_cur <= 0)).length;
         if(isGameOver) {
-            let winnerThing = resultsThings.find((v => v.health_cur > 0));
+            let winnerThing = items.find((v => v.health_cur > 0));
             if(winnerThing) {
-                winnerThing.death_order = resultsThings.length;
-                await query(`UPDATE hurtheal_things SET death_order = '${winnerThing.death_order}' WHERE id_hurtheal_games = '${resultGames.id}' AND id = '${winnerThing.id}'`);
+                winnerThing.death_order = items.length;
+                await query(`UPDATE hurtheal_things SET death_order = ? WHERE id_hurtheal_games = ? AND id = ?`, [winnerThing.death_order, resultGames.id, winnerThing.id]);
             }
         }
 
         //Update database
-        await query(`UPDATE hurtheal_things SET health_cur = ${currentThing.health_cur}${currentThing.death_order != null ? `, death_order = ${currentThing.death_order}` : ''} WHERE id_hurtheal_games = '${resultGames.id}' AND id = '${currentThing.id}'`);
-        await query(`INSERT INTO hurtheal_actions (id_hurtheal_games, id_hurtheal_things, timestamp, user_id, action) VALUES ('${resultGames.id}', '${currentThing.id}', '${Date.now()}', '${m.member.id}', '${type}')`);
+        await query(`UPDATE hurtheal_things SET health_cur = ?, death_order = ? WHERE id_hurtheal_games = ? AND id = ?`, [currentItem.health_cur, currentItem.death_order, resultGames.id, currentItem.id]);
+        await query(`INSERT INTO hurtheal_actions (id_hurtheal_games, id_hurtheal_things, timestamp, user_id, action, reason) VALUES (?, ?, ?, ?, ?, ?)`, [resultGames.id, currentItem.id, Date.now(), m.member.id, type, reason]);
 
         //Refresh actions
         /** @type {Db.hurtheal_actions[]} */
-        resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ${resultGames.id} ORDER BY id DESC LIMIT 0, 2`)).results;
+        resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ? ORDER BY id DESC LIMIT 0, 2`, [resultGames.id])).results;
 
         //Sort things again for final message after changes
-        sortThings(resultsThings);
+        sortThings(items);
 
         //Send final message
-        await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, resultsThings, `**${currentThing.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentThing.health_cur)}** health.${isGameOver ? `\n**The game is over!**`:''}`, resultGames, resultsActions, type), isGameOver ? true : false);
+        await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `**${currentItem.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentItem.health_cur)}** health.${isGameOver ? `\n**The game is over!**`:''}`, resultGames, resultsActions, type), isGameOver ? true : false);
     }).catch(logger.error);
 }
 
@@ -361,7 +372,7 @@ async function sendNewGameMessage(m, query, embed, noRegister) {
     const message = await m.channel.send({ embed: embed });
 
     /** @type {Db.hurtheal_setup=} */
-    let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ${m.guild.id}`)).results[0];
+    let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ?`, [m.guild.id])).results[0];
 
     if(resultSetup != null) {
         if(resultSetup.last_channel_id && resultSetup.last_message_id) {
@@ -377,9 +388,9 @@ async function sendNewGameMessage(m, query, embed, noRegister) {
         return;
 
     if(resultSetup == null)
-        await query(`INSERT INTO hurtheal_setup (guild_id, last_message_id, last_channel_id) VALUES ('${m.guild.id}', '${message.id}', '${message.channel.id}')`);
+        await query(`INSERT INTO hurtheal_setup (guild_id, last_message_id, last_channel_id) VALUES (?, ?, ?)`, [m.guild.id, message.id, message.channel.id]);
     else 
-        await query(`UPDATE hurtheal_setup SET last_message_id = '${message.id}', last_channel_id = '${message.channel.id}' WHERE guild_id = ${m.guild.id}`);
+        await query(`UPDATE hurtheal_setup SET last_message_id = ?, last_channel_id = ? WHERE guild_id = ?`, [message.id, message.channel.id, m.guild.id]);
 }
 
 
@@ -387,7 +398,7 @@ async function sendNewGameMessage(m, query, embed, noRegister) {
  * @this {HurtHeal}
  * @param {Bot.Message} m
  * @param {'current'|'last'} mode
- * @param {Db.hurtheal_things[]} things
+ * @param {Item[]} things
  * @param {string=} str
  * @param {Db.hurtheal_games=} game
  * @param {(Db.hurtheal_actions[])=} actions
@@ -418,14 +429,14 @@ function getGameStandingsEmbed(m, mode, things, str, game, actions, action) {
 
     embed.fields = [];
     for(let thing of things) {
-        embed.description += `\`${getHealthBar.call(this, thing)}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
+        embed.description += `\`${getHealthBar.call(this, thing)}\` • \`#${thing.orderId}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
     }
 
     if(actions) {
         let fieldActions = { name: 'Last two actions', value: '', inline: false }
         for(let action of actions) {
             let thing = things.find((v => v.id === action.id_hurtheal_things))
-            fieldActions.value += `<@${action.user_id}> ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} on ${Bot.Util.getFormattedDate(action.timestamp, true)}\n`;
+            fieldActions.value += `<@${action.user_id}> ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${action.reason ? action.reason : ''}\n`;
         }
         if(fieldActions.value.length > 0) embed.fields.push(fieldActions);
     }
@@ -472,7 +483,7 @@ function getHealthBar(thing) {
         }
     }
 
-    return `${health < 10 ? ' ':''}${health}|${str}|`;
+    return `${health < 10 ? ' ':''}${health}|${str}|${thing.health_max}${thing.health_max < 10 ? ' ':''}`;
 }
 
 /**
@@ -494,18 +505,20 @@ function getThingPlace(thing, things) {
 
 /**
  * 
- * @param {Db.hurtheal_things[]} things 
+ * @param {Item[]} things 
  */
 function sortThings(things) {
     things.sort((a, b) => {
         let defeat = (b.death_order??0) - (a.death_order??0);
-        let alphabetic = a.name.localeCompare(b.name);
+        //let alphabetic = a.name.localeCompare(b.name);
+        let ordered = (a.orderId - b.orderId);
 
         if(defeat !== 0) {
             let health = Math.max(0, b.health_cur) - Math.max(0, a.health_cur);
             return health || defeat;
         }
-        else return alphabetic;
+        else return ordered;
+        //else return alphabetic;
     });
 }
 
@@ -516,4 +529,18 @@ function sortThings(things) {
  */
 function simplifyForTest(str) {
     return Diacritics.remove(str).toLowerCase();
+}
+
+/**
+ * Assign things with orderId that lets players choose an item by number
+ * This function assumes that `things` is already ordered by database ID
+ * @param {Db.hurtheal_things[]} things 
+ */
+function getItemsFromDb(things) {
+    //
+    let i = 0;
+    return things.map(v => {
+        i++;
+        return Object.assign({ orderId: i }, v);
+    });
 }
