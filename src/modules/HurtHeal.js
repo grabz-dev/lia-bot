@@ -427,9 +427,11 @@ function getGameStandingsEmbed(m, mode, things, str, game, actions, action) {
         embed.description += `Theme: **${game.theme}**\n`;
     }
 
+    let space = things.length >= 10 ? ' ' : '';
+
     embed.fields = [];
     for(let thing of things) {
-        embed.description += `\`${getHealthBar.call(this, thing)}\` • \`#${thing.orderId}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
+        embed.description += `\`${getHealthBar.call(this, thing)}\`  \`${space && thing.orderId < 10 ? ' ':''}#${thing.orderId}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
     }
 
     if(actions) {
@@ -483,7 +485,7 @@ function getHealthBar(thing) {
         }
     }
 
-    return `${health < 10 ? ' ':''}${health}|${str}|${thing.health_max}${thing.health_max < 10 ? ' ':''}`;
+    return `${health < 10 ? ' ':''}${health}|${str}|`;
 }
 
 /**
