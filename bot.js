@@ -79,7 +79,7 @@ core.on('ready', bot => {
 
         (() => {
             const obj = {
-                categoryNames: [':video_game: Hurt or Heal', 'hh']
+                categoryNames: [':video_game: Hurt or Heal', 'hurt or heal', 'hurt heal', 'hh']
             }
 
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
