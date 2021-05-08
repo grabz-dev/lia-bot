@@ -116,7 +116,7 @@ export default class HurtHeal extends Bot.Module {
     land(m, args, arg, ext) {
         switch(ext.action) {
         case 'start': {
-            let error = `Arguments error found at item **%0**: %1. Make sure arguments are in the correct order.`;
+            let error = `Arguments error found at **%0**: %1. Make sure arguments are in the correct order.`;
             arg = arg.replace(/\s\s+/g, ' '); //Reduce all multi spaces, newlines etc. to single space
             let argsThings = arg.split(',');
 
@@ -127,18 +127,30 @@ export default class HurtHeal extends Bot.Module {
             /** @type {{name: string, health: number}[]} */
             let things = [];
 
-            for(let argsThing of argsThings) {
-                argsThing = argsThing.trim();
-                let thingValues = argsThing.split(' ');
-                let name = thingValues[0];
-                if(name.length <= 0)         return error.replace('%0', 'empty').replace('%1', 'Name is empty or invalid');
-                let health = Math.ceil(+thingValues[1]);
-                if(health < 1)               return error.replace('%0', name).replace('%1', 'Health must be 1 or more');
-                if(!Number.isFinite(health)) return error.replace('%0', name).replace('%1', 'Health is not a valid number');
+            let health = 10;
 
-                if(indexer[name] == null)
-                    things.push({name: name, health: health});
-                indexer[name] = true;
+            for(let i = 0; i < argsThings.length; i++) {
+                let thing = argsThings[i];
+
+                //Trim argument
+                thing = thing.trim();
+                //Turn all multi spaces, tabs and newlines into a single space
+                thing = thing.replace(/\s\s+/g, ' ');
+
+                //Determine health
+                if(i === 0) {
+                    health = Math.ceil(+thing);
+                    if(health < 1)               return error.replace('%0', `health`).replace('%1', 'Health must be 1 or more');
+                    if(!Number.isFinite(health)) return error.replace('%0', `health`).replace('%1', 'Health is not a valid number');
+                }
+                //Determine item
+                else {
+                    let name = thing;
+                    if(name.length <= 0)         return error.replace('%0', `item ${i}`).replace('%1', 'Name is empty');
+                    if(indexer[name] == null)
+                        things.push({name: name, health: health});
+                    indexer[name] = true;
+                }
             }
 
             start.call(this, m, things);
@@ -147,12 +159,7 @@ export default class HurtHeal extends Bot.Module {
         case 'show':
         case 'hurt':
         case 'heal': {
-            let str = args[0];
-            if(str) str = str.split(',')[0];
-            let reason = str ? arg.substring(arg.indexOf(str) + str.length) : null;
-            if(reason) reason = reason.trim().substring(0, 256);
-            
-            action.call(this, m, ext.action, str ? str : null, reason ? reason : null);    
+            action.call(this, m, ext.action, args, arg);    
             break;
         }
         case 'help': {
@@ -251,10 +258,10 @@ function start(m, things) {
  * @this {HurtHeal}
  * @param {Bot.Message} m - Message of the user executing the command.
  * @param {'hurt'|'heal'|'show'} type
- * @param {string|null} thingName
- * @param {string|null} reason
+ * @param {string[]} args
+ * @param {string} arg
  */
-function action(m, type, thingName, reason) {
+function action(m, type, args, arg) {
     this.bot.sql.transaction(async (query, mysql) => {
         /** @type {Db.hurtheal_games=} */ let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
         /** @type {'current'|'last'} */ let mode = 'current';
@@ -290,7 +297,7 @@ function action(m, type, thingName, reason) {
             return;
         }
 
-        if(thingName == null) {
+        if(args.length === 0) {
             await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, resultGames, resultsActions));
             return;
         }
@@ -304,12 +311,45 @@ function action(m, type, thingName, reason) {
         let itemsAlive = [];
         for(let item of items)
             if(item.health_cur > 0) itemsAlive.push(item);
+
         
-        let currentItem = items.find(v => simplifyForTest(v.name) === simplifyForTest(thingName));
-        if(currentItem == null)
-            currentItem = items.find(v => `${v.orderId}` === thingName || `#${v.orderId}` === thingName);
+        let reason = arg;
+        /** @type {Item=} */ let currentItem;
+
+        //Search for ID first
+        if(args.length > 0) {
+            let id = args[0];
+            currentItem = items.find(v => `${v.orderId}` === id || `#${v.orderId}` === id);
+
+            //If an item is found, cut ID from reason string
+            if(currentItem)
+                reason = reason.substring(reason.indexOf(id) + id.length);
+        }
+
+        //If an item is not found, start over, search for name and cut reason string appropriately as well
         if(currentItem == null) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `**${thingName}** is not part of the current game.\nYou can select from: **${itemsAlive.map((v => v.name)).join(', ')}**`, resultGames, resultsActions));
+            let assembledName = '';
+            //Example args: ['apple', 'pie,', 'because', 'i', 'love', 'pies']
+            loop:
+            for(let i = 0; i < args.length; i++) {
+                //Turn 'pie,' into ['pie', ''];
+                let commaSeparatedArgs = args[i].split(',');
+                for(let j = 0; j < commaSeparatedArgs.length; j++) {
+                    let nameFragment = commaSeparatedArgs[j];
+                    if(nameFragment.length === 0) continue;
+
+                    assembledName += ` ${nameFragment}`;
+                    currentItem = items.find(v => simplifyForTest(v.name) === simplifyForTest(assembledName));
+                    reason = reason.substring(reason.indexOf(nameFragment) + nameFragment.length);
+
+                    if(currentItem != null) break loop;
+                }
+            }
+        }
+        
+        //If an item is still not found, error
+        if(currentItem == null) {
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `Could not determine selection from input.\nMake sure to type the item ID or the full name of the item you want to hurt or heal.`, resultGames, resultsActions));
             return;
         }
         if(currentItem.health_cur <= 0) {
@@ -530,7 +570,7 @@ function sortThings(things) {
  * @returns {string} 
  */
 function simplifyForTest(str) {
-    return Diacritics.remove(str).toLowerCase();
+    return Diacritics.remove(str).replace(/\s+/g, '').toLowerCase();
 }
 
 /**

@@ -192,8 +192,8 @@
                 "Show help for Hurt or Heal."
             ],
             "start": [
-                "!%name% <name1> <health1>, <name2> <health2>, <name3> <health3>, ...",
-                "Start a new Hurt or Heal game. Items are comma delimited, and each item must have two arguments - name, then health"
+                "!%name% <health>, <name1>, <name2>, <name3>, ...",
+                "Start a new Hurt or Heal game. Arguments to this function are comma delimited. Specified health is applied to every item. The rest of the arguments are item names. Items can have spaces between words, multi spaces are automatically converted to a single space."
             ],
             "theme": [
                 "!%name% <text>",
