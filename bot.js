@@ -42,6 +42,14 @@ core.on('ready', bot => {
                 categoryNames: [':game_die: Miscellaneous', 'miscellaneous', 'misc']
             }
 
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['roll', 'dice', 'die'], commandNames: null, authorityLevel: 'EVERYONE'}), (m, args, arg) => {
+                let param = Number(args[0]);
+                let sides = Number.isNaN(param) ? 6 : param;
+                let roll = Bot.Util.getRandomInt(0, sides) + 1;
+    
+                m.message.reply(`[:game_die: D${sides}] rolled \`${roll}\`!`).catch(logger.error);
+            });
+
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'map', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return map.land(message, args, arg, { action: 'map', kcgmm: kcgmm });
             });
@@ -71,21 +79,13 @@ core.on('ready', bot => {
 
         (() => {
             const obj = {
-                categoryNames: [':video_game: Fun', 'fun']
+                categoryNames: [':video_game: Hurt or Heal', 'hh']
             }
-
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['roll', 'dice', 'die'], commandNames: null, authorityLevel: 'EVERYONE'}), (m, args, arg) => {
-                let param = Number(args[0]);
-                let sides = Number.isNaN(param) ? 6 : param;
-                let roll = Bot.Util.getRandomInt(0, sides) + 1;
-    
-                m.message.reply(`[:game_die: D${sides}] rolled \`${roll}\`!`).catch(logger.error);
-            });
 
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'show' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'help', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: ['rules', 'info'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'help' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'start', authorityLevel: 'MODERATOR'}), (message, args, arg) => {

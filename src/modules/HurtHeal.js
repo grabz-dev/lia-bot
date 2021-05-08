@@ -453,7 +453,7 @@ function getGameStandingsEmbed(m, mode, things, str, game, actions, action) {
         },
         timestamp: Date.now(),
         footer: {
-            text: '`!hh help` for help'
+            text: '`!hh rules` for help'
         }
     });
     if(action == 'hurt') embed.color = 16731994;
