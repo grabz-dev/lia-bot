@@ -95,6 +95,10 @@ export default class HurtHeal extends Bot.Module {
             'hurt': 'hurt',
             'heal': 'healed'
         }
+
+        /** @type {{type: 'hurt'|'heal'|'show', args: string[], arg: string}[]} */
+        this.queue = [];
+        this.queueRunning = false;
     }
 
     /** @param {Discord.Guild} guild - Current guild. */
@@ -157,7 +161,18 @@ export default class HurtHeal extends Bot.Module {
         case 'show':
         case 'hurt':
         case 'heal': {
-            action.call(this, m, ext.action, args, arg);    
+            this.queue.push({ type: ext.action, args, arg });
+            if(this.queueRunning) break;
+
+            (async () => {
+                this.queueRunning = true;
+                while(this.queue.length > 0) {
+                    let qitem = this.queue[0];
+                    this.queue.splice(0, 1);
+                    await action.call(this, m, qitem.type, qitem.args, qitem.arg).catch(logger.error);
+                }
+                this.queueRunning = false;
+            })();
             break;
         }
         case 'help': {
@@ -259,8 +274,8 @@ function start(m, things) {
  * @param {string[]} args
  * @param {string} arg
  */
-function action(m, type, args, arg) {
-    this.bot.sql.transaction(async (query, mysql) => {
+async function action(m, type, args, arg) {
+    await this.bot.sql.transaction(async (query, mysql) => {
         /** @type {Db.hurtheal_games=} */ let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
         /** @type {'current'|'last'} */ let mode = 'current';
 
@@ -402,7 +417,7 @@ function action(m, type, args, arg) {
 
         //Send final message
         await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `**${currentItem.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentItem.health_cur)}** health.${isGameOver ? `\n**The game is over!**`:''}`, resultGames, resultsActions, type), isGameOver ? true : false);
-    }).catch(logger.error);
+    });
 }
 
 /**
