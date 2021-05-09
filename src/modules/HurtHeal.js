@@ -40,7 +40,6 @@ import Diacritics from 'diacritics';
 /**
  * @typedef {object} Db.hurtheal_actions
  * @property {number} id - Primary key
- * @property {number} id_hurtheal_games
  * @property {number} id_hurtheal_things
  * @property {number} timestamp
  * @property {Discord.Snowflake} user_id
@@ -83,7 +82,6 @@ export default class HurtHeal extends Bot.Module {
 
             await query(`CREATE TABLE IF NOT EXISTS hurtheal_actions (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                id_hurtheal_games INT UNSIGNED NOT NULL,
                 id_hurtheal_things INT UNSIGNED NOT NULL,
                 timestamp BIGINT NOT NULL,
                 user_id VARCHAR(64) NOT NULL,
@@ -281,8 +279,13 @@ function action(m, type, args, arg) {
         /** @type {Db.hurtheal_things[]} */
         let resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ? ORDER BY id ASC`, [resultGames.id])).results;
         let items = getItemsFromDb(resultsThings);
-        /** @type {Db.hurtheal_actions[]} */
-        let resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ? ORDER BY id DESC LIMIT 0, 2`, [resultGames.id])).results;
+
+        /**
+         * @param {Db.hurtheal_games} resultGames 
+         * @returns {Promise<Db.hurtheal_actions[]>}
+         */
+        const getActionsWithSort = async (resultGames) => (await query(`SELECT * FROM hurtheal_actions ha JOIN hurtheal_things ht ON ha.id_hurtheal_things = ht.id WHERE ht.id_hurtheal_games = ? ORDER BY ha.id DESC LIMIT 0, 2`, [resultGames.id])).results;
+        let resultsActions = await getActionsWithSort(resultGames);
 
         //Sort results for exit commands
         sortThings(items);
@@ -388,11 +391,11 @@ function action(m, type, args, arg) {
 
         //Update database
         await query(`UPDATE hurtheal_things SET health_cur = ?, death_order = ? WHERE id_hurtheal_games = ? AND id = ?`, [currentItem.health_cur, currentItem.death_order, resultGames.id, currentItem.id]);
-        await query(`INSERT INTO hurtheal_actions (id_hurtheal_games, id_hurtheal_things, timestamp, user_id, action, reason) VALUES (?, ?, ?, ?, ?, ?)`, [resultGames.id, currentItem.id, Date.now(), m.member.id, type, reason]);
+        await query(`INSERT INTO hurtheal_actions (id_hurtheal_things, timestamp, user_id, action, reason) VALUES (?, ?, ?, ?, ?)`, [currentItem.id, Date.now(), m.member.id, type, reason]);
 
         //Refresh actions
         /** @type {Db.hurtheal_actions[]} */
-        resultsActions = (await query(`SELECT * FROM hurtheal_actions WHERE id_hurtheal_games = ? ORDER BY id DESC LIMIT 0, 2`, [resultGames.id])).results;
+        resultsActions = await getActionsWithSort(resultGames);
 
         //Sort things again for final message after changes
         sortThings(items);
@@ -412,7 +415,7 @@ async function sendNewGameMessage(m, query, embed, noRegister) {
     const message = await m.channel.send({ embed: embed });
 
     /** @type {Db.hurtheal_setup=} */
-    let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ?`, [m.guild.id])).results[0];
+    let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ? FOR UPDATE`, [m.guild.id])).results[0];
 
     if(resultSetup != null) {
         if(resultSetup.last_channel_id && resultSetup.last_message_id) {
