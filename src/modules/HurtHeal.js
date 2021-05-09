@@ -200,12 +200,12 @@ function help(m) {
     let embed = new Discord.MessageEmbed({
         color: 14211288,
         title: 'Hurt or Heal',
-        description: `Rules:\n  • Each item is assigned an amount of score at the start.\n  • Each player can either hurt an item by removing 2 points from the item's score, or can heal an item by adding 1 point to the item's score.\n  • A player cannot play again until two other players have performed an action.\n  • Feel free to add a comment to the end of each command to indicate why you chose to hurt or heal a specific item. In fact, many people may find it interesting.`
+        description: `Rules:\n  • Each item is assigned an amount of health at the start.\n  • Each player can either hurt an item - removing 2 health from it, or heal an item - adding 1 health to it, if it isn't at max health.\n  • A player cannot play again until two other players have performed an action.\n  • More than 2 actions cannot be performed consecutively on a single item.\n  • Feel free to add a comment to the end of each command to indicate why you chose to hurt or heal a specific item. In fact, many people may find it interesting.`
     });
     embed.fields = [];
     embed.fields.push({
         name: ':information_source: Instructions',
-        value: '`!hh` to view current standings\n`!hh hurt <item>` to hurt an item for 2 points\n`!hh heal <item>` to heal an item for 1 point',
+        value: '`!hh` to view current standings\n`!hh hurt <item> <reason?>` to hurt an item for 2 points\n`!hh heal <item> <reason?>` to heal an item for 1 point',
         inline: false
     });
 
@@ -374,6 +374,11 @@ async function action(m, type, args, arg) {
             await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`, resultGames, resultsActions));
             return;
         }
+        if(resultsActions[0] && resultsActions[0].id_hurtheal_things === currentItem.id &&
+           resultsActions[1] && resultsActions[1].id_hurtheal_things === currentItem.id) {
+            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `An action cannot be performed on the same item more than twice in a row. Please select a different item.`, resultGames, resultsActions));
+            return;
+        }
         if(type === 'heal' && currentItem.health_cur >= currentItem.health_max) {
             await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `**${currentItem.name}** is already at max health.`, resultGames, resultsActions));
             return;
@@ -478,7 +483,7 @@ function getGameStandingsEmbed(m, mode, things, str, game, actions, action) {
     else if(action == 'heal') embed.color = 6214143;
 
     embed.description = '';
-    if(str != null && str.length > 0) embed.description += `<@${m.member.id}>, ${str}\n\n`;
+    if(str != null && str.length > 0) embed.description += `:warning: <@${m.member.id}>, ${str}\n\n`;
 
     embed.description += `${mode === 'current' ? '' : 'Last game\'s results:\n'}`;
     if(game && game.theme) {
