@@ -483,7 +483,7 @@ function getGameStandingsEmbed(m, mode, things, str, game, actions, action) {
     else if(action == 'heal') embed.color = 6214143;
 
     embed.description = '';
-    if(str != null && str.length > 0) embed.description += `:warning: <@${m.member.id}>, ${str}\n\n`;
+    if(str != null && str.length > 0) embed.description += `${action == null ? ':warning:':''} <@${m.member.id}>, ${str}\n\n`;
 
     embed.description += `${mode === 'current' ? '' : 'Last game\'s results:\n'}`;
     if(game && game.theme) {
