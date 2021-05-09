@@ -388,40 +388,33 @@ export default class Competition extends Bot.Module {
  */
 function register(m, game, name) {
     this.bot.sql.transaction(async query => {
-        await query(`SELECT user_name FROM competition_register
-            WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}' AND game = '${game}'
-            FOR UPDATE`);
+        await query(`SELECT user_name FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? FOR UPDATE`, [m.guild.id, m.member.id, game]);
 
         let gameName = KCLocaleManager.getDisplayNameFromAlias("game", game) || "unknown";
 
         /** @type {Db.competition_register} */
-        var resultRegister = (await query(`SELECT * FROM competition_register
-            WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}' AND game = '${game}' AND user_name = '${name}'`)).results[0];
+        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? AND user_name = ?`, [m.guild.id, m.member.id, game, name])).results[0];
         if(resultRegister) {
             m.message.reply(this.bot.locale.category("competition", "already_registered_with_this_name", name, gameName)).catch(logger.error);
             return;
         }
 
         /** @type {Db.competition_register} */
-        var resultRegister = (await query(`SELECT * FROM competition_register
-            WHERE guild_id = '${m.guild.id}' AND game = '${game}' AND user_name = '${name}'`)).results[0];
+        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND game = ? AND user_name = ?`, [m.guild.id, game, name])).results[0];
         if(resultRegister) {
             m.message.reply(this.bot.locale.category("competition", "name_taken", name, gameName)).catch(logger.error);
             return;
         }
 
         /** @type {Db.competition_register} */
-        var resultRegister = (await query(`SELECT * FROM competition_register
-            WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}' AND game = '${game}'`)).results[0];
+        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ?`, [m.guild.id, m.member.id, game])).results[0];
         if(resultRegister) {
-            await query(`UPDATE competition_register SET user_name = '${name}'
-                WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}' AND game = '${game}'`);
+            await query(`UPDATE competition_register SET user_name = ? WHERE guild_id = ? AND user_id = ? AND game = ?`, [name, m.guild.id, m.member.id, game]);
 
             m.message.reply(this.bot.locale.category("competition", "register_name_changed", resultRegister.user_name, name, gameName)).catch(logger.error);
         }
         else {
-            await query(`INSERT INTO competition_register (guild_id, user_id, game, user_name)
-                VALUES ('${m.guild.id}', '${m.member.id}', '${game}', '${name}')`);
+            await query(`INSERT INTO competition_register (guild_id, user_id, game, user_name) VALUES (?, ?, ?, ?)`, [m.guild.id, m.member.id, game, name]);
     
             m.message.reply(this.bot.locale.category("competition", "register_success", name, gameName)).catch(logger.error);
         }
@@ -437,16 +430,14 @@ function register(m, game, name) {
 function unregister(m, snowflake) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.competition_register[]} */
-        var resultsRegister = (await query(`SELECT * FROM competition_register
-            WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}'`)).results;
+        var resultsRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ?`, [m.guild.id, m.member.id])).results;
 
         if(resultsRegister.length <= 0) {
             m.message.reply(this.bot.locale.category("competition", "unregister_not_registered")).catch(logger.error);
             return;
         }
 
-        await query(`DELETE FROM competition_register
-            WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}'`);
+        await query(`DELETE FROM competition_register WHERE guild_id = ? AND user_id = ?`, [m.guild.id, m.member.id]);
 
         m.message.reply(this.bot.locale.category("competition", "unregister_success", resultsRegister.length+"")).catch(logger.error);
     }).catch(logger.error);

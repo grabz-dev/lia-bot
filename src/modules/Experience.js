@@ -278,32 +278,28 @@ export default class Experience extends Bot.Module {
 function register(m, game, name) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.experience_users} */
-        var resultUsers = (await query(`SELECT * FROM experience_users
-                                        WHERE game = '${game}' AND user_id = '${m.member.id}' AND user_name = '${name}'`)).results[0];
+        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_id = ? AND user_name = ?`, [game, m.member.id, name])).results[0];
         if(resultUsers != null) {
             m.message.reply(this.bot.locale.category('experience', 'already_registered_with_this_name', resultUsers.user_name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
             return;
         }
 
         /** @type {Db.experience_users} */
-        var resultUsers = (await query(`SELECT * FROM experience_users
-                                        WHERE game = '${game}' AND user_name = '${name}'`)).results[0];
+        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_name = ?`, [game, name])).results[0];
         if(resultUsers != null) {
             m.message.reply(this.bot.locale.category('experience', 'name_taken', resultUsers.user_name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
             return;
         }
 
         /** @type {Db.experience_users} */
-        var resultUsers = (await query(`SELECT * FROM experience_users
-                                        WHERE game = '${game}' AND user_id = '${m.member.id}'`)).results[0];
+        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_id = ?`, [game, m.member.id])).results[0];
         if(resultUsers != null) {
             m.message.reply(this.bot.locale.category('experience', 'already_registered_with_other_name', resultUsers.user_name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
             return;
         }
 
         if(this.cache.get(m.guild.id, 'pendingRegistration.' + m.guild.id) === name) {
-            await query(`INSERT INTO experience_users (user_id, user_name, game)
-                         VALUES ('${m.member.id}', '${name}', '${game}')`);
+            await query(`INSERT INTO experience_users (user_id, user_name, game) VALUES (?, ?, ?)`, [m.member.id, name, game]);
 
             m.message.reply(this.bot.locale.category('experience', 'register_success', name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown', game)).catch(logger.error);
         }
@@ -612,20 +608,16 @@ function newMaps(m, game, kcgmm, dm) {
 function wipe(m, game, id) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.experience_users} */
-        var resultUsers = (await query(`SELECT * FROM experience_users
-                                        WHERE game = '${game}' AND user_id = '${id}'`)).results[0];
+        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_id = ?`, [game, id])).results[0];
 
         if(!resultUsers) {
             m.message.reply(this.bot.locale.category('experience', 'wipe_failed_not_registered')).catch(logger.error);
             return;
         }
 
-        await query(`DELETE FROM experience_users
-                     WHERE game = '${game}' AND user_id = '${id}'`);
-        await query (`DELETE FROM experience_maps_custom
-                      WHERE id_experience_users = '${resultUsers.id}'`);
-        await query (`DELETE FROM experience_maps_campaign
-                      WHERE id_experience_users = '${resultUsers.id}'`);
+        await query(`DELETE FROM experience_users WHERE game = ? AND user_id = ?`, [game, id]);
+        await query (`DELETE FROM experience_maps_custom WHERE id_experience_users = ?`, [resultUsers.id]);
+        await query (`DELETE FROM experience_maps_campaign WHERE id_experience_users = ?`, [resultUsers.id]);
         m.channel.send(this.bot.locale.category('experience', 'wipe_successful')).catch(logger.error);
     }).catch(logger.error);
 }
