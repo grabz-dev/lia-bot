@@ -88,6 +88,12 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: ['rules', 'info'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'help' });
             });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'hurt', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return hurtheal.land(message, args, arg, { action: 'hurt' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'heal', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return hurtheal.land(message, args, arg, { action: 'heal' });
+            });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'start', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'start' });
             });
@@ -97,11 +103,8 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'end', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'end' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'hurt', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return hurtheal.land(message, args, arg, { action: 'hurt' });
-            });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'heal', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return hurtheal.land(message, args, arg, { action: 'heal' });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'chart', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
+                return hurtheal.land(message, args, arg, { action: 'chart' });
             });
         })();
         

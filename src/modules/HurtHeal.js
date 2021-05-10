@@ -9,6 +9,14 @@ import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
 
 import Diacritics from 'diacritics';
+import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
+import chartjs from 'chart.js';
+
+const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 800, height: 500, chartCallback: ChartJS => {
+    ChartJS.defaults.color = '#CCCCCC';
+    ChartJS.defaults.font.size = 15;
+    ChartJS.defaults.font.weight = "bold";
+}});
 
 /**
  * @typedef {object} Db.hurtheal_setup
@@ -95,6 +103,7 @@ export default class HurtHeal extends Bot.Module {
             'hurt': 'hurt',
             'heal': 'healed'
         }
+        this.chartColors = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080', '#ffffff', '#000000']
 
         /** @type {{type: 'hurt'|'heal'|'show', args: string[], arg: string}[]} */
         this.queue = [];
@@ -112,7 +121,7 @@ export default class HurtHeal extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'hurt'|'heal'|'start'|'help'|'show'|'theme'|'end'} ext.action - Custom parameters provided to function call.
+     * @param {'hurt'|'heal'|'start'|'help'|'show'|'theme'|'end'|'chart'} ext.action - Custom parameters provided to function call.
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
@@ -186,6 +195,12 @@ export default class HurtHeal extends Bot.Module {
         }
         case 'end': {
             end.call(this, m);
+            break;
+        }
+        case 'chart': {
+            let id = +args[0];
+            if(!Number.isFinite(id)) return 'Invalid ID number';
+            chart.call(this, m, id);
             break;
         }
         }
@@ -263,7 +278,7 @@ function start(m, things) {
         let resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ? ORDER BY id ASC`, [insertId])).results;
         let items = getItemsFromDb(resultsThings);
 
-        m.message.reply('New game started!', { embed: getGameStandingsEmbed.call(this, m, 'current', items) }).catch(logger.error);
+        m.message.reply('New game started!', { embed: getGameStandingsEmbed.call(this, m, 'current', items, insertId) }).catch(logger.error);
     }).catch(logger.error);
 }
 
@@ -306,22 +321,22 @@ async function action(m, type, args, arg) {
         sortThings(items);
 
         if(type === 'show') {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, '', resultGames, resultsActions));
+            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, mode, items, resultGames.id, '', resultGames, resultsActions));
             return;
         }
 
         if(resultsActions.find((v => v.user_id === m.member.id))) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, 'You have already played within the last 2 actions! Please wait your turn.', resultGames, resultsActions));
+            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, mode, items, resultGames.id, 'You have already played within the last 2 actions! Please wait your turn.', resultGames, resultsActions));
             return;
         }
 
         if(args.length === 0) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, resultGames, resultsActions));
+            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, mode, items, resultGames.id, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, resultGames, resultsActions));
             return;
         }
 
         if(mode === 'last') {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, 'A game is not currently running.', resultGames, resultsActions));
+            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, mode, items, resultGames.id, 'A game is not currently running.', resultGames, resultsActions));
             return;
         }
 
@@ -367,20 +382,20 @@ async function action(m, type, args, arg) {
         
         //If an item is still not found, error
         if(currentItem == null) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `Could not determine selection from input.\nMake sure to type the item ID or the full name of the item you want to hurt or heal.`, resultGames, resultsActions));
+            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, mode, items, resultGames.id, `Could not determine selection from input.\nMake sure to type the item ID or the full name of the item you want to hurt or heal.`, resultGames, resultsActions));
             return;
         }
         if(currentItem.health_cur <= 0) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`, resultGames, resultsActions));
+            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, mode, items, resultGames.id, `**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`, resultGames, resultsActions));
             return;
         }
         if(resultsActions[0] && resultsActions[0].id_hurtheal_things === currentItem.id &&
            resultsActions[1] && resultsActions[1].id_hurtheal_things === currentItem.id) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `An action cannot be performed on the same item more than twice in a row. Please select a different item.`, resultGames, resultsActions));
+            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, mode, items, resultGames.id, `An action cannot be performed on the same item more than twice in a row. Please select a different item.`, resultGames, resultsActions));
             return;
         }
         if(type === 'heal' && currentItem.health_cur >= currentItem.health_max) {
-            await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `**${currentItem.name}** is already at max health.`, resultGames, resultsActions));
+            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, mode, items, resultGames.id, `**${currentItem.name}** is already at max health.`, resultGames, resultsActions));
             return;
         }
 
@@ -421,18 +436,51 @@ async function action(m, type, args, arg) {
         sortThings(items);
 
         //Send final message
-        await sendNewGameMessage(m, query, getGameStandingsEmbed.call(this, m, mode, items, `**${currentItem.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentItem.health_cur)}** health.${isGameOver ? `\n**The game is over!**`:''}`, resultGames, resultsActions, type), isGameOver ? true : false);
+        await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, mode, items, resultGames.id, `**${currentItem.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentItem.health_cur)}** health.${isGameOver ? `\n**The game is over!**`:''}`, resultGames, resultsActions, type), isGameOver, isGameOver ? resultGames : undefined);
     });
 }
 
 /**
+ * @this {HurtHeal}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {number} id
+ */
+ function chart(m, id) {
+    this.bot.sql.transaction(async query => {
+        /** @type {Db.hurtheal_games} */
+        let resultGame = (await query(`SELECT * FROM hurtheal_games WHERE id = ?`, [id])).results[0];
+        if(!resultGame) {
+            m.message.reply("Invalid game ID provided").catch(logger.error);
+            return;
+        }
+
+        /** @type {Db.hurtheal_things} */
+        let resultThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ?`, [id])).results;
+        /** @type {Db.hurtheal_actions} */
+        let resultActions = (await query(`SELECT * FROM hurtheal_actions ha JOIN hurtheal_things ht ON ha.id_hurtheal_things = ht.id WHERE ht.id_hurtheal_games = ?`, [id])).results;
+
+        let buffer = await getChartFromGame.call(this, query, resultGame);
+        m.channel.send({files: [buffer]}).catch(logger.error);
+    }).catch(logger.error);
+}
+
+
+
+
+
+
+
+/**
+ * @this {HurtHeal}
  * @param {Bot.Message} m
  * @param {SQLWrapper.Query} query 
  * @param {Discord.MessageEmbed} embed
  * @param {boolean=} noRegister - Don't register this message as one that should be deleted later
+ * @param {Db.hurtheal_games=} game - Database game ID. Only include this if you want the message to include the image chart of the game
  */
-async function sendNewGameMessage(m, query, embed, noRegister) {
-    const message = await m.channel.send({ embed: embed });
+async function sendNewGameMessage(m, query, embed, noRegister, game) {
+    let image = game != null ? await getChartFromGame.call(this, query, game) : null;
+    const message = await m.channel.send({ embed: embed, files: image ? [image] : undefined });
 
     /** @type {Db.hurtheal_setup=} */
     let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ? FOR UPDATE`, [m.guild.id])).results[0];
@@ -462,13 +510,14 @@ async function sendNewGameMessage(m, query, embed, noRegister) {
  * @param {Bot.Message} m
  * @param {'current'|'last'} mode
  * @param {Item[]} things
+ * @param {number} gameId
  * @param {string=} str
  * @param {Db.hurtheal_games=} game
  * @param {(Db.hurtheal_actions[])=} actions
  * @param {('hurt'|'heal')=} action
  * @returns {Discord.MessageEmbed}
  */
-function getGameStandingsEmbed(m, mode, things, str, game, actions, action) {
+function getGameStandingsEmbed(m, mode, things, gameId, str, game, actions, action) {
     var embed = new Discord.MessageEmbed({
         color: 14211288,
         author: {
@@ -476,7 +525,7 @@ function getGameStandingsEmbed(m, mode, things, str, game, actions, action) {
         },
         timestamp: Date.now(),
         footer: {
-            text: '`!hh rules` for help'
+            text: `\`!hh rules\` for help • Game ${gameId}`
         }
     });
     if(action == 'hurt') embed.color = 16731994;
@@ -608,4 +657,94 @@ function getItemsFromDb(things) {
         i++;
         return Object.assign({ orderId: i }, v);
     });
+}
+
+/**
+ * @this {HurtHeal}
+ * @param {SQLWrapper.Query} query
+ * @param {Db.hurtheal_games} game
+ * @returns {Promise<Buffer>}
+ */
+async function getChartFromGame(query, game) {
+    /** @type {Db.hurtheal_things[]} */
+    let allThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ?`, [game.id])).results;
+    /** @type {Db.hurtheal_actions[]} */
+    let allActions = (await query(`SELECT * FROM hurtheal_actions ha JOIN hurtheal_things ht ON ha.id_hurtheal_things = ht.id WHERE ht.id_hurtheal_games = ?`, [game.id])).results;
+
+    let axesMin = 0;
+    let axesMax = 0;
+    for(let thing of allThings) axesMax = Math.max(axesMax, thing.health_max);
+
+    /** @type {import('chart.js').ChartConfiguration} */
+    let chart = {
+        type: 'line',
+        data: {
+            datasets: (() => {
+                /** @type {{label: string, data: number[], borderColor: string}[]} */
+                let arr = [];
+                for(let i = 0; i < allThings.length; i++) {
+                    let thing = allThings[i];
+
+                    let health = thing.health_max + (i / (allThings.length * 5));
+                    let set = {label: thing.name, data: [health], borderColor: `${this.chartColors[i]}AA` ?? '#000000AA'};
+                    arr.push(set);
+                    for(let action of allActions) {
+                        if(action.id_hurtheal_things === thing.id) {
+                            switch(action.action) {
+                            case 'hurt': health -= 2; break;
+                            case 'heal': health += 1; break;
+                            }
+                        }
+                        health = Math.max(health, 0);
+                        set.data.push(health);
+                    }
+                }
+                return arr;
+            })(),
+            labels: (() => {
+                let arr = [0];
+                for(let i = 1; i < allActions.length + 1; i++)
+                    arr.push(i);
+                return arr;
+            })(),
+        },
+        options: {
+            datasets: {
+                line: {
+                    pointRadius: 0,
+                    borderWidth: 2
+                }
+            },
+            layout: {
+                padding: {
+                    top: 5
+                }
+            },
+            plugins: {
+                title: {
+                    display: game.theme != null,
+                    text: game.theme
+                }
+            },
+            scales: {
+                y: {
+                    suggestedMax: axesMax,
+                    suggestedMin: axesMin,
+                    ticks: {
+                        stepSize: 1,
+                    }
+                }
+            },
+        },
+        plugins: [{
+            id: 'discord-fill-bg',
+            beforeDraw: function(chart, args, options) {
+                let ctx = chart.ctx;
+                ctx.fillStyle = '#36393F';
+                ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            }
+        }]
+    }
+
+    return await chartJSNodeCanvas.renderToBuffer(chart);
 }

@@ -11,6 +11,8 @@ import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
+import { HttpRequest } from '../utils/HttpRequest.js';
+import xml2js from 'xml2js';
 
 export default class Map extends Bot.Module {
     /** @param {Core.Entry} bot */
@@ -285,10 +287,21 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
     let emoteId = Bot.Util.getSnowflakeFromDiscordPing(emoteStr);
     let emote = emoteId ? guild.emojis.resolve(emoteId) : null;
 
+    /** @type {number|null} */
+    let forumMessagesCount = null;
+
+    if(mapData.game === 'cw4' && mapData.guid != null) {
+        var xml = await HttpRequest.get(`https://knucklecracker.com/creeperworld4/queryMapDetail.php?guid=${mapData.guid}`).catch(() => {});
+        if(xml != null) {
+            let data = await xml2js.parseStringPromise(xml).catch(() => {});
+            forumMessagesCount = data?.d?.c[0] ?? null;
+        }
+    }
+
     let thumbnailURL = '';
     if(mapData.id && mapData.id > 0) {
         if(game === 'cw2')
-            thumbnailURL = `http://knucklecracker.com/creeperworld2/thumb.php?id=${mapData.id}`;
+            thumbnailURL = `https://knucklecracker.com/creeperworld2/thumb.php?id=${mapData.id}`;
         else
             thumbnailURL = `https://knucklecracker.com/${KCLocaleManager.getUrlStringFromPrimaryAlias(game)}/queryMaps.php?query=thumbnail&guid=${mapData.guid}`;
     }
@@ -338,7 +351,7 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
     }
     
     //Forum link
-    str += `[Forum Thread](https://knucklecracker.com/forums/index.php?topic=${mapData.forumId})\n`;
+    str += `[Forum Thread ${forumMessagesCount != null ? `(${forumMessagesCount} comment${forumMessagesCount != 1 ? 's':''})` : ''}](https://knucklecracker.com/forums/index.php?topic=${mapData.forumId})\n`;
 
     //ID/Title
     embed.fields = [{

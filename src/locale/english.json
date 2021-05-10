@@ -210,6 +210,9 @@
             "heal": [
                 "!%name% <item>",
                 "Heal an item in Hurt or Heal."
+            ],
+            "chart": [
+                "!%name% <id>"
             ]
         },
         "score": {
