@@ -15,7 +15,7 @@ import chartjs from 'chart.js';
 const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 800, height: 500, chartCallback: ChartJS => {
     ChartJS.defaults.color = '#CCCCCC';
     ChartJS.defaults.font.size = 15;
-    ChartJS.defaults.font.weight = "bold";
+    ChartJS.defaults.font.family = "Helvetica Neue, Helvetica, Arial, sans-serif"
 }});
 
 /**
