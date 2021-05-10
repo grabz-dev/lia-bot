@@ -547,14 +547,6 @@ function getGameStandingsEmbed(m, options) {
         embed.description += `Theme: **${game.theme}**\n`;
     }
 
-    if(allActions != null) {
-        /** @type {Object.<string, boolean>} */let users = {};
-        for(let action of allActions) users[action.user_id] = true;
-        let players = Object.keys(users).length;
-        let actions = allActions.length;
-        embed.description += `${players} player${players != 1 ? 's':''} performed ${actions} action${actions != 1 ? 's':''}.\n`;
-    }
-
     let space = things.length >= 10 ? ' ' : '';
 
     embed.fields = [];
@@ -569,6 +561,13 @@ function getGameStandingsEmbed(m, options) {
             let thing = things.find((v => v.id === action.id_hurtheal_things))
             fieldActions.value += `<@${action.user_id}> ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${action.reason ? action.reason : ''}\n`;
         }
+
+        /** @type {Object.<string, boolean>} */let users = {};
+        for(let action of allActions) users[action.user_id] = true;
+        let playersCount = Object.keys(users).length;
+        let actionsCount = allActions.length;
+        fieldActions.value += `${playersCount} player${playersCount != 1 ? 's':''} performed ${actionsCount} action${actionsCount != 1 ? 's':''}.\n`;
+
         if(fieldActions.value.length > 0) embed.fields.push(fieldActions);
     }
 
