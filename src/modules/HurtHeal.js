@@ -437,7 +437,7 @@ async function action(m, type, args, arg) {
         sortThings(items);
 
         //Send final message
-        await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `**${currentItem.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentItem.health_cur)}** health.${isGameOver ? `\n**The game is over!**`:''}`, action: type}), isGameOver, isGameOver ? resultGames : undefined);
+        await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `**${currentItem.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentItem.health_cur)}** health.`, action: type, gameOver: isGameOver}), isGameOver, isGameOver ? resultGames : undefined);
     });
 }
 
@@ -454,12 +454,7 @@ async function action(m, type, args, arg) {
             m.message.reply("Invalid game ID provided").catch(logger.error);
             return;
         }
-
-        /** @type {Db.hurtheal_things} */
-        let resultThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ?`, [id])).results;
-        /** @type {Db.hurtheal_actions} */
-        let resultActions = (await query(`SELECT * FROM hurtheal_actions ha JOIN hurtheal_things ht ON ha.id_hurtheal_things = ht.id WHERE ht.id_hurtheal_games = ?`, [id])).results;
-
+        
         let buffer = await getChartFromGame.call(this, query, resultGame);
         m.channel.send({files: [buffer]}).catch(logger.error);
     }).catch(logger.error);
@@ -516,6 +511,7 @@ async function sendNewGameMessage(m, query, embed, noRegister, game) {
  * @param {(Db.hurtheal_games|number)=} options.game
  * @param {(Db.hurtheal_actions[])=} options.allActions
  * @param {('hurt'|'heal')=} options.action - If undefined, no action was taken
+ * @param {boolean=} options.gameOver - Is the game over
  * @returns {Discord.MessageEmbed}
  */
 function getGameStandingsEmbed(m, options) {
@@ -525,6 +521,7 @@ function getGameStandingsEmbed(m, options) {
     const mode = options.mode;
     const allActions = options.allActions;
     const things = options.things;
+    const gameOver = options.gameOver;
 
     var embed = new Discord.MessageEmbed({
         color: 14211288,
@@ -540,7 +537,9 @@ function getGameStandingsEmbed(m, options) {
     else if(action == 'heal') embed.color = 6214143;
 
     embed.description = '';
-    if(str != null && str.length > 0) embed.description += `${action == null ? ':warning:':''} <@${m.member.id}>, ${str}\n\n`;
+    if(str != null && str.length > 0) embed.description += `${action == null ? ':warning:':''} <@${m.member.id}>, ${str}\n`;
+    if(gameOver) embed.description += `\n**The game is over!**\n`;
+    embed.description += '\n';
 
     embed.description += `${mode === 'current' ? '' : 'Previous game\'s results:\n'}`;
     if(typeof game === 'object' && game.theme) {
@@ -562,11 +561,30 @@ function getGameStandingsEmbed(m, options) {
             fieldActions.value += `<@${action.user_id}> ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${action.reason ? action.reason : ''}\n`;
         }
 
-        /** @type {Object.<string, boolean>} */let users = {};
-        for(let action of allActions) users[action.user_id] = true;
+        /** @type {Object.<string, number>} */let users = {};
+        for(let action of allActions) {
+            if(users[action.user_id] == null) users[action.user_id] = 0;
+            users[action.user_id]++;
+        }
         let playersCount = Object.keys(users).length;
         let actionsCount = allActions.length;
         fieldActions.value += `${playersCount} player${playersCount != 1 ? 's':''} performed ${actionsCount} action${actionsCount != 1 ? 's':''}.\n`;
+
+        if(gameOver) {
+            /** @type {{user: Discord.Snowflake, actionCount: number}[]} */let usersArr = [];
+            for(let keyval of Object.entries(users)) usersArr.push({ user: keyval[0], actionCount: keyval[1] });
+            usersArr.sort((a, b) => b.actionCount - a.actionCount);
+            let str = 'Most actions: ';
+            let len = Math.min(10, usersArr.length);
+            for(let i = 0; i < len; i++) {
+                let user = usersArr[i];
+                if(i !== 0) str += ', ';
+                str += `<@${user.user}> (${user.actionCount})`;
+            }
+            if(len < usersArr.length)
+                str += ` __and ${usersArr.length - len} other players__`
+            fieldActions.value += `${str}\n`;
+        }
 
         if(fieldActions.value.length > 0) embed.fields.push(fieldActions);
     }
