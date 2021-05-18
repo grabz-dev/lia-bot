@@ -237,7 +237,7 @@ export default class Experience extends Bot.Module {
                 const message = await channel.messages.fetch(resultMessages.message_id).catch(() => {});
                 if(message == null) continue;
 
-                const mapListId = kcgmm.getMapListId(game);
+                const mapListId = getMapListId.call(this, kcgmm, game);
                 if(mapListId == null) continue;
 
                 let embed = await getLeaderboardEmbed.call(this, query, kcgmm, mapListId, guild, game);
@@ -320,7 +320,7 @@ function register(m, game, name) {
  */
 function leaderboard(m, game, kcgmm, champion) {
     this.bot.sql.transaction(async query => {
-        const mapListId = kcgmm.getMapListId(game);
+        const mapListId = getMapListId.call(this, kcgmm, game);
         if(mapListId == null) {
             m.channel.send(this.bot.locale.category('experience', 'map_processing_error', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
             return;
@@ -381,7 +381,7 @@ function profile(m, game, kcgmm, dm) {
             embed.color = KCUtil.gameEmbedColors[games[0]];
 
         for(let game of games) {
-            const mapListId = kcgmm.getMapListId(game);
+            const mapListId = getMapListId.call(this, kcgmm, game);
             if(mapListId == null) continue;
 
             let field = {
@@ -499,8 +499,8 @@ function newMaps(m, game, kcgmm, dm) {
             return;
         }
 
-        const mapListArray = kcgmm.getMapListArray(game);
-        const mapListId = kcgmm.getMapListId(game);
+        const mapListArray = getMapListArray.call(this, kcgmm, game);
+        const mapListId = getMapListId.call(this, kcgmm, game);
         if(mapListArray == null || mapListId == null) {
             m.channel.send(this.bot.locale.category('experience', 'map_processing_error', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
             return;
@@ -976,4 +976,41 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
     }
     embed.description += msgStr;
     return embed;
+}
+
+/**
+ * @this {Experience}
+ * @param {KCGameMapManager} kcgmm
+ * @param {string} game 
+ * @returns {Discord.Collection<number, KCGameMapManager.MapData> | null}
+ */
+function getMapListId(kcgmm, game) {
+    if(game !== 'cw4') return kcgmm.getMapListId(game);
+
+    var arr = kcgmm.getMapListArray(game);
+    if(arr == null) return null;
+
+    /** @type {Discord.Collection<number, KCGameMapManager.MapData} */
+    const obj = new Discord.Collection();
+
+    for(let map of arr) {
+        if(map.tags && map.tags.includes('MVERSE')) continue;
+        obj.set(map.id, map);
+    }
+    return obj;
+}
+
+/**
+ * @this {Experience}
+ * @param {KCGameMapManager} kcgmm
+ * @param {string} game 
+ * @returns {Readonly<KCGameMapManager.MapData>[] | null}
+ */
+function getMapListArray(kcgmm, game) {
+    if(game !== 'cw4') return kcgmm.getMapListArray(game);
+
+    var arr = kcgmm.getMapListArray(game);
+    if(arr == null) return null;
+
+    return arr.filter(v => !(v.tags && v.tags.includes('MVERSE')));
 }

@@ -37,7 +37,7 @@ export async function fetchMapsDefault(game) {
     let data = await xml2js.parseStringPromise(xml);
 
     const temp = {
-        /** @type {Discord.Collection<number, MapData>} */
+        /** @type {Discord.Collection<number, Readonly<MapData>>} */
         id: new Discord.Collection(),
         /** @type {Object.<number, MapData[]>} */
         month: {}
@@ -64,7 +64,7 @@ export async function fetchMapsDefault(game) {
         if(game === 'cw4') {
             obj = Object.assign(Object.assign({}, shared), {
                 upvotes: +map.b[0],
-                tags: (map.s[0]+'').split(','),
+                tags: (map.s[0]+'').toUpperCase().split(','),
                 objectives: +map.o[0],
             });
         }
@@ -84,6 +84,9 @@ export async function fetchMapsDefault(game) {
         const time = date.getTime();
         if(temp.month[time] == null) temp.month[time] = [];
 
+        //Freeze
+        obj = Object.freeze(obj);
+
         //Set all temp objects
         temp.id.set(+map.i[0], obj);
         temp.month[time].push(obj);
@@ -92,7 +95,7 @@ export async function fetchMapsDefault(game) {
     //Delete current month only
     delete temp.month[+Object.keys(temp.month).reduce((a, b) => +b > +a ? +b : +a, 0)];
     //Build map array
-    /** @type {MapData[]} */
+    /** @type {Readonly<MapData>[]} */
     let arr = [];
     for(let obj of Array.from(temp.id.values())) arr.push(Object.freeze(obj));
 

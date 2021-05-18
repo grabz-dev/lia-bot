@@ -85,9 +85,9 @@ const chronom_months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
  */
 export function KCGameMapManager(options, locale) {
     this._maps = Object.freeze({
-        /** @type {Discord.Collection<string, Discord.Collection<number, MapData>>} */
+        /** @type {Discord.Collection<string, Discord.Collection<number, Readonly<MapData>>>} */
         id: new Discord.Collection(),
-        /** @type {Discord.Collection<string, ReadonlyArray<MapData>>} */
+        /** @type {Discord.Collection<string, ReadonlyArray<Readonly<MapData>>>} */
         array: new Discord.Collection(),
         /** @type {Discord.Collection<string, Object.<number, MapData[]>>} */
         month: new Discord.Collection(),
@@ -160,8 +160,9 @@ export function KCGameMapManager(options, locale) {
     
     /**
      * Returns map list array sorted by ID's
+     * The returned array is a slice, and can be modified
      * @param {string} game //cw2 cw3 pf cw4
-     * @returns {MapData[] | null}
+     * @returns {Readonly<MapData>[] | null}
      */
     this.getMapListArray = function(game) {
         let mapList = this._maps.array.get(game);
@@ -170,8 +171,9 @@ export function KCGameMapManager(options, locale) {
 
     /**
      * Returns map list collection mapped by ID's
+     * The returned map is a clone, and can be modified
      * @param {string} game //cw2 cw3 pf cw4
-     * @returns {Discord.Collection<number, MapData> | null} Collection mapped by map ID
+     * @returns {Discord.Collection<number, Readonly<MapData>> | null} Collection mapped by map ID
      */
     this.getMapListId = function(game) {
         let mapList = this._maps.id.get(game);
