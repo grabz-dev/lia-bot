@@ -193,7 +193,7 @@ async function getXrpl(m, xrpl, pageName) {
         if(result) emote = result.emote;
     }).catch(logger.error);
 
-    let embed = getEmbedTemplate.call(this, xrpl, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''));
+    let embed = getEmbedTemplate.call(this, xrpl, pageName.toLowerCase(), m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), m.member);
 
     embed.description = '';
     if(wikidata.cmd.length > 0)
@@ -314,16 +314,23 @@ function shortenDescription(str) {
 /**
  * @this {Wiki}
  * @param {'crpl'|'prpl'|'4rpl'} rpl
+ * @param {string} name
  * @param {Discord.GuildEmoji|null} emote
+ * @param {Discord.GuildMember} initiator
  * @returns {Discord.MessageEmbed}
  */
-function getEmbedTemplate(rpl, emote) {
+function getEmbedTemplate(rpl, name, emote, initiator) {
     /** @type {string} */
     return new Discord.MessageEmbed({
         color: KCUtil.gameEmbedColors[this.rpl[rpl].game],
         author: {
-            name: rpl.toUpperCase(),
-            icon_url: emote ? emote.url : undefined
+            name: `${initiator.nickname ?? initiator.user.username}#${initiator.user.discriminator}`,
+            icon_url: initiator.user.avatarURL() ?? undefined
+        },
+        footer: {
+            text: `${rpl.toUpperCase()} • !${rpl} ${name}`,
+            icon_url: emote ? emote.url : undefined,
+            
         },
         fields: [],
     });
