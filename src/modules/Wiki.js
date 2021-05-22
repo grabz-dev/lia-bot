@@ -325,7 +325,7 @@ function getEmbedTemplate(rpl, name, emote, initiator) {
         color: KCUtil.gameEmbedColors[this.rpl[rpl].game],
         author: {
             name: `${initiator.nickname ?? initiator.user.username}#${initiator.user.discriminator}`,
-            icon_url: initiator.user.avatarURL() ?? undefined
+            icon_url: initiator.user.avatarURL() ?? initiator.user.defaultAvatarURL
         },
         footer: {
             text: `${rpl.toUpperCase()} • !${rpl} ${name}`,
