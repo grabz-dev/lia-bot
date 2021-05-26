@@ -105,6 +105,25 @@ export default class HurtHeal extends Bot.Module {
             'heal': 'healed'
         }
         this.chartColors = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080', '#ffffff', '#000000']
+        /** @type {Object.<string, string|undefined>} */
+        this.colorOverrides = {
+            black: 'black',
+            white: 'white',
+            gray: 'gray',
+            silver: 'silver',
+            maroon: 'maroon',
+            red: 'red',
+            purple: 'purple',
+            fuchsia: 'fuchsia',
+            green: 'green',
+            lime: 'lime',
+            olive: 'olive',
+            yellow: 'yellow',
+            navy: 'navy',
+            blue: 'blue',
+            teal: 'teal',
+            aqua: 'aqua',
+        }
 
         /** @type {{type: 'hurt'|'heal'|'show', args: string[], arg: string}[]} */
         this.queue = [];
@@ -720,7 +739,13 @@ async function getChartFromGame(query, game) {
                     let thing = allThings[i];
 
                     let health = thing.health_max + (i / (allThings.length * 5));
-                    let set = {label: thing.name, data: [health], borderColor: `${this.chartColors[i]}AA` ?? '#000000AA'};
+                    let color = this.colorOverrides[thing.name];
+                    if(color == null) {
+                        color = this.chartColors[i];
+                        color = color == null ? '#000000AA' : `${color}AA`;
+                    }
+
+                    let set = {label: thing.name, data: [health], borderColor: color};
                     arr.push(set);
                     for(let action of allActions) {
                         if(action.id_hurtheal_things === thing.id) {
