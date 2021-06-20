@@ -345,6 +345,11 @@ async function action(m, type, args, arg) {
             return;
         }
 
+        if(mode === 'last') {
+            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: 'A game is not currently running.'}));
+            return;
+        }
+
         if(resultsActions.slice(0, this.lastActionsCounted).find((v => v.user_id === m.member.id))) {
             await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `You have already played within the last ${this.lastActionsCounted} actions! Please wait your turn.`}));
             return;
@@ -352,11 +357,6 @@ async function action(m, type, args, arg) {
 
         if(args.length === 0) {
             await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``}));
-            return;
-        }
-
-        if(mode === 'last') {
-            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: 'A game is not currently running.'}));
             return;
         }
 
