@@ -76,7 +76,7 @@ import { fetchMapsDefault } from './KCGameMapManager/fetch-maps-default.js';
 import { fetchMapsCW2 } from './KCGameMapManager/fetch-maps-cw2.js';
 
 const chronom_months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-"JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+"JULY", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
 /**
  * @class
