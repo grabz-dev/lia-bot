@@ -206,6 +206,11 @@ export default class Competition extends Bot.Module {
                     return this.bot.locale.category("competition", "err_leaderboard_name_not_provided");
 
                 arg = arg.substring(arg.indexOf(" ") + 1);
+                
+                if(arg.indexOf('[M] ') > -1) {
+                    return 'Your competition name cannot contain the Mverse [M] prefix.';
+                }
+
                 let name = arg;
 
                 register.call(this, m, game, name);

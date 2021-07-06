@@ -146,6 +146,10 @@ export default class Experience extends Bot.Module {
 
                 arg = arg.substring(arg.indexOf(' ') + 1);
 
+                if(arg.indexOf('[M] ') > -1) {
+                    return 'Your competition name cannot contain the Mverse [M] prefix.';
+                }
+
                 register.call(this, m, game, arg);
                 return;
             case 'leaderboard':

@@ -420,7 +420,7 @@ async function getMapsCompleted(maps, userName, kcgmm) {
 
     let promises = [];
     for(let i = 0; i < maps.length; i++)
-        promises[i] = kcgmm.getMapCompleted({game: maps[i].game, type: 'misc', gameUID: maps[i].gameUID}, userName);
+        promises[i] = kcgmm.getMapCompleted({game: maps[i].game, type: 'misc', gameUID: maps[i].gameUID}, userName, undefined, { removeMverseTag: true });
     for(let i = 0; i < promises.length; i++) {
         await promises[i] ? finished.push(maps[i]) : unfinished.push(maps[i]);
     }

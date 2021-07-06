@@ -77,8 +77,8 @@ export default class Chronom extends Bot.Module {
                 }
                 arr[i] = {
                     timestamp: timestamp,
-                    leaderboard: kcgmm.getMapScores(msqd, undefined, 'specialevent'),
-                    leaderboardFallback: kcgmm.getMapScores(msqd)
+                    leaderboard: kcgmm.getMapScores(msqd, undefined, 'specialevent', { removeMverseTag: true }),
+                    leaderboardFallback: kcgmm.getMapScores(msqd, undefined, undefined, { removeMverseTag: true })
                 }
             }
 

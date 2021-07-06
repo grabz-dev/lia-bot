@@ -102,9 +102,10 @@ export function KCGameMapManager(options, locale) {
      * @param {MapScoreQueryData} mapScoreQueryData -
      * @param {string=} userName
      * @param {string=} groupName
+     * @param {{removeMverseTag?: boolean}=} options
      * @returns {Promise<MapLeaderboard>} 
      */
-    this.getMapScores = async function(mapScoreQueryData, userName, groupName) {
+    this.getMapScores = async function(mapScoreQueryData, userName, groupName, options) {
         const url = getScoreQueryURL(mapScoreQueryData, userName, groupName);
         if(url == null)
             throw "Invalid score query data " + JSON.stringify(mapScoreQueryData);
@@ -121,7 +122,7 @@ export function KCGameMapManager(options, locale) {
                 let i = +t.substring(1);
                 if(!(data.records[t][0].record instanceof Array))
                     continue;
-                entries[i] = getMapLeaderboardEntryFromRecord(game, data.records[t][0].record);
+                entries[i] = getMapLeaderboardEntryFromRecord(game, data.records[t][0].record, options);
                 entries[i].sort((a, b) => {
                     return a.rank - b.rank;
                 });
@@ -133,7 +134,7 @@ export function KCGameMapManager(options, locale) {
             let entries = [];
             if(!(data.records.record instanceof Array))
                 return { entries: [entries] };
-            entries = getMapLeaderboardEntryFromRecord(game, data.records.record);
+            entries = getMapLeaderboardEntryFromRecord(game, data.records.record, options);
             entries.sort((a, b) => {
                 return a.rank - b.rank;
             });
@@ -147,10 +148,11 @@ export function KCGameMapManager(options, locale) {
      * @param {MapScoreQueryData} mapScoreQueryData
      * @param {string=} name - The name of the user.
      * @param {string=} groupName - The group name.
+     * @param {{removeMverseTag?: boolean}=} options
      * @returns {Promise<boolean>}
      */
-    this.getMapCompleted = async function(mapScoreQueryData, name, groupName) {
-        let leaderboard = await this.getMapScores(mapScoreQueryData, name, groupName);
+    this.getMapCompleted = async function(mapScoreQueryData, name, groupName, options) {
+        let leaderboard = await this.getMapScores(mapScoreQueryData, name, groupName, options);
 
         for(let scores of leaderboard.entries)
             if(scores && scores.find(entry => entry.user === name)) return true;
@@ -443,9 +445,10 @@ export function KCGameMapManager(options, locale) {
      * 
      * @param {string} game
      * @param {any} record
+     * @param {{removeMverseTag?: boolean}=} options
      * @returns {MapLeaderboardEntry[]}
      */
-    function getMapLeaderboardEntryFromRecord(game, record) {
+    function getMapLeaderboardEntryFromRecord(game, record, options) {
         /** @type {MapLeaderboardEntry[]} */
         let arr = [];
         for(let entry of record) {
@@ -457,6 +460,10 @@ export function KCGameMapManager(options, locale) {
             let eco = entry.eco == null ? undefined : +entry.eco[0];
             let unitsBuilt = entry.unitsBuilt == null ? undefined : +entry.unitsBuilt[0];
             let unitsLost = entry.unitsLost == null ? undefined : +entry.unitsLost[0];
+
+            if(game === 'cw4' && options?.removeMverseTag) {
+                user = user.replace('[M] ', '');
+            }
 
             //Increase rank by 1 for PF leaderboards because they start at 0.
             if(game === "pf")
