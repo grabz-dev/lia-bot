@@ -55,6 +55,7 @@ export default class Map extends Bot.Module {
         (async () => {
             for(let i = 1; i < Math.min(3, arr.length); i++) {
                 const id = Number(arr[i].split(" ")[0])
+                if(Number.isNaN(id) || !Number.isFinite(id)) continue;
                 if(message.guild != null && message.member != null && this.kcgmm != null)
                 await map.call(this, { channel: channel, guild: message.guild, member: message.member, message: message }, game, id, this.kcgmm, true);
             }
