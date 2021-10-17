@@ -51,13 +51,16 @@ export default class Map extends Bot.Module {
         var str = message.content;
         var arr = str.split("#");
         if(arr.length <= 1) return;
+        var count = 0;
 
         (async () => {
-            for(let i = 1; i < Math.min(3, arr.length); i++) {
-                const id = Number(arr[i].split(" ")[0])
+            for(let i = 1; i < arr.length; i++) {
+                const id = +arr[i].split(/[^a-zA-Z0-9]/)[0];
                 if(Number.isNaN(id) || !Number.isFinite(id)) continue;
                 if(message.guild != null && message.member != null && this.kcgmm != null)
                 await map.call(this, { channel: channel, guild: message.guild, member: message.member, message: message }, game, id, this.kcgmm, true);
+                count++;
+                if(count >= 2) break;
             }
         })();
     }
