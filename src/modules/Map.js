@@ -20,6 +20,45 @@ export default class Map extends Bot.Module {
         super(bot);
 
         this.games = ['cw2', 'cw3', 'pf', 'cw4'];
+        /** @type {Object.<string, string>} */
+        this.autoMap = {
+            'creeperworld4': 'cw4',
+            'particlefleet': 'pf',
+            'creeperworld3': 'cw3',
+            'creeperworld2': 'cw2'
+        }
+
+        /** @type {KCGameMapManager|null} */
+        this.kcgmm = null;
+    }
+
+    /**
+     * 
+     * @param {KCGameMapManager} kcgmm 
+     */
+    manualInit(kcgmm) {
+        this.kcgmm = kcgmm;
+    }
+
+    /** @param {Discord.Message} message */
+    onMessage(message) {
+        const channel = message.channel;
+        if(!(channel instanceof Discord.TextChannel)) return;
+
+        const game = this.autoMap[channel.name];
+        if(game == null) return;
+
+        var str = message.content;
+        var arr = str.split("#");
+        if(arr.length <= 1) return;
+
+        (async () => {
+            for(let i = 1; i < Math.min(3, arr.length); i++) {
+                const id = Number(arr[i].split(" ")[0])
+                if(message.guild != null && message.member != null && this.kcgmm != null)
+                await map.call(this, { channel: channel, guild: message.guild, member: message.member, message: message }, game, id, this.kcgmm, true);
+            }
+        })();
     }
 
     /**
@@ -105,8 +144,9 @@ export default class Map extends Bot.Module {
 * @param {string} game
 * @param {number} id
 * @param {KCGameMapManager} kcgmm
+* @param {boolean=} suppressError
 */
-async function map(m, game, id, kcgmm) {
+async function map(m, game, id, kcgmm, suppressError) {
     let emote = ':game_die:';
     await this.bot.sql.transaction(async query => {
         let result = (await query(`SELECT * FROM emotes_game
@@ -128,8 +168,10 @@ async function map(m, game, id, kcgmm) {
                 await kcgmm.fetch(game);
 
             let mapData = kcgmm.getMapById(game, id);
-            if(!mapData)
+            if(!mapData) {
                 message.edit(this.bot.locale.category('mapdata', 'search_result_not_found')).catch(logger.error);
+                if(suppressError) message.delete();
+            }
             else {
                 message.delete();
                 m.channel.send({ embed:await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm) }).catch(logger.error);
@@ -137,6 +179,7 @@ async function map(m, game, id, kcgmm) {
         })().catch(e => {
             logger.info(e);
             message.edit(this.bot.locale.category('mapdata', 'search_result_too_fast')).catch(logger.error);
+            if(suppressError) message.delete();
         });
     }).catch(logger.error);
 }
@@ -306,10 +349,10 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
             thumbnailURL = `https://knucklecracker.com/${KCLocaleManager.getUrlStringFromPrimaryAlias(game)}/queryMaps.php?query=thumbnail&guid=${mapData.guid}`;
     }
 
-    let embed = getEmbedTemplate.bind(this)(game, emote, true);
-    embed.image = {
-        url: thumbnailURL
-    }
+    let embed = getEmbedTemplate.bind(this)(game, emote, true, thumbnailURL);
+    //embed.image = {
+    //    url: thumbnailURL
+    //}
 
     let str = '';
 
@@ -377,16 +420,17 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
  * @param {string} game
  * @param {Discord.GuildEmoji|null} emote
  * @param {boolean} thumbnail
+ * @param {string=} thumbnailURL
  * @returns {Discord.MessageEmbed}
  */
-function getEmbedTemplate(game, emote, thumbnail) {
+function getEmbedTemplate(game, emote, thumbnail, thumbnailURL) {
     return new Discord.MessageEmbed({
         color: KCUtil.gameEmbedColors[game],
         author: {
             name: KCLocaleManager.getDisplayNameFromAlias('game', game) || '',
             icon_url: emote ? emote.url : undefined
         },
-        thumbnail: thumbnail ? (emote ? {url: emote.url} : undefined) : undefined,
+        thumbnail: thumbnail ? thumbnailURL != null ? {url: thumbnailURL} : ((emote ? {url: emote.url} : undefined)) : undefined,
         fields: [],
     });
 }

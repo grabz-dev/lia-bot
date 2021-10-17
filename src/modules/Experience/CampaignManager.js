@@ -369,7 +369,7 @@ export class CampaignManager {
     getMapClaimString(cmap, total, crossedOut) {
         let cross = crossedOut ? '~~' : '';
         let map = this.maps[cmap.game][cmap.gameUID];
-        let str = `\`${map.campaignName}\`: ${this.getExpFromMap(cmap, total)} XP - ${cross}${map.mapName}${cross}`;
+        let str = `\`${map.campaignName}\`: ${this.exp.prettify(this.getExpFromMap(cmap, total))} XP - ${cross}${map.mapName}${cross}`;
         return str;
     }
 }

@@ -29,6 +29,7 @@ core.on('ready', bot => {
 
         /** @type {import('./src/modules/Map.js').default} */
         const map = await core.getModule((await import('./src/modules/Map.js')).default);
+        map.manualInit(kcgmm);
         /** @type {import('./src/modules/Stream.js').default} */
         const stream = await core.getModule((await import('./src/modules/Stream.js')).default);
         /** @type {import('./src/modules/Champion.js').default} */

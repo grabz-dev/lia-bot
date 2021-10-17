@@ -271,6 +271,21 @@ export default class Experience extends Bot.Module {
     getExpMultiplier(total) {
         return Math.pow(1.015, total);
     }
+
+    /**
+     * @param {number} num
+     * @returns {string} 
+     */
+    prettify(num) {
+        const offset = 1;
+        const digits = num === 0 ? 1 : Math.floor(Math.log10(Math.abs(num))) + 1;
+        const tier = digits <= 5 ? 0 : Math.floor((digits - offset) / 3);
+
+        var suffix = this.symbols[tier];
+        if(suffix == null) return ''+num;
+
+        return (num / Math.pow(10, tier * 3)).toFixed(tier === 0 ? 0 : 3 - (digits - offset) % 3 - 1) + suffix;
+    }
 }
 
 /**
@@ -790,9 +805,9 @@ function ignorelist(m, game) {
 function getFormattedXPBarString(emote, expData, expBarsMax, noXpCur, noXpMax, noCode, noBars) {
     let lvl = `Lv.${expData.currentLevel}`;
     expBarsMax -= lvl.length;
-    let xpCur = noXpCur ? '' : Bot.Util.String.fixedWidth(prettify.call(this, expData.currentXP), 5, ' ');
+    let xpCur = noXpCur ? '' : Bot.Util.String.fixedWidth(this.prettify(expData.currentXP), 5, ' ');
     expBarsMax -= xpCur.length;
-    let xpMax = noXpMax ? '' : Bot.Util.String.fixedWidth(prettify.call(this, expData.maxXP), 5, ' ', true);
+    let xpMax = noXpMax ? '' : Bot.Util.String.fixedWidth(this.prettify(expData.maxXP), 5, ' ', true);
     expBarsMax -= xpMax.length;
     //Miscellaneous characters:
     expBarsMax -= 2;
@@ -819,22 +834,6 @@ function getFormattedXPBarString(emote, expData, expBarsMax, noXpCur, noXpMax, n
     str = noCode ? str : `\`${str}\``;
     str = emote == null ? `${str}` : `${emote} ${str}`;
     return str;
-}
-
-/**
- * @this {Experience}
- * @param {number} num
- * @returns {string} 
- */
-function prettify(num) {
-    const offset = 1;
-    const digits = num === 0 ? 1 : Math.floor(Math.log10(Math.abs(num))) + 1;
-    const tier = digits <= 5 ? 0 : Math.floor((digits - offset) / 3);
-
-    var suffix = this.symbols[tier];
-    if(suffix == null) return ''+num;
-
-    return (num / Math.pow(10, tier * 3)).toFixed(tier === 0 ? 0 : 3 - (digits - offset) % 3 - 1) + suffix;
 }
 
 /**
