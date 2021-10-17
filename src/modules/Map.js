@@ -45,21 +45,30 @@ export default class Map extends Bot.Module {
         const channel = message.channel;
         if(!(channel instanceof Discord.TextChannel)) return;
 
+        //If the channel name this message was sent in doesn't match our dictionary, don't do anything.
         const game = this.autoMap[channel.name];
         if(game == null) return;
 
+        //Split the message by all instances of the character #
         var str = message.content;
         var arr = str.split("#");
+        //If none found, don't do anything
         if(arr.length <= 1) return;
-        var count = 0;
 
         (async () => {
+            var count = 0;
+            //Go through all the splits, ignoring the first one which is either empty or meaningless.
             for(let i = 1; i < arr.length; i++) {
+                //Discard all non alphanumeric characters from this split.
                 const id = +arr[i].split(/[^a-zA-Z0-9]/)[0];
+                //If the result is not a number, discard this split.
                 if(Number.isNaN(id) || !Number.isFinite(id)) continue;
-                if(message.guild != null && message.member != null && this.kcgmm != null)
-                await map.call(this, { channel: channel, guild: message.guild, member: message.member, message: message }, game, id, this.kcgmm, true);
-                count++;
+                //Under normal circumstances, all checks have passed.
+                if(message.guild != null && message.member != null && this.kcgmm != null) {
+                    await map.call(this, { channel: channel, guild: message.guild, member: message.member, message: message }, game, id, this.kcgmm, true);
+                    count++;
+                }
+                //Don't post more than 2 map embeds, even if more valid splits are found.
                 if(count >= 2) break;
             }
         })();
