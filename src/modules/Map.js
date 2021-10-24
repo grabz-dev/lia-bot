@@ -62,7 +62,9 @@ export default class Map extends Bot.Module {
                 //Discard all non alphanumeric characters from this split.
                 const id = +arr[i].split(/[^a-zA-Z0-9]/)[0];
                 //If the result is not a number, discard this split.
-                if(Number.isNaN(id) || !Number.isFinite(id)) continue;
+                //If string is empty it gets coerced to 0, which is fine because we want to discard those anyway.
+                //Discard numbers which are way too high, as those are likely Discord id's (when linking channels).
+                if(id <= 0 || id > 1000000 || Number.isNaN(id) || !Number.isFinite(id)) continue;
                 //Under normal circumstances, all checks have passed.
                 if(message.guild != null && message.member != null && this.kcgmm != null) {
                     await map.call(this, { channel: channel, guild: message.guild, member: message.member, message: message }, game, id, this.kcgmm, true);
