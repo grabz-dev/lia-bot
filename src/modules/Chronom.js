@@ -187,7 +187,7 @@ export default class Chronom extends Bot.Module {
 
             str += `\n\nSubmit scores with \`${resultRegister.user_name}\` as your name and \`specialevent\` as the group name.\n\`!c register help\` to change your name.`;
             embed.description = str;
-            m.channel.send({embed: embed}).catch(logger.error);
+            m.channel.send({embeds: [embed]}).catch(logger.error);
             
         }).catch(logger.error);
     }

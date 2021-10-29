@@ -6,12 +6,28 @@ const logger = Bot.logger;
 import { KCGameMapManager } from './src/kc/KCGameMapManager.js'; 
 import fs from 'fs';
 
-const core = new Bot.Core('371018033298276353', 'lia_bot');
+const core = new Bot.Core('371018033298276353', 'lia_bot', [
+    Discord.Intents.FLAGS.GUILDS,
+    Discord.Intents.FLAGS.GUILD_MEMBERS,
+    Discord.Intents.FLAGS.GUILD_BANS,
+    Discord.Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS,
+    Discord.Intents.FLAGS.GUILD_INTEGRATIONS,
+    Discord.Intents.FLAGS.GUILD_WEBHOOKS,
+    Discord.Intents.FLAGS.GUILD_INVITES,
+    Discord.Intents.FLAGS.GUILD_VOICE_STATES,
+    Discord.Intents.FLAGS.GUILD_PRESENCES,
+    Discord.Intents.FLAGS.GUILD_MESSAGES,
+    Discord.Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
+    Discord.Intents.FLAGS.GUILD_MESSAGE_TYPING,
+    Discord.Intents.FLAGS.DIRECT_MESSAGES,
+    Discord.Intents.FLAGS.DIRECT_MESSAGE_REACTIONS,
+    Discord.Intents.FLAGS.DIRECT_MESSAGE_TYPING,
+]);
 
 core.on('ready', bot => {
     (async () => {
         let kcgmm = new KCGameMapManager({
-            disableCW2: false
+            disableCW2: true
         }, bot.locale);
 
         kcgmm.fetch('cw4').then(() => {
@@ -150,6 +166,41 @@ core.on('ready', bot => {
                 return hurtheal.land(message, args, arg, { action: 'chart' });
             });
         })();
+
+        core.getModule((await import('./src/modules/Farkle.js')).default).then(farkle => {
+            const obj = {
+                categoryNames: [':video_game: Farkle', 'farkle', 'f']
+            }
+
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'host', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return farkle.land(message, args, arg, { action: 'host' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'leave', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return farkle.land(message, args, arg, { action: 'leave' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'join', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return farkle.land(message, args, arg, { action: 'join' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'start', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return farkle.land(message, args, arg, { action: 'start' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'skin', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return farkle.land(message, args, arg, { action: 'skin' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'games', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return farkle.land(message, args, arg, { action: 'games' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'profile', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return farkle.land(message, args, arg, { action: 'profile' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'spectate', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return farkle.land(message, args, arg, { action: 'spectate' });
+            });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'rules', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return farkle.land(message, args, arg, { action: 'rules' });
+            });
+
+        }).catch(logger.error);
         
 
         core.getModule((await import('./src/modules/Emotes.js')).default).then(emotes => {
@@ -281,13 +332,13 @@ core.on('ready', bot => {
 
             let update = () => {
                 let obj = strings[Bot.Util.getRandomInt(0, strings.length)];
-                core.client.setTimeout(update, Bot.Util.getRandomInt(1000 * 60 * obj.minMins, 1000 * 60 * obj.maxMins));
+                setTimeout(update, Bot.Util.getRandomInt(1000 * 60 * obj.minMins, 1000 * 60 * obj.maxMins));
 
                 if(core.client.user == null) return;
                 core.client.user.setActivity({
                     type: 'PLAYING',
                     name: `| ${obj.v}`
-                }).catch(logger.error);
+                });
             }
             update();
         })();

@@ -206,10 +206,14 @@ async function getXrpl(m, xrpl, pageName) {
 
     m.message.delete();
 
-    if(wikidata.doesNotExist)
-        (await m.message.reply({ embed: embed })).delete({ timeout: 3000 }).catch(logger.error);
-    else
-        m.message.reply({ embed: embed }).catch(logger.error);
+    if(wikidata.doesNotExist) {
+        m.channel.send({ embeds: [embed] }).then(message => {
+            setTimeout(() => message.delete().catch(logger.error), 3000);
+        }).catch(logger.error);
+    }
+    else {
+        m.channel.send({ embeds: [embed] }).catch(logger.error);
+    }
     
 }
 

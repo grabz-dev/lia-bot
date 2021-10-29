@@ -215,6 +215,47 @@
                 "!%name% <id>"
             ]
         },
+        "f": {
+            "host": [
+                "!%name%",
+                "Host a new Farkle pre-game lobby."
+            ],
+            "leave": [
+                "!%name%",
+                "Leave the pre-game lobby you are currently in. If host, this disbands the lobby."
+            ],
+            "join": [
+                "!%name% <ping>",
+                "Join a Farkle pre-game lobby.",
+                "%space%<ping> - Optional. Ping the host of the lobby to join. If omitted, joins the most recent lobby."
+            ],
+            "start": [
+                "!%name%",
+                "As pre-game lobby host, begin the game."
+            ],
+            "skin": [
+                "!%name% <skin>",
+                "Choose the dice skin you would like to see.",
+                "%space%<skin> - `braille`, `keycaps`, `dice`, `digits`, `chinese`"
+            ],
+            "games": [
+                "!%name%",
+                "View the currently on-going Farkle games."
+            ],
+            "profile": [
+                "!%name%",
+                "View your Farkle profile."
+            ],
+            "spectate": [
+                "!%name% <ping>",
+                "Spectate a user that's playing a Farkle match.",
+                "%space%<ping> - Ping the user you want to spectate."
+            ],
+            "rules": [
+                "!%name%",
+                "View the rules of Farkle."
+            ]
+        },
         "score": {
             "": [
                 "<n>!%name% <game> <type> <id> <objective>",

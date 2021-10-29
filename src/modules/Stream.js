@@ -117,7 +117,7 @@ function start(m, game, url) {
         embed.color = KCUtil.gameEmbedColors[game];
         embed.description = `Streaming ${emote}${KCLocaleManager.getDisplayNameFromAlias("game", game)}\nat ${url}`;
 
-        channel.send({embed: embed});
+        channel.send({embeds: [embed]});
         m.message.delete();
     }).catch(logger.error);
 }

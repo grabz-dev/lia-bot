@@ -96,7 +96,7 @@ async function processChampionRole(query, guild) {
 
     if(role) {
         let arr = [];
-        let membersChampions = role.members.array();
+        let membersChampions = Array.from(role.members.values());
         for(let member of membersChampions) {
             if(!resultsChampions.find(v => v.user_id === member.id))
                 arr.push(member.roles.remove(role).catch(logger.error));

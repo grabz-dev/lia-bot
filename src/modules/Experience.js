@@ -249,7 +249,7 @@ export default class Experience extends Bot.Module {
                 embed.footer = {
                     text: '!exp'
                 }
-                message.edit('', { embed: embed }).catch(logger.error);
+                message.edit({ embeds: [embed] }).catch(logger.error);
 
                 /** @type {Discord.Snowflake|null} */
                 let user = this.cache.get(guild.id, `champion_${game}`);
@@ -347,7 +347,7 @@ function leaderboard(m, game, kcgmm, champion) {
         }
 
         const embed = await getLeaderboardEmbed.call(this, query, kcgmm, mapListId, m.guild, game, m.member);
-        m.channel.send({embed: embed}).catch(logger.error);
+        m.channel.send({embeds: [embed]}).catch(logger.error);
     }).then(async () => {
         await this.loop(m.guild, kcgmm, champion);
     }).catch(logger.error);
@@ -480,11 +480,11 @@ function profile(m, game, kcgmm, dm) {
 
         embed.fields.push(fieldInstructions);
 
-        m.channel.send({ embed:embed }).catch(logger.error);
+        m.channel.send({ embeds:[embed] }).catch(logger.error);
         if(dm) {
             fieldInstructions.value = `${this.bot.locale.category('experience', 'embed_dm_value')}\n${fieldInstructions.value}`;
             m.member.createDM().then(dm => {
-                return dm.send({ embed: embed });
+                return dm.send({ embeds: [embed] });
             }).catch(logger.error);
         }
     }).catch(logger.error);
@@ -608,11 +608,11 @@ function newMaps(m, game, kcgmm, dm) {
             embed.fields.push(fieldBeatenMaps);
         embed.fields.push(fieldInstructions);
 
-        m.channel.send({ embed:embed }).catch(logger.error);
+        m.channel.send({ embeds:[embed] }).catch(logger.error);
         if(dm) {
             fieldInstructions.value = `${this.bot.locale.category('experience', 'embed_dm_value')}\n${fieldInstructions.value}`;
             m.member.createDM().then(dm => {
-                return dm.send({ embed: embed });
+                return dm.send({ embeds: [embed] });
             }).catch(logger.error);
         }
     }).catch(logger.error);
@@ -653,7 +653,7 @@ function info(m) {
     embed.title = this.bot.locale.category('experience', 'intro_name');
     embed.description = this.bot.locale.category('experience', 'intro_value');
 
-    m.channel.send({ embed: embed }).catch(logger.error);
+    m.channel.send({ embeds: [embed] }).catch(logger.error);
 }
 
 /**

@@ -314,6 +314,7 @@ export function KCGameMapManager(options, locale) {
             lastFetchTimestamp = Date.now();
         }
         catch(err) {
+            //@ts-ignore
             logger.warn(`[KCGameMapManager.fetch] Failed to fetch map data for ${game}. ${err} ${err.stack}`);
         }
     }

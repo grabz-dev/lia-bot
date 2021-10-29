@@ -351,7 +351,7 @@ export default class Competition extends Bot.Module {
                     embed.title = ":trophy: Score update!";
                     embed.fields = [];
                     embed.fields[0] = field;
-                    channel.send({ embed }).catch(logger.error);
+                    channel.send({ embeds: [embed] }).catch(logger.error);
                 }
 
                 let fields = embed.fields;
@@ -376,9 +376,9 @@ export default class Competition extends Bot.Module {
                 
                 let embed = embeds.get(game);
                 if(embed == null)
-                    message.edit(content, {embed: getEmbedScores(KCUtil.gameEmbedColors[game], timeLeft)}).catch(logger.error);
+                    message.edit({content: content, embeds: [getEmbedScores(KCUtil.gameEmbedColors[game], timeLeft)]}).catch(logger.error);
                 else
-                    message.edit(content, {embed: embed}).catch(logger.error);
+                    message.edit({content: content, embeds: [embed]}).catch(logger.error);
             });
         }).catch(logger.error);
     }
@@ -485,7 +485,7 @@ function info(m) {
             return;
         }
 
-        m.channel.send({ embed:getEmbedInfo.bind(this)(resultMain.channel_id) }).catch(logger.error);
+        m.channel.send({ embeds:[getEmbedInfo.bind(this)(resultMain.channel_id)] }).catch(logger.error);
     }).catch(logger.error);
 }
 
@@ -498,7 +498,7 @@ function status(m) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.competition_main|null} */
         let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}'`)).results[0];
-        m.channel.send({ embed:getEmbedStatus.bind(this)(m.guild, resultMain) }).catch(logger.error);
+        m.channel.send({ embeds:[getEmbedStatus.bind(this)(m.guild, resultMain)] }).catch(logger.error);
     }).catch(logger.error);
 }
 
@@ -748,7 +748,7 @@ function end(m, kcgmm, champion) {
                 text: Bot.Util.getFormattedDate(resultMain.time_start || 0, true) + " - " + Bot.Util.getFormattedDate(now, true),
             }
             
-            await channel.send({embed: embed});
+            await channel.send({embeds: [embed]});
         }
 
         let insertComps = (await query(`INSERT INTO competition_history_competitions (guild_id, time_end)
@@ -845,7 +845,7 @@ function intro(m, type) {
         url: 'https://media.discordapp.net/attachments/376817338990985246/783860176292806697/specialevent.png'
     }
 
-    m.channel.send({embed: embed}).catch(logger.error);
+    m.channel.send({embeds: [embed]}).catch(logger.error);
 }
 
 
@@ -854,7 +854,7 @@ function intro(m, type) {
 /**
  * @this Competition
  * @param {Discord.Guild} guild 
- * @param {Discord.TextChannel} channel
+ * @param {Discord.PartialDMChannel | Discord.TextChannel | Discord.ThreadChannel} channel
  * @param {SQLWrapper.Query} query
  * @param {import('./Champion.js').default} champion
  */
@@ -917,7 +917,7 @@ async function buildScoreTally(guild, channel, query, champion) {
     embed.fields = [];
     embed.fields.push(field);
 
-    channel.send({embed: embed});
+    channel.send({embeds: [embed]});
 }
 
 /**

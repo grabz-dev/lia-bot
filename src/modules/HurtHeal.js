@@ -145,6 +145,13 @@ export default class HurtHeal extends Bot.Module {
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
+        if(m.guild.id === "192420539204239361" && m.channel.id !== "903714917369118740") {
+            m.channel.send("You can only use this command in the <#903714917369118740> channel.").then(message => {
+                setTimeout(() => { message.delete(); m.message.delete(); }, 10000);
+            }).catch(logger.error);
+            return;
+        }
+
         switch(ext.action) {
         case 'start': {
             let error = `Arguments error found at **%0**: %1. Make sure arguments are in the correct order.`;
@@ -244,9 +251,7 @@ function help(m) {
         inline: false
     });
 
-    m.channel.send({ embed: embed }).then(message => {
-        message.delete({ timeout: 1000 * 120 }).catch(logger.error);
-    }).catch(logger.error);
+    m.channel.send({ embeds: [embed] }).catch(logger.error);
 }
 
 /**
@@ -298,7 +303,7 @@ function start(m, things) {
         let resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ? ORDER BY id ASC`, [insertId])).results;
         let items = getItemsFromDb(resultsThings);
 
-        m.message.reply('New game started!', { embed: getGameStandingsEmbed.call(this, m, {mode: 'current', things: items, game: insertId}) }).catch(logger.error);
+        m.message.reply({ content: 'New game started!', embeds: [getGameStandingsEmbed.call(this, m, {mode: 'current', things: items, game: insertId})] }).catch(logger.error);
     }).catch(logger.error);
 }
 
@@ -495,7 +500,7 @@ async function action(m, type, args, arg) {
  */
 async function sendNewGameMessage(m, query, embed, noRegister, game) {
     let image = game != null ? await getChartFromGame.call(this, query, game) : null;
-    const message = await m.channel.send({ embed: embed, files: image ? [image] : undefined });
+    const message = await m.channel.send({ embeds: [embed], files: image ? [image] : undefined });
 
     /** @type {Db.hurtheal_setup=} */
     let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ? FOR UPDATE`, [m.guild.id])).results[0];

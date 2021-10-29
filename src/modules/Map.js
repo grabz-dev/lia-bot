@@ -171,7 +171,7 @@ async function map(m, game, id, kcgmm, suppressError) {
 
     let mapData = kcgmm.getMapById(game, id);
     if(mapData != null) {
-        m.channel.send({ embed:await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm) }).catch(logger.error);
+        m.channel.send({ embeds:[await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm)] }).catch(logger.error);
         return;
     }
 
@@ -189,7 +189,7 @@ async function map(m, game, id, kcgmm, suppressError) {
             }
             else {
                 message.delete();
-                m.channel.send({ embed:await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm) }).catch(logger.error);
+                m.channel.send({ embeds:[await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm)] }).catch(logger.error);
             }
         })().catch(e => {
             logger.info(e);
@@ -266,7 +266,7 @@ async function score(m, mapQueryData, kcgmm) {
     }
 
     embed.fields[0] = field;
-    m.channel.send({ embed: embed }).catch(logger.error);
+    m.channel.send({ embeds: [embed] }).catch(logger.error);
 }
 
 /**
@@ -322,7 +322,7 @@ async function bestof(m, game, date, maps) {
 
     embed.fields.push(field);
 
-    m.channel.send({embed: embed}).catch(logger.error);
+    m.channel.send({embeds: [embed]}).catch(logger.error);
 }
 
 
