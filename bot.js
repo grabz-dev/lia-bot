@@ -172,16 +172,16 @@ core.on('ready', bot => {
                 categoryNames: [':video_game: Farkle', 'farkle', 'f']
             }
 
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'host', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['host', 'h'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return farkle.land(message, args, arg, { action: 'host' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'leave', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['leave', 'l'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return farkle.land(message, args, arg, { action: 'leave' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'join', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['join', 'j'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return farkle.land(message, args, arg, { action: 'join' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'start', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['start', 's'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return farkle.land(message, args, arg, { action: 'start' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'skin', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
