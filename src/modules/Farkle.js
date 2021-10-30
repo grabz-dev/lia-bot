@@ -193,6 +193,12 @@ export default class Farkle extends Bot.Module {
     /** @param {Core.Entry} bot */
     constructor(bot) {
         super(bot);
+
+        this.KCServerDefs = {
+            guildId: "192420539204239361",
+            farkleChannelId: "903995409729462312",
+            botCommandsChannelId: "457188713978527746"
+        }
     }
     
     /** @param {Discord.Guild} guild - Current guild. */
@@ -613,8 +619,8 @@ export default class Farkle extends Bot.Module {
             case 'join':
             case 'start':
             case 'spectate': {
-                if(m.guild.id === "192420539204239361" && m.channel.id !== "903714987992813589") {
-                    m.channel.send("You can only use this command in the <#903714987992813589> channel.").then(message => {
+                if(m.guild.id === this.KCServerDefs.guildId && m.channel.id !== this.KCServerDefs.farkleChannelId) {
+                    m.channel.send(`You can only use this command in the <#${this.KCServerDefs.farkleChannelId}> channel.`).then(message => {
                         setTimeout(() => { message.delete(); m.message.delete(); }, 10000);
                     }).catch(logger.error);
                     return;
@@ -624,8 +630,8 @@ export default class Farkle extends Bot.Module {
             case 'games':
             case 'profile':
             case 'rules': {
-                if(m.guild.id === "192420539204239361" && (m.channel.id !== "903714987992813589" && m.channel.id !== "457188713978527746")) {
-                    m.channel.send("You can only use this command in either the <#457188713978527746> channel, or the <#903714987992813589> channel.").then(message => {
+                if(m.guild.id === this.KCServerDefs.guildId && (m.channel.id !== this.KCServerDefs.farkleChannelId && m.channel.id !== this.KCServerDefs.botCommandsChannelId)) {
+                    m.channel.send(`You can only use this command in either the <#${this.KCServerDefs.botCommandsChannelId}> channel, or the <#${this.KCServerDefs.farkleChannelId}> channel.`).then(message => {
                         setTimeout(() => { message.delete(); m.message.delete(); }, 10000);
                     }).catch(logger.error);
                     return;

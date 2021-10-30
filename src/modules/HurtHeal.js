@@ -128,6 +128,11 @@ export default class HurtHeal extends Bot.Module {
         /** @type {{type: 'hurt'|'heal'|'show', args: string[], arg: string}[]} */
         this.queue = [];
         this.queueRunning = false;
+
+        this.KCServerDefs = {
+            guildId: "192420539204239361",
+            hurtHealChannelId: "903995340846407731"
+        }
     }
 
     /** @param {Discord.Guild} guild - Current guild. */
@@ -145,8 +150,8 @@ export default class HurtHeal extends Bot.Module {
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
-        if(m.guild.id === "192420539204239361" && m.channel.id !== "903714917369118740") {
-            m.channel.send("You can only use this command in the <#903714917369118740> channel.").then(message => {
+        if(m.guild.id === this.KCServerDefs.guildId && m.channel.id !== this.KCServerDefs.hurtHealChannelId) {
+            m.channel.send(`You can only use this command in the <#${this.KCServerDefs.hurtHealChannelId}> channel.`).then(message => {
                 setTimeout(() => { message.delete(); m.message.delete(); }, 10000);
             }).catch(logger.error);
             return;
