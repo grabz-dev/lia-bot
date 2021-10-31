@@ -100,6 +100,7 @@ export default class HurtHeal extends Bot.Module {
 
         this.barLength = 10;
         this.lastActionsCounted = 2;
+        this.lastActionsShown = 5;
         this.dictionary = {
             'hurt': 'hurt',
             'heal': 'healed'
@@ -356,17 +357,17 @@ async function action(m, type, args, arg) {
         }
 
         if(mode === 'last') {
-            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: 'A game is not currently running.'}));
+            m.message.reply('A game is not currently running.').then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
             return;
         }
 
         if(resultsActions.slice(0, this.lastActionsCounted).find((v => v.user_id === m.member.id))) {
-            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `You have already played within the last ${this.lastActionsCounted} actions! Please wait your turn.`}));
+            m.message.reply(`You have already played within the last ${this.lastActionsCounted} actions! Please wait your turn.`).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
             return;
         }
 
         if(args.length === 0) {
-            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``}));
+            m.message.reply(`You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
             return;
         }
 
@@ -412,20 +413,20 @@ async function action(m, type, args, arg) {
         
         //If an item is still not found, error
         if(currentItem == null) {
-            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage:  `Could not determine selection from input.\nMake sure to type the item ID or the full name of the item you want to hurt or heal.`}));
+            m.message.reply(`Could not determine selection from input.\nMake sure to type the item ID or the full name of the item you want to hurt or heal.`).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
             return;
         }
         if(currentItem.health_cur <= 0) {
-            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`}));
+            m.message.reply(`**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
             return;
         }
         if(resultsActions[0] && resultsActions[0].id_hurtheal_things === currentItem.id &&
            resultsActions[1] && resultsActions[1].id_hurtheal_things === currentItem.id) {
-            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `An action cannot be performed on the same item more than twice in a row. Please select a different item.`}));
+            m.message.reply(`An action cannot be performed on the same item more than twice in a row. Please select a different item.`).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
             return;
         }
         if(type === 'heal' && currentItem.health_cur >= currentItem.health_max) {
-            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `**${currentItem.name}** is already at max health.`}));
+            m.message.reply(`**${currentItem.name}** is already at max health.`).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
             return;
         }
 
@@ -554,9 +555,6 @@ function getGameStandingsEmbed(m, options) {
 
     var embed = new Discord.MessageEmbed({
         color: 14211288,
-        author: {
-            name: '🎮 Hurt or Heal',
-        },
         timestamp: Date.now(),
         footer: {
             text: `\`!hh rules\` for help${game != null ? ` • Game ${typeof game === 'number' ? `${game}` : `${game.id}`}` : ''}`
@@ -565,15 +563,10 @@ function getGameStandingsEmbed(m, options) {
     if(action == 'hurt') embed.color = 16731994;
     else if(action == 'heal') embed.color = 6214143;
 
-    embed.description = '';
-    if(str != null && str.length > 0) embed.description += `${action == null ? ':warning:':''} <@${m.member.id}>, ${str}\n`;
+    embed.description = `**🎮 Hurt or Heal**${typeof game === 'object' && game.theme ? `: *${game.theme}*` : ''}\n`;
     if(gameOver) embed.description += `\n**The game is over!**\n`;
-    embed.description += '\n';
 
     embed.description += `${mode === 'current' ? '' : 'Previous game\'s results:\n'}`;
-    if(typeof game === 'object' && game.theme) {
-        embed.description += `Theme: **${game.theme}**\n`;
-    }
 
     let space = things.length >= 10 ? ' ' : '';
 
@@ -583,11 +576,14 @@ function getGameStandingsEmbed(m, options) {
     }
 
     if(allActions != null) {
-        let actions = allActions.slice(0, this.lastActionsCounted);
-        let fieldActions = { name: `Last ${this.lastActionsCounted} actions`, value: '', inline: false }
-        for(let action of actions) {
+        let actions = allActions.slice(0, this.lastActionsShown);
+        let fieldActions = { name: `Last few actions`, value: '', inline: false }
+        for(let i = 0; i < actions.length; i++) {
+            let action = actions[i]
             let thing = things.find((v => v.id === action.id_hurtheal_things))
-            fieldActions.value += `<@${action.user_id}> ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${action.reason ? action.reason : ''}\n`;
+            let str = `<@${action.user_id}> ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${action.reason ? action.reason : ''}`;
+            if(i < this.lastActionsCounted) str = `__${str}__`;
+            fieldActions.value += `${str}\n`;
         }
 
         /** @type {Object.<string, number>} */let users = {};
