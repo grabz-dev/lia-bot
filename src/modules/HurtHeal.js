@@ -582,7 +582,7 @@ function getGameStandingsEmbed(m, options) {
             let action = actions[i]
             let thing = things.find((v => v.id === action.id_hurtheal_things))
             let str = `<@${action.user_id}> ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${action.reason ? action.reason : ''}`;
-            if(i < this.lastActionsCounted) str = `__${str}__`;
+            if(i < this.lastActionsCounted) str = `\\> ${str}`;
             fieldActions.value += `${str}\n`;
         }
 
