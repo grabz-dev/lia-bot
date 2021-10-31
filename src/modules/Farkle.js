@@ -55,6 +55,7 @@ const logger = Bot.logger;
  * @property {string} current_player_rolls
  * @property {number} current_player_points
  * @property {number} current_player_rolls_count
+ * @property {number} opening_turn_point_threshold
  */
 
 /**
@@ -86,6 +87,7 @@ const logger = Bot.logger;
  * @property {number} match_end_time
  * @property {number} points_goal
  * @property {Discord.Snowflake} user_id_winner
+ * @property {number} opening_turn_point_threshold
  */
 
 /**
@@ -207,10 +209,10 @@ export default class Farkle extends Bot.Module {
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS farkle_current_players (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, id_current_games BIGINT UNSIGNED NOT NULL, ready_status BOOLEAN NOT NULL, turn_order SMALLINT NOT NULL, user_id TINYTEXT NOT NULL, channel_dm_id TINYTEXT NOT NULL, total_points_banked SMALLINT UNSIGNED NOT NULL, total_points_lost SMALLINT UNSIGNED NOT NULL, total_points_skipped SMALLINT UNSIGNED NOT NULL, total_rolls INT UNSIGNED NOT NULL, total_folds INT UNSIGNED NOT NULL, total_finishes INT UNSIGNED NOT NULL, total_skips INT UNSIGNED NOT NULL, highest_points_banked SMALLINT UNSIGNED NOT NULL, highest_points_lost SMALLINT UNSIGNED NOT NULL, highest_points_skipped SMALLINT UNSIGNED NOT NULL, highest_rolls_in_turn INT UNSIGNED NOT NULL, highest_rolls_in_turn_without_fold INT UNSIGNED NOT NULL);`);
-            await query(`CREATE TABLE IF NOT EXISTS farkle_current_games (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, has_started BOOLEAN NOT NULL, match_start_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, current_player_user_id TINYTEXT NOT NULL, current_player_rolls TINYTEXT NOT NULL, current_player_points SMALLINT UNSIGNED NOT NULL, current_player_rolls_count INT UNSIGNED NOT NULL);`);
+            await query(`CREATE TABLE IF NOT EXISTS farkle_current_games (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, has_started BOOLEAN NOT NULL, match_start_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, current_player_user_id TINYTEXT NOT NULL, current_player_rolls TINYTEXT NOT NULL, current_player_points SMALLINT UNSIGNED NOT NULL, current_player_rolls_count INT UNSIGNED NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL);`);
         
             await query(`CREATE TABLE IF NOT EXISTS farkle_history_players (id BIGINT UNSIGNED PRIMARY KEY, id_history_games BIGINT UNSIGNED NOT NULL, user_id TINYTEXT NOT NULL, turn_order SMALLINT NOT NULL, has_conceded BOOLEAN NOT NULL, total_points_banked SMALLINT UNSIGNED NOT NULL, total_points_lost SMALLINT UNSIGNED NOT NULL, total_points_skipped SMALLINT UNSIGNED NOT NULL, total_rolls INT UNSIGNED NOT NULL, total_folds INT UNSIGNED NOT NULL, total_finishes INT UNSIGNED NOT NULL, total_skips INT UNSIGNED NOT NULL, highest_points_banked SMALLINT UNSIGNED NOT NULL, highest_points_lost SMALLINT UNSIGNED NOT NULL, highest_points_skipped SMALLINT UNSIGNED NOT NULL, highest_rolls_in_turn INT UNSIGNED NOT NULL, highest_rolls_in_turn_without_fold INT UNSIGNED NOT NULL);`);
-            await query(`CREATE TABLE IF NOT EXISTS farkle_history_games (id BIGINT UNSIGNED PRIMARY KEY, guild_id TINYTEXT NOT NULL, match_start_time BIGINT NOT NULL, match_end_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, user_id_winner TINYTEXT NOT NULL);`);
+            await query(`CREATE TABLE IF NOT EXISTS farkle_history_games (id BIGINT UNSIGNED PRIMARY KEY, guild_id TINYTEXT NOT NULL, match_start_time BIGINT NOT NULL, match_end_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, user_id_winner TINYTEXT NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL);`);
         
             await query(`CREATE TABLE IF NOT EXISTS farkle_servers (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, user_id TINYTEXT NOT NULL, user_id_host TINYTEXT NOT NULL)`)
             await query(`CREATE TABLE IF NOT EXISTS farkle_users (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id TINYTEXT NOT NULL, skin TINYTEXT NOT NULL)`);
@@ -236,7 +238,9 @@ export default class Farkle extends Bot.Module {
 
     /** @param {Discord.Message} message - The message that was sent. */
     onMessage(message) {
-        if(message.member == null) return;
+        if(message.member == null || message.guild == null) return;
+        if(message.guild.id === this.KCServerDefs.guildId && message.channel.id !== this.KCServerDefs.farkleChannelId) return;
+
         const member = message.member;
 
         var prep = this.cache.get("0", `prep${member.id}`);
@@ -254,15 +258,32 @@ export default class Farkle extends Bot.Module {
             return;
         }
 
-        let goal = +arg;
-        if(!Number.isFinite(goal)) {
+        const args = arg.split(',');
+        const aobj = {
+            goal: +[args[0].trim()],
+            threshold: +[args[1]?.trim()]
+        }
+        if(aobj.threshold == null) aobj.threshold = 0;
+
+        if(!Number.isFinite(aobj.goal)) {
             message.channel.send("The specified point goal is invalid.").catch(logger.error);
             return;
         }
 
-        goal = Math.floor(goal);
-        if(goal < 1000 || goal > 10000) {
+        aobj.goal = Math.floor(aobj.goal);
+        if(aobj.goal < 1000 || aobj.goal > 10000) {
             message.channel.send("Point goal must be between 1000 and 10000.").catch(logger.error);
+            return;
+        }
+
+        if(!Number.isFinite(aobj.threshold)) {
+            message.channel.send("The specified opening turn point threshold is invalid.").catch(logger.error);
+            return;
+        }
+
+        aobj.threshold = Math.ceil(aobj.threshold / 50) * 50;
+        if(aobj.threshold !== 0 && aobj.threshold < 350 || aobj.threshold > 1000) {
+            message.channel.send("Opening turn point threshold must be between 350 and 1000.").catch(logger.error);
             return;
         }
 
@@ -276,11 +297,12 @@ export default class Farkle extends Bot.Module {
                 guild_id: prep.guild.id,
                 has_started: false,
                 match_start_time: 0,
-                points_goal: goal,
+                points_goal: aobj.goal,
                 current_player_user_id: "",
                 current_player_points: 0,
                 current_player_rolls: "[]",
-                current_player_rolls_count: 0
+                current_player_rolls_count: 0,
+                opening_turn_point_threshold: aobj.threshold
             }
 
             var doc = (await query(Bot.Util.SQL.getInsert(game, "farkle_current_games") + "; SELECT LAST_INSERT_ID();")).results[1][0];
@@ -297,7 +319,8 @@ export default class Farkle extends Bot.Module {
                 else
                     embed.description = `${prep.members[0]} invited you to play Farkle!`;
 
-                embed.description += `\n  • Point goal: ${goal}`;
+                embed.description += `\n  • Point goal: ${aobj.goal}`;
+                embed.description += `\n  • Opening turn point threshold: ${aobj.threshold}`;
                 embed.description += `\n  • Players: ${prep.members.join(", ")}\n`;
                 embed.description += `\nType \`ready\` or \`r\` if you want to play.\nType \`reject\` to cancel the match.`;
                 
@@ -538,12 +561,6 @@ export default class Farkle extends Bot.Module {
                     return;
                 }
 
-                let hurry = this.cache.get("0", `hurry${docCG.id}`);
-                if(hurry) {
-                    clearTimeout(hurry.timeout);
-                    this.cache.set("0", `hurry${docCG.id}`, undefined);
-                }
-
                 var temp = msg.replace(/[^0-9]/g, "").split("");
                 /** @type {number[]} */
                 let keep = [];
@@ -565,6 +582,18 @@ export default class Farkle extends Bot.Module {
                 if(points === 0) {
                     await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send("This keep is invalid.");
                     return;
+                }
+
+                let totalPoints = points + docCG.current_player_points;
+                if(type === "finish" && docCP.total_points_banked === 0 && totalPoints < docCG.opening_turn_point_threshold) {
+                    await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send(`You cannot finish your opening turn with less than ${docCG.opening_turn_point_threshold} points. This finish would bank ${totalPoints}.`);
+                    return;
+                }
+
+                let hurry = this.cache.get("0", `hurry${docCG.id}`);
+                if(hurry) {
+                    clearTimeout(hurry.timeout);
+                    this.cache.set("0", `hurry${docCG.id}`, undefined);
                 }
 
                 docCG.current_player_points += points;
@@ -748,7 +777,14 @@ export default class Farkle extends Bot.Module {
             }
 
             let embed = getEmbedBlank();
-            embed.description = `Choose points goal between 1000 and 10000 (recommended 4000).\nType \`cancel\` to cancel the match.`;
+            embed.description = `Choose the __points goal__ between 1000 and 10000 (suggested 4000).
+Followed by a comma, optionally choose the __opening turn point threshold__ between 350 and 1000 (commonly 350, 400, 500, or 1000).
+    
+Examples:
+\`4000\` - 4000 goal, 0 opening turn threshold.
+\`6000, 500\` - 6000 goal, 500 opening turn threshold.
+
+Type \`cancel\` to cancel the match.`;
 
             await m.channel.send({embeds: [embed]});
         }).catch(console.error);
@@ -1560,7 +1596,8 @@ async function commit(state, docCG, docCP, docCPs, query, client) {
             match_start_time: docCG.match_start_time,
             match_end_time: Date.now(),
             points_goal: docCG.points_goal,
-            user_id_winner: docCG.current_player_user_id
+            user_id_winner: docCG.current_player_user_id,
+            opening_turn_point_threshold: docCG.opening_turn_point_threshold
         }
         await query(Bot.Util.SQL.getInsert(gameH, "farkle_history_games"));
 
@@ -1765,6 +1802,9 @@ async function roll(client, action, docCG, docCPs, docCPVs, query) {
                 embed.description += `**Your rolls:**\n`;
             else
                 embed.description += `**<@${docCG.current_player_user_id}>'s rolls:**\n`;
+            if(docCG.opening_turn_point_threshold > 0 && docCPs.find(v => v.user_id === docCG.current_player_user_id)?.total_points_banked === 0) {
+                embed.description += `This is ${attendee.user_id === docCG.current_player_user_id ? "your" : `<@${docCG.current_player_user_id}>'s'`} __opening turn__. In order to be able to \`finish\`, ${attendee.user_id === docCG.current_player_user_id ? "you" : "they"} must do it with a total of at least ${docCG.opening_turn_point_threshold} points.\n`
+            }
 
             embed.description += g;
 
