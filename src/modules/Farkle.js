@@ -270,7 +270,7 @@ export default class Farkle extends Bot.Module {
             return;
         }
 
-        aobj.goal = Math.floor(aobj.goal);
+        aobj.goal = Math.ceil(aobj.goal / 50) * 50;
         if(aobj.goal < 1000 || aobj.goal > 10000) {
             message.channel.send("Point goal must be between 1000 and 10000.").catch(logger.error);
             return;
