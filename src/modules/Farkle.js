@@ -1071,7 +1071,9 @@ export default class Farkle extends Bot.Module {
                 name: m.message.author.username + "#" + m.message.author.discriminator,
                 iconURL: m.message.author.displayAvatarURL()
             }
-            embed.description = `Last Seen: ${Bot.Util.getFormattedDate(await Q.getPlayerLastSeen(m.member.id, query), true)}`;
+            const lastSeen = await Q.getPlayerLastSeen(m.member.id, query);
+
+            embed.description = `Last Seen: ${lastSeen > 0 ? Bot.Util.getFormattedDate(lastSeen, true) : "Never"}`;
 
             embed.fields = [];
 
@@ -1102,12 +1104,6 @@ export default class Farkle extends Bot.Module {
                 inline: true,
                 name: "Wins • Losses",
                 value: `${wl.regular.wins} • ${wl.regular.losses} (Total)\n${dollarify(Math.round, wl.weighted.wins)} • ${dollarify(Math.round, wl.weighted.losses)} (Weighted)`
-            });
-
-            embed.fields.push({
-                inline: true,
-                name: "⠀",
-                value: `⠀`
             });
 
             const fieldTotal = {
