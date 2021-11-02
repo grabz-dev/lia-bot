@@ -33,6 +33,8 @@ const logger = Bot.logger;
  * @property {number} total_points_banked
  * @property {number} total_points_lost
  * @property {number} total_points_skipped
+ * @property {number} total_points_piggybacked_banked
+ * @property {number} total_points_piggybacked_lost
  * @property {number} total_rolls
  * @property {number} total_folds
  * @property {number} total_finishes
@@ -40,6 +42,8 @@ const logger = Bot.logger;
  * @property {number} highest_points_banked
  * @property {number} highest_points_lost
  * @property {number} highest_points_skipped
+ * @property {number} highest_points_piggybacked_banked
+ * @property {number} highest_points_piggybacked_lost
  * @property {number} highest_rolls_in_turn
  * @property {number} highest_rolls_in_turn_without_fold
  */
@@ -55,7 +59,10 @@ const logger = Bot.logger;
  * @property {string} current_player_rolls
  * @property {number} current_player_points
  * @property {number} current_player_rolls_count
+ * @property {number} current_player_points_piggybacked
  * @property {number} opening_turn_point_threshold
+ * @property {boolean} high_stakes_variant
+ * @property {boolean} current_player_high_stakes_choice
  */
 
 /**
@@ -68,6 +75,8 @@ const logger = Bot.logger;
  * @property {number} total_points_banked
  * @property {number} total_points_lost
  * @property {number} total_points_skipped
+ * @property {number} total_points_piggybacked_banked
+ * @property {number} total_points_piggybacked_lost
  * @property {number} total_rolls
  * @property {number} total_folds
  * @property {number} total_finishes
@@ -75,6 +84,8 @@ const logger = Bot.logger;
  * @property {number} highest_points_banked
  * @property {number} highest_points_lost
  * @property {number} highest_points_skipped
+ * @property {number} highest_points_piggybacked_banked
+ * @property {number} highest_points_piggybacked_lost
  * @property {number} highest_rolls_in_turn
  * @property {number} highest_rolls_in_turn_without_fold
  */
@@ -88,6 +99,7 @@ const logger = Bot.logger;
  * @property {number} points_goal
  * @property {Discord.Snowflake} user_id_winner
  * @property {number} opening_turn_point_threshold
+ * @property {boolean} high_stakes_variant
  */
 
 /**
@@ -96,6 +108,8 @@ const logger = Bot.logger;
  * @property {Discord.Snowflake} user_id
  * @property {string} skin
  */
+
+/** @typedef {"ready"|"reject"|"keep"|"finish"|"help"|"hurry"|"concede"|"new"|"continue"} ActionType */
 
 const F = Object.freeze({
     matches: Object.freeze([
@@ -208,11 +222,11 @@ export default class Farkle extends Bot.Module {
         super.init(guild);
 
         this.bot.sql.transaction(async query => {
-            await query(`CREATE TABLE IF NOT EXISTS farkle_current_players (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, id_current_games BIGINT UNSIGNED NOT NULL, ready_status BOOLEAN NOT NULL, turn_order SMALLINT NOT NULL, user_id TINYTEXT NOT NULL, channel_dm_id TINYTEXT NOT NULL, total_points_banked SMALLINT UNSIGNED NOT NULL, total_points_lost SMALLINT UNSIGNED NOT NULL, total_points_skipped SMALLINT UNSIGNED NOT NULL, total_rolls INT UNSIGNED NOT NULL, total_folds INT UNSIGNED NOT NULL, total_finishes INT UNSIGNED NOT NULL, total_skips INT UNSIGNED NOT NULL, highest_points_banked SMALLINT UNSIGNED NOT NULL, highest_points_lost SMALLINT UNSIGNED NOT NULL, highest_points_skipped SMALLINT UNSIGNED NOT NULL, highest_rolls_in_turn INT UNSIGNED NOT NULL, highest_rolls_in_turn_without_fold INT UNSIGNED NOT NULL);`);
-            await query(`CREATE TABLE IF NOT EXISTS farkle_current_games (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, has_started BOOLEAN NOT NULL, match_start_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, current_player_user_id TINYTEXT NOT NULL, current_player_rolls TINYTEXT NOT NULL, current_player_points SMALLINT UNSIGNED NOT NULL, current_player_rolls_count INT UNSIGNED NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL);`);
+            await query(`CREATE TABLE IF NOT EXISTS farkle_current_players (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, id_current_games BIGINT UNSIGNED NOT NULL, ready_status BOOLEAN NOT NULL, turn_order SMALLINT NOT NULL, user_id TINYTEXT NOT NULL, channel_dm_id TINYTEXT NOT NULL, total_points_banked SMALLINT UNSIGNED NOT NULL, total_points_lost SMALLINT UNSIGNED NOT NULL, total_points_skipped SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, total_rolls INT UNSIGNED NOT NULL, total_folds INT UNSIGNED NOT NULL, total_finishes INT UNSIGNED NOT NULL, total_skips INT UNSIGNED NOT NULL, highest_points_banked SMALLINT UNSIGNED NOT NULL, highest_points_lost SMALLINT UNSIGNED NOT NULL, highest_points_skipped SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, highest_rolls_in_turn INT UNSIGNED NOT NULL, highest_rolls_in_turn_without_fold INT UNSIGNED NOT NULL);`);
+            await query(`CREATE TABLE IF NOT EXISTS farkle_current_games (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, has_started BOOLEAN NOT NULL, match_start_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, current_player_user_id TINYTEXT NOT NULL, current_player_rolls TINYTEXT NOT NULL, current_player_points SMALLINT UNSIGNED NOT NULL, current_player_rolls_count INT UNSIGNED NOT NULL, current_player_points_piggybacked INT UNSIGNED NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL, high_stakes_variant BOOLEAN NOT NULL, current_player_high_stakes_choice BOOLEAN NOT NULL);`);
         
-            await query(`CREATE TABLE IF NOT EXISTS farkle_history_players (id BIGINT UNSIGNED PRIMARY KEY, id_history_games BIGINT UNSIGNED NOT NULL, user_id TINYTEXT NOT NULL, turn_order SMALLINT NOT NULL, has_conceded BOOLEAN NOT NULL, total_points_banked SMALLINT UNSIGNED NOT NULL, total_points_lost SMALLINT UNSIGNED NOT NULL, total_points_skipped SMALLINT UNSIGNED NOT NULL, total_rolls INT UNSIGNED NOT NULL, total_folds INT UNSIGNED NOT NULL, total_finishes INT UNSIGNED NOT NULL, total_skips INT UNSIGNED NOT NULL, highest_points_banked SMALLINT UNSIGNED NOT NULL, highest_points_lost SMALLINT UNSIGNED NOT NULL, highest_points_skipped SMALLINT UNSIGNED NOT NULL, highest_rolls_in_turn INT UNSIGNED NOT NULL, highest_rolls_in_turn_without_fold INT UNSIGNED NOT NULL);`);
-            await query(`CREATE TABLE IF NOT EXISTS farkle_history_games (id BIGINT UNSIGNED PRIMARY KEY, guild_id TINYTEXT NOT NULL, match_start_time BIGINT NOT NULL, match_end_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, user_id_winner TINYTEXT NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL);`);
+            await query(`CREATE TABLE IF NOT EXISTS farkle_history_players (id BIGINT UNSIGNED PRIMARY KEY, id_history_games BIGINT UNSIGNED NOT NULL, user_id TINYTEXT NOT NULL, turn_order SMALLINT NOT NULL, has_conceded BOOLEAN NOT NULL, total_points_banked SMALLINT UNSIGNED NOT NULL, total_points_lost SMALLINT UNSIGNED NOT NULL, total_points_skipped SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, total_rolls INT UNSIGNED NOT NULL, total_folds INT UNSIGNED NOT NULL, total_finishes INT UNSIGNED NOT NULL, total_skips INT UNSIGNED NOT NULL, highest_points_banked SMALLINT UNSIGNED NOT NULL, highest_points_lost SMALLINT UNSIGNED NOT NULL, highest_points_skipped SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, highest_rolls_in_turn INT UNSIGNED NOT NULL, highest_rolls_in_turn_without_fold INT UNSIGNED NOT NULL);`);
+            await query(`CREATE TABLE IF NOT EXISTS farkle_history_games (id BIGINT UNSIGNED PRIMARY KEY, guild_id TINYTEXT NOT NULL, match_start_time BIGINT NOT NULL, match_end_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, user_id_winner TINYTEXT NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL, high_stakes_variant BOOLEAN NOT NULL);`);
         
             await query(`CREATE TABLE IF NOT EXISTS farkle_servers (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, user_id TINYTEXT NOT NULL, user_id_host TINYTEXT NOT NULL)`)
             await query(`CREATE TABLE IF NOT EXISTS farkle_users (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id TINYTEXT NOT NULL, skin TINYTEXT NOT NULL)`);
@@ -258,6 +272,13 @@ export default class Farkle extends Bot.Module {
             return;
         }
 
+        const highStakes = (() => {
+            if(arg.indexOf('hs') > -1) {
+                arg = arg.split('hs').join('');
+                return true;
+            }
+            return false;
+        })();
         const args = arg.split(',');
         const aobj = {
             goal: +[args[0].trim()],
@@ -300,9 +321,12 @@ export default class Farkle extends Bot.Module {
                 points_goal: aobj.goal,
                 current_player_user_id: "",
                 current_player_points: 0,
+                current_player_points_piggybacked: 0,
                 current_player_rolls: "[]",
                 current_player_rolls_count: 0,
-                opening_turn_point_threshold: aobj.threshold
+                opening_turn_point_threshold: aobj.threshold,
+                high_stakes_variant: highStakes,
+                current_player_high_stakes_choice: false
             }
 
             var doc = (await query(Bot.Util.SQL.getInsert(game, "farkle_current_games") + "; SELECT LAST_INSERT_ID();")).results[1][0];
@@ -320,7 +344,8 @@ export default class Farkle extends Bot.Module {
                     embed.description = `${prep.members[0]} invited you to play Farkle!`;
 
                 embed.description += `\n  • Point goal: ${aobj.goal}`;
-                embed.description += `\n  • Opening turn point threshold: ${aobj.threshold}`;
+                if(aobj.threshold > 0) embed.description += `\n  • Opening turn point threshold: ${aobj.threshold}`;
+                if(highStakes) embed.description += `\n  • **High Stakes**`;
                 embed.description += `\n  • Players: ${prep.members.join(", ")}\n`;
                 embed.description += `\nType \`ready\` or \`r\` if you want to play.\nType \`reject\` to cancel the match.`;
                 
@@ -336,6 +361,8 @@ export default class Farkle extends Bot.Module {
                     total_points_banked: 0,
                     total_points_lost: 0,
                     total_points_skipped: 0,
+                    total_points_piggybacked_banked: 0,
+                    total_points_piggybacked_lost: 0,
                     total_rolls: 0,
                     total_folds: 0,
                     total_finishes: 0,
@@ -343,6 +370,8 @@ export default class Farkle extends Bot.Module {
                     highest_points_banked: 0,
                     highest_points_lost: 0,
                     highest_points_skipped: 0,
+                    highest_points_piggybacked_banked: 0,
+                    highest_points_piggybacked_lost: 0,
                     highest_rolls_in_turn: 0,
                     highest_rolls_in_turn_without_fold: 0,
                 }
@@ -367,21 +396,25 @@ export default class Farkle extends Bot.Module {
         }
         this.cache.set("0", `antilag${user.id}`, Date.now());
         
-        /** @type {""|"ready"|"reject"|"keep"|"finish"|"help"|"hurry"|"concede"} */
+        /** @type {""|ActionType} */
         let type = "";
         type = msg === "r" ? "ready" : type;
         type = msg.indexOf("k") > -1 ? "keep" : type;
         type = msg.indexOf("f") > -1 ? "finish" : type;
+        type = msg.indexOf("n") > -1 ? "new" : type;
+        type = msg.indexOf("c") > -1 ? "continue" : type;
         type = msg.indexOf("ready") > -1 ? "ready" : type;
         type = msg.indexOf("reject") > -1 ? "reject" : type;
         type = msg.indexOf("keep") > -1 ? "keep" : type;
         type = msg.indexOf("finish") > -1 ? "finish" : type;
+        type = msg.indexOf("new") > -1 ? "new" : type;
+        type = msg.indexOf("continue") > -1 ? "continue" : type;
         type = msg.indexOf("help") > -1 ? "help" : type;
         type = msg.indexOf("hurry") > -1 ? "hurry" : type;
         type = msg.indexOf("concede") > -1 ? "concede" : type;
         if(type === "") return;
 
-        /** @type { { type: "ready"|"reject"|"keep"|"finish"|"help"|"hurry"|"concede", updateCurrentMatch: boolean, gameEnded: boolean } } */
+        /** @type { { type: ActionType, updateCurrentMatch: boolean, gameEnded: boolean } } */
         const state = {
             type: type,
             updateCurrentMatch: false,
@@ -412,9 +445,10 @@ export default class Farkle extends Bot.Module {
             docCPVs = docCPVs.concat(docCPs, docVs);
 
             if(type === "help") {
-                var embed = getEmbedBlank();
                 if(docCG.current_player_user_id.length === 0)
                     return;
+
+                var embed = getEmbedBlank();
 
                 if(docCP.user_id === docCG.current_player_user_id)
                     embed.description = `Both \`keep\` and \`finish\` are used to set aside one or more scoring dice. The difference is that \`keep\` will continue your turn, leaving you vulnerable to a fold if the remaining dice do not produce any scoring dice. \`finish\` will bank your points and end your turn. Type \`!f rules\` in <#123> to see the full rules of Farkle.\nExample usage: \`keep 111\`, \`finish 51\`, \`f12345\`, \`k1\`, \`k444\``;
@@ -426,9 +460,7 @@ export default class Farkle extends Bot.Module {
                 await message.channel.send({ embeds: [embed] });
                 return;
             }
-
-            
-            if(type === "hurry") {
+            else if(type === "hurry") {
                 if(this.cache.get("0", `hurry${docCG.id}`) != null)
                     return;
                 if(docCG.current_player_user_id.length === 0)
@@ -474,10 +506,7 @@ export default class Farkle extends Bot.Module {
                 });
                 return;
             }
-            
-
-
-            if(type === "ready") {
+            else if(type === "ready") {
                 if(docCG.current_player_user_id.length > 0)
                     return;
 
@@ -552,79 +581,106 @@ export default class Farkle extends Bot.Module {
                     await (await (await user.client.users.fetch(attendee.user_id))?.createDM()).send({ embeds: [embed] });
                 }
             }
-            else if(type === "keep" || type === "finish") {
+            else if(type === "keep" || type === "finish" || type === "continue" || type === "new") {
                 if(docCG.current_player_user_id.length === 0)
                     return;
-                
                 if(docCG.current_player_user_id !== docCP.user_id) {
                     await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send(`It's not your turn yet! Waiting on <@${docCG.current_player_user_id}>.`);
                     return;
                 }
 
-                var temp = msg.replace(/[^0-9]/g, "").split("");
-                /** @type {number[]} */
-                let keep = [];
-                for(let i = 0; i < temp.length; i++) {
-                    let number = Math.floor(Number(temp[i]));
-                    if(!Number.isNaN(number) && number >= 1 && number <= 6)
-                        keep.push(number);
-                }
+                if(type === "keep" || type === "finish") {
+                    if(docCG.current_player_high_stakes_choice)
+                        return;
 
-                if(!getValidKeep(JSON.parse(docCG.current_player_rolls), keep)) {
-                    await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send("Selected dice must match the rolls!");
-                    return;
-                }
-
-                let rolls = JSON.parse(docCG.current_player_rolls);
-                let points = processFarkleKeep(rolls, [...keep]);
-                docCG.current_player_rolls = JSON.stringify(rolls);
-
-                if(points === 0) {
-                    await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send("This keep is invalid.");
-                    return;
-                }
-
-                let totalPoints = points + docCG.current_player_points;
-                if(type === "finish" && docCP.total_points_banked === 0 && totalPoints < docCG.opening_turn_point_threshold) {
-                    await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send(`You cannot finish your opening turn with less than ${docCG.opening_turn_point_threshold} points. This finish would bank ${totalPoints}.`);
-                    return;
-                }
-
-                let hurry = this.cache.get("0", `hurry${docCG.id}`);
-                if(hurry) {
-                    clearTimeout(hurry.timeout);
-                    this.cache.set("0", `hurry${docCG.id}`, undefined);
-                }
-
-                docCG.current_player_points += points;
-
-                if(type === "keep") {
-                    let player = docCG.current_player_user_id;
-                    await roll.bind(this)(message.client, { type: "keep", keep: keep, points: points, player: player }, docCG, docCPs, docCPVs, query);
-                    state.updateCurrentMatch = true;
-                }
-                else if(type === "finish") {
-                    docCP.total_points_banked += docCG.current_player_points;
-                    if(docCG.current_player_points > docCP.highest_points_banked)
-                        docCP.highest_points_banked = docCG.current_player_points;
-                    docCP.total_finishes++;
-
-                    if(docCG.current_player_rolls_count > docCP.highest_rolls_in_turn_without_fold)
-                        docCP.highest_rolls_in_turn_without_fold = docCG.current_player_rolls_count;
-
-                    if(docCP.total_points_banked >= docCG.points_goal) {
-                        await end.bind(this)(message.client, docCG, docVs, docCPs, query, "no_concede");
-                        state.gameEnded = true;
-                        state.updateCurrentMatch = true;
+                    var temp = msg.replace(/[^0-9]/g, "").split("");
+                    /** @type {number[]} */
+                    let keep = [];
+                    for(let i = 0; i < temp.length; i++) {
+                        let number = Math.floor(Number(temp[i]));
+                        if(!Number.isNaN(number) && number >= 1 && number <= 6)
+                            keep.push(number);
                     }
-                    else {
+
+                    if(!getValidKeep(JSON.parse(docCG.current_player_rolls), keep)) {
+                        await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send("Selected dice must match the rolls!");
+                        return;
+                    }
+
+                    let rolls = JSON.parse(docCG.current_player_rolls);
+                    let points = processFarkleKeep(rolls, [...keep]);
+                    docCG.current_player_rolls = JSON.stringify(rolls);
+
+                    if(points === 0) {
+                        await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send("This keep is invalid.");
+                        return;
+                    }
+
+                    let totalPoints = points + docCG.current_player_points;
+                    if(type === "finish" && docCP.total_points_banked === 0 && totalPoints < docCG.opening_turn_point_threshold) {
+                        await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send(`You cannot finish your opening turn with less than ${docCG.opening_turn_point_threshold} points. This finish would bank ${totalPoints}.`);
+                        return;
+                    }
+
+                    let hurry = this.cache.get("0", `hurry${docCG.id}`);
+                    if(hurry) {
+                        clearTimeout(hurry.timeout);
+                        this.cache.set("0", `hurry${docCG.id}`, undefined);
+                    }
+
+                    docCG.current_player_points += points;
+
+                    if(type === "keep") {
                         let player = docCG.current_player_user_id;
-                        let points = docCG.current_player_points;
-                        let bank = docCP.total_points_banked;
-                        await turn.bind(this)(message.client, docCG, docCPs, query, "finish");
-                        await roll.bind(this)(message.client, { type: "finish", keep: keep, points: points, bank: bank, player: player }, docCG, docCPs, docCPVs, query);
+                        await roll.bind(this)(message.client, { type: "keep", keep: keep, points: points, player: player }, docCG, docCPs, docCPVs, query);
                         state.updateCurrentMatch = true;
                     }
+                    else if(type === "finish") {
+                        docCP.total_points_banked += docCG.current_player_points;
+                        docCP.total_points_piggybacked_banked += docCG.current_player_points_piggybacked;
+                        if(docCG.current_player_points > docCP.highest_points_banked)
+                            docCP.highest_points_banked = docCG.current_player_points;
+                        if(docCG.current_player_points_piggybacked > docCP.highest_points_piggybacked_banked)
+                            docCP.highest_points_piggybacked_banked = docCG.current_player_points_piggybacked;
+                        docCP.total_finishes++;
+
+                        if(docCG.current_player_rolls_count > docCP.highest_rolls_in_turn_without_fold)
+                            docCP.highest_rolls_in_turn_without_fold = docCG.current_player_rolls_count;
+
+                        if(docCP.total_points_banked >= docCG.points_goal) {
+                            await end.bind(this)(message.client, docCG, docVs, docCPs, query, "no_concede");
+                            state.gameEnded = true;
+                            state.updateCurrentMatch = true;
+                        }
+                        else {
+                            let player = docCG.current_player_user_id;
+                            let points = docCG.current_player_points;
+                            let bank = docCP.total_points_banked;
+                            await turn.bind(this)(message.client, docCG, docCPs, query, "finish");
+                            if(docCG.high_stakes_variant)
+                                await highstakes.bind(this)(message.client, { type: "finish", keep: keep, points: points, bank: bank, player: player }, docCG, docCPs, docCPVs, query);
+                            else
+                                await roll.bind(this)(message.client, { type: "finish", keep: keep, points: points, bank: bank, player: player }, docCG, docCPs, docCPVs, query);
+                            state.updateCurrentMatch = true;
+                        }
+                    }
+                }
+                else if(type === "new" || type === "continue") {
+                    if(!docCG.current_player_high_stakes_choice)
+                        return;
+
+                    docCG.current_player_high_stakes_choice = false;
+
+                    if(type === "new") {
+                        docCG.current_player_points = 0;
+                        docCG.current_player_rolls = "[]";
+                    }
+                    else if(type === "continue") {
+                        docCG.current_player_points_piggybacked = docCG.current_player_points;
+                    }
+
+                    await roll.bind(this)(message.client, { type: type, keep: [], points: docCG.current_player_points, bank: docCP.total_points_banked, player: docCG.current_player_user_id }, docCG, docCPs, docCPVs, query);
+                    state.updateCurrentMatch = true;
                 }
             }
 
@@ -779,10 +835,12 @@ export default class Farkle extends Bot.Module {
             let embed = getEmbedBlank();
             embed.description = `Choose the __points goal__ between 1000 and 10000 (suggested 4000).
 Followed by a comma, optionally choose the __opening turn point threshold__ between 350 and 1000 (commonly 350, 400, 500, or 1000).
+Optionally choose if you would like to play the __high-stakes variant__ by typing \`hs\` anywhere.
     
 Examples:
 \`4000\` - 4000 goal, 0 opening turn threshold.
 \`6000, 500\` - 6000 goal, 500 opening turn threshold.
+\`5000 hs\` - 5000 goal, high-stakes variant.
 
 Type \`cancel\` to cancel the match.`;
 
@@ -1157,6 +1215,12 @@ Type \`cancel\` to cancel the match.`;
             var doc = (await query(`select sum(total_points_skipped) as 'total' from farkle_history_players where user_id = ${m.member.id} group by user_id`)).results[0];
             fieldTotal.value += `Points skipped: ${doc ? doc.total : 0}\n`;
 
+            var doc = (await query(`select sum(total_points_piggybacked_banked) as 'total' from farkle_history_players where user_id = ${m.member.id} group by user_id`)).results[0];
+            fieldTotal.value += `Points piggybacked banked: ${doc ? doc.total : 0}\n`;
+
+            var doc = (await query(`select sum(total_points_piggybacked_lost) as 'total' from farkle_history_players where user_id = ${m.member.id} group by user_id`)).results[0];
+            fieldTotal.value += `Points piggybacked lost: ${doc ? doc.total : 0}\n`;
+
             var doc = (await query(`select sum(total_rolls) as 'total' from farkle_history_players where user_id = ${m.member.id} group by user_id`)).results[0];
             fieldTotal.value += `Rolls: ${doc ? doc.total : 0}\n`;
 
@@ -1186,6 +1250,12 @@ Type \`cancel\` to cancel the match.`;
 
             var doc = (await query(`select max(highest_points_skipped) as 'highest' from farkle_history_players where user_id = ${m.member.id} group by user_id`)).results[0];
             fieldBest.value += `Points skipped: ${doc ? doc.highest : 0}\n`;
+
+            var doc = (await query(`select max(highest_points_piggybacked_banked) as 'highest' from farkle_history_players where user_id = ${m.member.id} group by user_id`)).results[0];
+            fieldBest.value += `Points piggybacked banked: ${doc ? doc.highest : 0}\n`;
+
+            var doc = (await query(`select max(highest_points_piggybacked_lost) as 'highest' from farkle_history_players where user_id = ${m.member.id} group by user_id`)).results[0];
+            fieldBest.value += `Points piggybacked lost: ${doc ? doc.highest : 0}\n`;
 
             var doc = (await query(`select max(highest_rolls_in_turn) as 'highest' from farkle_history_players where user_id = ${m.member.id} group by user_id`)).results[0];
             fieldBest.value += `Rolls: ${doc ? doc.highest : 0}\n`;
@@ -1309,7 +1379,10 @@ __Scoring rules:__
    ${skin[2]}${skin[3]}${skin[4]}${skin[5]}${skin[6]} - 750 points
 
    Six in a row
-   ${skin[1]}${skin[2]}${skin[3]}${skin[4]}${skin[5]}${skin[6]} - 1500 points`;
+   ${skin[1]}${skin[2]}${skin[3]}${skin[4]}${skin[5]}${skin[6]} - 1500 points
+   
+__High-stakes:__
+   In a variant described as "piggybacking" or "high-stakes", each player after the first can choose to begin their turn either with a fresh set of six dice, or by throwing the dice remaining after the previous player has completed their turn. For example, if a player banks three 1's for a score of 1000, the next player may choose to roll the remaining three dice. If they score at least one die, they score 1000 plus whatever additional score they accumulate. Players may thus assume the greater risk of farkling for the chance of scoring the points already accumulated by the player before them. If a player ends their turn on a "hot dice", the next player may "piggyback" using all six dice.`;
 
             embed.description = str;
             await m.channel.send({ embeds: [embed] });
@@ -1514,7 +1587,7 @@ function processFarkleKeep(rolls, keep) {
 //*****************************
 /**
  * @this Farkle
- * @param { { type: "ready"|"reject"|"keep"|"finish"|"help"|"hurry"|"concede", updateCurrentMatch: boolean, gameEnded: boolean } } state
+ * @param { { type: ActionType, updateCurrentMatch: boolean, gameEnded: boolean } } state
  * @param {Db.farkle_current_games} docCG 
  * @param {Db.farkle_current_players} docCP 
  * @param {Db.farkle_current_players[]} docCPs 
@@ -1561,6 +1634,8 @@ async function commit(state, docCG, docCP, docCPs, query, client) {
             total_points_banked: docCP.total_points_banked,
             total_points_lost: docCP.total_points_lost,
             total_points_skipped: docCP.total_points_skipped,
+            total_points_piggybacked_banked: docCP.total_points_piggybacked_banked,
+            total_points_piggybacked_lost: docCP.total_points_piggybacked_lost,
             total_rolls: docCP.total_rolls,
             total_folds: docCP.total_folds,
             total_finishes: docCP.total_finishes,
@@ -1568,17 +1643,20 @@ async function commit(state, docCG, docCP, docCPs, query, client) {
             highest_points_banked: docCP.highest_points_banked,
             highest_points_lost: docCP.highest_points_lost,
             highest_points_skipped: docCP.highest_points_skipped,
+            highest_points_piggybacked_banked: docCP.total_points_piggybacked_banked,
+            highest_points_piggybacked_lost: docCP.total_points_piggybacked_lost,
             highest_rolls_in_turn: docCP.highest_rolls_in_turn,
             highest_rolls_in_turn_without_fold: docCP.highest_rolls_in_turn_without_fold
         }
         await query(Bot.Util.SQL.getInsert(playerH, "farkle_history_players"));
     }
 
+    //TODO this needs to be manually updated when these kinds of new values are added
     if(state.updateCurrentMatch) {
-        await query(`UPDATE farkle_current_games SET current_player_user_id = ${docCG.current_player_user_id}, current_player_rolls = "${docCG.current_player_rolls}", current_player_points = ${docCG.current_player_points}, current_player_rolls_count = ${docCG.current_player_rolls_count} WHERE id = ${docCG.id}`);
+        await query(`UPDATE farkle_current_games SET current_player_user_id = ${docCG.current_player_user_id}, current_player_rolls = "${docCG.current_player_rolls}", current_player_points = ${docCG.current_player_points}, current_player_rolls_count = ${docCG.current_player_rolls_count}, current_player_high_stakes_choice = ${docCG.current_player_high_stakes_choice}, current_player_points_piggybacked = ${docCG.current_player_points_piggybacked} WHERE id = ${docCG.id}`);
 
         for(let player of docCPs) {
-            await query (`UPDATE farkle_current_players SET total_points_banked = ${player.total_points_banked}, total_points_lost = ${player.total_points_lost}, total_points_skipped = ${player.total_points_skipped}, total_rolls = ${player.total_rolls}, total_folds = ${player.total_folds}, total_finishes = ${player.total_finishes}, total_skips = ${player.total_skips}, highest_points_banked = ${player.highest_points_banked}, highest_points_lost = ${player.highest_points_lost}, highest_points_skipped = ${player.highest_points_skipped}, highest_rolls_in_turn = ${player.highest_rolls_in_turn}, highest_rolls_in_turn_without_fold = ${player.highest_rolls_in_turn_without_fold} WHERE user_id = ${player.user_id} AND id_current_games = ${player.id_current_games}`);
+            await query (`UPDATE farkle_current_players SET total_points_banked = ${player.total_points_banked}, total_points_lost = ${player.total_points_lost}, total_points_skipped = ${player.total_points_skipped}, total_points_piggybacked_banked = ${player.total_points_piggybacked_banked}, total_points_piggybacked_lost = ${player.total_points_piggybacked_lost}, total_rolls = ${player.total_rolls}, total_folds = ${player.total_folds}, total_finishes = ${player.total_finishes}, total_skips = ${player.total_skips}, highest_points_banked = ${player.highest_points_banked}, highest_points_lost = ${player.highest_points_lost}, highest_points_skipped = ${player.highest_points_skipped}, highest_points_piggybacked_banked = ${player.highest_points_piggybacked_banked}, highest_points_piggybacked_lost = ${player.highest_points_piggybacked_lost}, highest_rolls_in_turn = ${player.highest_rolls_in_turn}, highest_rolls_in_turn_without_fold = ${player.highest_rolls_in_turn_without_fold} WHERE user_id = ${player.user_id} AND id_current_games = ${player.id_current_games}`);
         }
     }
 
@@ -1597,7 +1675,8 @@ async function commit(state, docCG, docCP, docCPs, query, client) {
             match_end_time: Date.now(),
             points_goal: docCG.points_goal,
             user_id_winner: docCG.current_player_user_id,
-            opening_turn_point_threshold: docCG.opening_turn_point_threshold
+            opening_turn_point_threshold: docCG.opening_turn_point_threshold,
+            high_stakes_variant: docCG.high_stakes_variant
         }
         await query(Bot.Util.SQL.getInsert(gameH, "farkle_history_games"));
 
@@ -1612,6 +1691,8 @@ async function commit(state, docCG, docCP, docCPs, query, client) {
                 total_points_banked: player.total_points_banked,
                 total_points_lost: player.total_points_lost,
                 total_points_skipped: player.total_points_skipped,
+                total_points_piggybacked_banked: player.total_points_piggybacked_banked,
+                total_points_piggybacked_lost: player.total_points_piggybacked_lost,
                 total_rolls: player.total_rolls,
                 total_folds: player.total_folds,
                 total_finishes: player.total_finishes,
@@ -1619,6 +1700,8 @@ async function commit(state, docCG, docCP, docCPs, query, client) {
                 highest_points_banked: player.highest_points_banked,
                 highest_points_lost: player.highest_points_lost,
                 highest_points_skipped: player.highest_points_skipped,
+                highest_points_piggybacked_banked: player.highest_points_piggybacked_banked,
+                highest_points_piggybacked_lost: player.highest_points_piggybacked_lost,
                 highest_rolls_in_turn: player.highest_rolls_in_turn,
                 highest_rolls_in_turn_without_fold: player.highest_rolls_in_turn_without_fold
             }
@@ -1729,10 +1812,84 @@ function _decide(docCPs) {
 }
 
 /**
+ * @param {Db.farkle_current_players | Db.farkle_viewers} attendee
+ * @param {{ type: ActionType|"fold"|null, keep: number[], points: number, bank?: number, player: Discord.Snowflake }} action 
+ * @returns {string}
+ */
+function getLastActionString(attendee, action) {
+    let str = "";
+
+    if(action.type) {
+        let name = `<@${action.player}>`;
+        if(attendee.user_id === action.player) name = "You";
+
+        switch(action.type) {
+        case "keep":
+            str = `> ${name} kept ${action.keep.join(", ")} for ${action.points} points.`;
+            break;
+        case "finish":
+            str = `> ${name} finished ${attendee.user_id===action.player?"your":"their"} turn with ${action.points} points, having last kept ${action.keep.join(", ")}.\n> ${attendee.user_id===action.player?"Your":"Their"} bank is now ${action.bank}.`;
+            break;
+        case "hurry":
+            str = `> ${name} ${attendee.user_id===action.player?"were":"was"} hurried and lost ${action.points} points, as well as the current turn.`;
+            break;
+        case "concede":
+            str = `> ${name} ${attendee.user_id===action.player?"have":"has"} conceded the match.`
+            break;
+        case "fold":
+            str = `> ${name} folded.`
+            break;
+        case "new":
+            str = `> ${name} chose to begin ${attendee.user_id===action.player?"your":"their"} turn with a new set of six dice.`
+            break;
+        case "continue":
+            str = `> ${name} chose to continue the previous player's turn. ${attendee.user_id===action.player?"You":"They"} start with ${action.points} points.`
+            break;
+        }
+        if(action.type != null) str += "\n\n";
+    }
+    return str;
+}
+
+/**
  * Modifies `doc` object. Rolls dice until a player can `keep`.
  * @this {Farkle}
  * @param {Discord.Client} client
  * @param {{ type: "keep"|"finish"|"fold"|"hurry"|"concede"|null, keep: number[], points: number, bank?: number, player: Discord.Snowflake }} action
+ * @param {Db.farkle_current_games} docCG
+ * @param {Db.farkle_current_players[]} docCPs
+ * @param {(Db.farkle_viewers|Db.farkle_current_players)[]} docCPVs
+ * @param {(s: string) => Promise<{results: any, fields: any[] | undefined}>} query
+ */
+async function highstakes(client, action, docCG, docCPs, docCPVs, query) {
+    docCG.current_player_high_stakes_choice = true;
+
+    for(let attendee of docCPVs) {
+        let embed = getEmbedUser(docCG, docCPs);
+        embed.fields = [];
+
+        embed.description = getLastActionString(attendee, action);
+
+        let count = JSON.parse(docCG.current_player_rolls).length;
+        if(count === 0) count = 6;
+        
+        if(attendee.user_id === docCG.current_player_user_id) {
+            embed.description += `Type \`new\` or \`n\` to begin your turn with a fresh set of six dice.\nType \`continue\` or \`c\` to continue the previous player's turn. There ${count === 1 ? `**is 1 die**` : `**are ${count} dice**`} on the table to reroll, and you would start with **${action.points} points**.`;
+        }
+        else {
+            embed.description += `<@${docCG.current_player_user_id}> is choosing to either begin their turn with a fresh set of six dice, or to continue the previous player's turn. There ${count === 1 ? `**is 1 die**` : `**are ${count} dice**`} on the table to reroll, and <@${docCG.current_player_user_id}> would start with **${action.points} points**.`;
+        }
+
+        await (await (await client.users.fetch(attendee.user_id))?.createDM()).send({ embeds: [embed] });
+    }
+    
+}
+
+/**
+ * Modifies `doc` object. Rolls dice until a player can `keep`.
+ * @this {Farkle}
+ * @param {Discord.Client} client
+ * @param {{ type: ActionType|"fold"|null, keep: number[], points: number, bank?: number, player: Discord.Snowflake }} action
  * @param {Db.farkle_current_games} docCG
  * @param {Db.farkle_current_players[]} docCPs
  * @param {(Db.farkle_viewers|Db.farkle_current_players)[]} docCPVs
@@ -1762,29 +1919,7 @@ async function roll(client, action, docCG, docCPs, docCPVs, query) {
             let embed = getEmbedUser(docCG, docCPs);
             embed.fields = [];
 
-            if(action.type) {
-                let name = `<@${action.player}>`;
-                if(attendee.user_id === action.player) name = "You";
-
-                switch(action.type) {
-                case "keep":
-                    embed.description = `> ${name} kept ${action.keep.join(", ")} for ${action.points} points.`;
-                    break;
-                case "finish":
-                    embed.description = `> ${name} finished ${attendee.user_id===action.player?"your":"their"} turn with ${action.points} points, having last kept ${action.keep.join(", ")}.\n> ${attendee.user_id===action.player?"Your":"Their"} bank is now ${action.bank}.`;
-                    break;
-                case "hurry":
-                    embed.description = `> ${name} ${attendee.user_id===action.player?"were":"was"} hurried and lost ${action.points} points, as well as the current turn.`;
-                    break;
-                case "concede":
-                    embed.description = `> ${name} ${attendee.user_id===action.player?"have":"has"} conceded the match.`
-                    break;
-                case "fold":
-                    embed.description = `> ${name} folded.`
-                    break;
-                }
-                embed.description += "\n\n";
-            }
+            embed.description = getLastActionString(attendee, action);
 
             /** @type {Db.farkle_users|undefined} */
             let docU = (await query(`SELECT * FROM farkle_users WHERE user_id = ${attendee.user_id}`)).results[0];
@@ -1828,8 +1963,11 @@ async function roll(client, action, docCG, docCPs, docCPVs, query) {
             action.player = docCG.current_player_user_id;
             playerCurrent.total_folds++;
             playerCurrent.total_points_lost += docCG.current_player_points;
+            playerCurrent.total_points_piggybacked_lost += docCG.current_player_points_piggybacked;
             if(docCG.current_player_points > playerCurrent.highest_points_lost)
                 playerCurrent.highest_points_lost = docCG.current_player_points;
+            if(docCG.current_player_points_piggybacked > playerCurrent.highest_points_piggybacked_lost)
+                playerCurrent.highest_points_piggybacked_lost = docCG.current_player_points_piggybacked;
             await turn.bind(this)(client, docCG, docCPs, query, "fold");
         }
         else {
@@ -1848,9 +1986,15 @@ async function roll(client, action, docCG, docCPs, docCPVs, query) {
  * @param {"finish"|"fold"|"concede"|"hurry"} type
  */
 async function turn(client, docCG, docCPs, query, type) {
-    docCG.current_player_rolls = "[]";
-    docCG.current_player_points = 0;
     docCG.current_player_rolls_count = 0;
+    docCG.current_player_points_piggybacked = 0;
+
+    //Do not reset these here if we are playing the high stakes variant and the last player just finished their turn.
+    //These will be reset if the player chooses to start from a new set of dice in high stakes.
+    if(!(docCG.high_stakes_variant && type === "finish")) {
+        docCG.current_player_points = 0;
+        docCG.current_player_rolls = "[]";
+    }
 
     var player = docCPs.find(v => v.user_id === docCG.current_player_user_id);
     if(!player) return;

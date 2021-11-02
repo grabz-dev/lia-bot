@@ -116,7 +116,7 @@ export default class Map extends Bot.Module {
 
                 //If the ID is not provided or provided 'random', get a random map.
                 if(mapId == null || mapId == 'random')
-                mapId = (mapListByIds.random().id || 1) + '';
+                mapId = (mapListByIds.random()?.id || 1) + '';
 
                 let id = Number(mapId.replace('#', ''));
                 if(id < 0)
