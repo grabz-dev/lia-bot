@@ -451,7 +451,7 @@ export default class Farkle extends Bot.Module {
                 var embed = getEmbedBlank();
 
                 if(docCP.user_id === docCG.current_player_user_id)
-                    embed.description = `Both \`keep\` and \`finish\` are used to set aside one or more scoring dice. The difference is that \`keep\` will continue your turn, leaving you vulnerable to a fold if the remaining dice do not produce any scoring dice. \`finish\` will bank your points and end your turn. Type \`!f rules\` in <#123> to see the full rules of Farkle.\nExample usage: \`keep 111\`, \`finish 51\`, \`f12345\`, \`k1\`, \`k444\``;
+                    embed.description = `Both \`keep\` and \`finish\` are used to set aside one or more scoring dice. The difference is that \`keep\` will continue your turn, leaving you vulnerable to a fold if the remaining dice do not produce any scoring dice. \`finish\` will bank your points and end your turn.\nExample usage: \`keep 111\`, \`finish 51\`, \`f12345\`, \`k1\`, \`k444\``;
                 else
                     embed.description = "\nType \`hurry\` to put the current player on a 90 second timer until their next action, or they will lose their turn.";
 
