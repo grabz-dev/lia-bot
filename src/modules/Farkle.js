@@ -1368,17 +1368,18 @@ __Local terminology:__
    If you've folded, that means you have farkled. None of the dice rolled can score.
             
 __Scoring rules:__
-   Each ${skin[1]} - 100 points
-   Each ${skin[5]} - 50 points
+   **Single ${skin[1]}** - 100 points
+   **Single ${skin[5]}** - 50 points
 
-   Three of a kind of any dice - 100 points times the number on the dice. ${skin[1]} counts as 10.
-   Four of a kind of any dice - 200 points times the number on the dice. ${skin[1]} counts as 10.
+   **Three of a kind** - 100 points times the number on the dice. ${skin[1]} counts as 10.
+   **Four or more of a kind** - double the points of a three of a kind.
+   e.g. three 4's are worth 400, four 4's 800, five 4's 1600, six 4's 3200.
 
-   Five in a row
+   **Five in a row**
    ${skin[1]}${skin[2]}${skin[3]}${skin[4]}${skin[5]} - 500 points
    ${skin[2]}${skin[3]}${skin[4]}${skin[5]}${skin[6]} - 750 points
 
-   Six in a row
+   **Six in a row**
    ${skin[1]}${skin[2]}${skin[3]}${skin[4]}${skin[5]}${skin[6]} - 1500 points
    
 __High-stakes:__
