@@ -139,10 +139,12 @@ export default class Chronom extends Bot.Module {
                 let streak = streaks[user];
                 if(roleId != null) {
                     if(streak.bestStreak >= this.daysRole) {
-                        member.roles.add(roleId).catch(logger.error);
+                        if(!member.roles.cache.has(roleId))
+                            member.roles.add(roleId).catch(logger.error);
                     }
                     else {
-                        member.roles.remove(roleId).catch(logger.error);
+                        if(member.roles.cache.has(roleId))
+                            member.roles.remove(roleId).catch(logger.error);
                     }
                 }
             }
