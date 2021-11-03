@@ -129,6 +129,8 @@ export default class HurtHeal extends Bot.Module {
         /** @type {{type: 'hurt'|'heal'|'show', args: string[], arg: string}[]} */
         this.queue = [];
         this.queueRunning = false;
+        /** @type {Map<Discord.Snowflake, Discord.Message>} */
+        this.noDeleteCache = new Map();
 
         this.KCServerDefs = {
             guildId: "192420539204239361",
@@ -238,6 +240,27 @@ export default class HurtHeal extends Bot.Module {
         }
         }
     }
+
+    /** @param {Discord.Message} message - The message that was sent. */
+    onMessage(message) {
+        if(message.channel.id !== this.KCServerDefs.hurtHealChannelId) return;
+        if(message.guild == null) return;
+        if(message.guild.id !== this.KCServerDefs.guildId) return;
+
+        ((message) => {
+            this.bot.sql.transaction(async query => {
+                let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
+                if(resultGames == null) return;
+
+                setTimeout(() => {
+                    let cacheMessage = this.noDeleteCache.get(message.id);
+                    this.noDeleteCache.delete(message.id);
+                    if(cacheMessage != null) return;
+                    message.delete();
+                }, 5000);
+            }).catch(logger.error);
+        })(message);
+    }
 }
 
 /**
@@ -257,7 +280,9 @@ function help(m) {
         inline: false
     });
 
-    m.channel.send({ embeds: [embed] }).catch(logger.error);
+    this.bot.sql.transaction(async query => {
+        await handleHHMessage.call(this, query, m.message, true, { embeds: [embed] }, m.channel, false, false);
+    }).catch(logger.error);
 }
 
 /**
@@ -269,7 +294,7 @@ function theme(m, str) {
     this.bot.sql.transaction(async query => {
         await query(`UPDATE hurtheal_games SET theme = ? WHERE finished = FALSE`, [str]);
 
-        m.message.reply('Theme set.').catch(logger.error);
+        await handleHHMessage.call(this, query, m.message, false, 'Theme set.', m.channel, true, false);
     }).catch(logger.error);
 }
 
@@ -281,7 +306,7 @@ function end(m) {
     this.bot.sql.transaction(async query => {
         await query(`UPDATE hurtheal_games SET finished = TRUE`);
 
-        m.message.reply('Previous game ended.').catch(logger.error);
+        await handleHHMessage.call(this, query, m.message, false, 'Previous game ended.', m.channel, true, false);
     }).catch(logger.error);
 }
 
@@ -294,7 +319,7 @@ function start(m, things) {
     this.bot.sql.transaction(async (query, mysql) => {
         let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
         if(resultGames != null) {
-            m.message.reply('A game is already running, to force finish it use `!hh end`').catch(logger.error);
+            await handleHHMessage.call(this, query, m.message, false, 'A game is already running, to force finish it use `!hh end`', m.channel, true, false);
             return;
         }
 
@@ -309,7 +334,7 @@ function start(m, things) {
         let resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ? ORDER BY id ASC`, [insertId])).results;
         let items = getItemsFromDb(resultsThings);
 
-        m.message.reply({ content: 'New game started!', embeds: [getGameStandingsEmbed.call(this, m, {mode: 'current', things: items, game: insertId})] }).catch(logger.error);
+        await handleHHMessage.call(this, query, m.message, false, { content: 'New game started!', embeds: [getGameStandingsEmbed.call(this, m, {mode: 'current', things: items, game: insertId})] }, m.channel, true, false);
     }).catch(logger.error);
 }
 
@@ -331,7 +356,7 @@ async function action(m, type, args, arg) {
         }
 
         if(resultGames == null) {
-            m.message.reply('No game is running and no prior game was ever recorded.').catch(logger.error);
+            await handleHHMessage.call(this, query, m.message, true, 'No game is running and no prior game was ever recorded.', m.channel, true, true);
             return;
         }
 
@@ -352,22 +377,22 @@ async function action(m, type, args, arg) {
         sortThings(items);
 
         if(type === 'show') {
-            await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions}));
+            await sendNewGameMessage.call(this, m, query, type, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions}));
             return;
         }
 
         if(mode === 'last') {
-            m.message.reply('A game is not currently running.').then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
+            await handleHHMessage.call(this, query, m.message, true, 'A game is not currently running.', m.channel, true, true);
             return;
         }
 
         if(resultsActions.slice(0, this.lastActionsCounted).find((v => v.user_id === m.member.id))) {
-            m.message.reply(`You have already played within the last ${this.lastActionsCounted} actions! Please wait your turn.`).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
+            await handleHHMessage.call(this, query, m.message, true, `You have already played within the last ${this.lastActionsCounted} actions! Please wait your turn.`, m.channel, true, true);
             return;
         }
 
         if(args.length === 0) {
-            m.message.reply(`You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
+            await handleHHMessage.call(this, query, m.message, true, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, m.channel, true, true);
             return;
         }
 
@@ -413,20 +438,20 @@ async function action(m, type, args, arg) {
         
         //If an item is still not found, error
         if(currentItem == null) {
-            m.message.reply(`Could not determine selection from input.\nMake sure to type the item ID or the full name of the item you want to hurt or heal.`).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
+            await handleHHMessage.call(this, query, m.message, true, `Could not determine selection from input.\nMake sure to type the item ID or the full name of the item you want to hurt or heal.`, m.channel, true, true);
             return;
         }
         if(currentItem.health_cur <= 0) {
-            m.message.reply(`**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
+            await handleHHMessage.call(this, query, m.message, true, `**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`, m.channel, true, true);
             return;
         }
         if(resultsActions[0] && resultsActions[0].id_hurtheal_things === currentItem.id &&
            resultsActions[1] && resultsActions[1].id_hurtheal_things === currentItem.id) {
-            m.message.reply(`An action cannot be performed on the same item more than twice in a row. Please select a different item.`).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
+            await handleHHMessage.call(this, query, m.message, true, `An action cannot be performed on the same item more than twice in a row. Please select a different item.`, m.channel, true, true);
             return;
         }
         if(type === 'heal' && currentItem.health_cur >= currentItem.health_max) {
-            m.message.reply(`**${currentItem.name}** is already at max health.`).then(message => setTimeout(() => message.delete(), 30000)).catch(logger.error);
+            await handleHHMessage.call(this, query, m.message, true, `**${currentItem.name}** is already at max health.`, m.channel, true, true);
             return;
         }
 
@@ -467,7 +492,7 @@ async function action(m, type, args, arg) {
         sortThings(items);
 
         //Send final message
-        await sendNewGameMessage.call(this, m, query, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `**${currentItem.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentItem.health_cur)}** health.`, action: type, gameOver: isGameOver}), isGameOver, isGameOver ? resultGames : undefined);
+        await sendNewGameMessage.call(this, m, query, type, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `**${currentItem.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentItem.health_cur)}** health.`, action: type, gameOver: isGameOver}), isGameOver, isGameOver ? resultGames : undefined);
     });
 }
 
@@ -481,12 +506,15 @@ async function action(m, type, args, arg) {
         /** @type {Db.hurtheal_games} */
         let resultGame = (await query(`SELECT * FROM hurtheal_games WHERE id = ?`, [id])).results[0];
         if(!resultGame) {
-            m.message.reply("Invalid game ID provided").catch(logger.error);
+            await handleHHMessage.call(this, query, m.message, false, "Invalid game ID provided", m.channel, true, false);
             return;
         }
         
         let buffer = await getChartFromGame.call(this, query, resultGame);
-        m.channel.send({files: [buffer]}).catch(logger.error);
+
+        this.bot.sql.transaction(async query => {
+            await handleHHMessage.call(this, query, m.message, true, {files: [buffer]}, m.channel, false, false);
+        }).catch(logger.error);
     }).catch(logger.error);
 }
 
@@ -500,13 +528,14 @@ async function action(m, type, args, arg) {
  * @this {HurtHeal}
  * @param {Bot.Message} m
  * @param {SQLWrapper.Query} query 
+ * @param {"hurt" | "heal" | "show"} type
  * @param {Discord.MessageEmbed} embed
  * @param {boolean=} noRegister - Don't register this message as one that should be deleted later
  * @param {Db.hurtheal_games=} game - Database game ID. Only include this if you want the message to include the image chart of the game
  */
-async function sendNewGameMessage(m, query, embed, noRegister, game) {
+async function sendNewGameMessage(m, query, type, embed, noRegister, game) {
     let image = game != null ? await getChartFromGame.call(this, query, game) : null;
-    const message = await m.channel.send({ embeds: [embed], files: image ? [image] : undefined });
+    const message = await handleHHMessage.call(this, query, m.message, type === 'show' ? true : false, { embeds: [embed], files: image ? [image] : undefined }, m.channel, false, false);
 
     /** @type {Db.hurtheal_setup=} */
     let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ? FOR UPDATE`, [m.guild.id])).results[0];
@@ -813,3 +842,41 @@ async function getChartFromGame(query, game) {
 
     return await chartJSNodeCanvas.renderToBuffer(chart);
 }
+
+/**
+ * @this {HurtHeal}
+ * @param {SQLWrapper.Query} query
+ * @param {Discord.Message} userMessage
+ * @param {boolean} userMessageDelete
+ * @param {string | Discord.MessagePayload | Discord.MessageOptions} botMessage
+ * @param {Discord.PartialDMChannel | Discord.TextChannel | Discord.ThreadChannel} botChannel
+ * @param {boolean} isReply
+ * @param {boolean} botMessageDelete
+ * @returns {Promise<Discord.Message>}
+ */
+async function handleHHMessage(query, userMessage, userMessageDelete, botMessage, botChannel, isReply, botMessageDelete) {
+    let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
+    if(resultGames == null) {
+        userMessageDelete = false;
+        botMessageDelete = false;
+    }
+
+    if(userMessageDelete) setTimeout(() => userMessage.delete().catch(logger.error), 10000);
+    
+    const message = await (async () => {
+        if(isReply) return await userMessage.reply(botMessage);
+        else return await botChannel.send(botMessage);
+    })();
+
+    if(botMessageDelete) setTimeout(() => message.delete().catch(logger.error), 30000);
+    if(userMessage.guild) {
+        this.noDeleteCache.set(userMessage.id, userMessage);
+
+        //TODO currently bot messages aren't sent to onMessage. This means we can't delete them from there,
+        //so no use sending them to the no delete cache, as all they will do is leak memory there.
+        //If it is needed, this should be uncommented.
+        //this.noDeleteCache.set(message.id, message);
+    }
+
+    return message;
+} 
