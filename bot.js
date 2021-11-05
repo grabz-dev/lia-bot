@@ -153,16 +153,16 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'heal', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'heal' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'start', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'start', authorityLevel: ['MODERATOR', 'EMERITUS_MODERATOR']}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'start' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'theme', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'theme', authorityLevel: ['MODERATOR', 'EMERITUS_MODERATOR']}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'theme' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'end', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'end', authorityLevel: ['MODERATOR', 'EMERITUS_MODERATOR']}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'end' });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'chart', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'chart', authorityLevel: ['MODERATOR', 'EMERITUS_MODERATOR']}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'chart' });
             });
         })();
@@ -170,6 +170,12 @@ core.on('ready', bot => {
         core.getModule((await import('./src/modules/Farkle.js')).default).then(farkle => {
             const obj = {
                 categoryNames: [':video_game: Farkle', 'farkle', 'f']
+            }
+
+            farkle.ServerDefs = {
+                guildId: "192420539204239361",
+                farkleChannelId: "903995409729462312",
+                botCommandsChannelId: "457188713978527746"
             }
 
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['host', 'h'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {

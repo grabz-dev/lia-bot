@@ -210,11 +210,8 @@ export default class Farkle extends Bot.Module {
     constructor(bot) {
         super(bot);
 
-        this.KCServerDefs = {
-            guildId: "192420539204239361",
-            farkleChannelId: "903995409729462312",
-            botCommandsChannelId: "457188713978527746"
-        }
+        /** @type {null|{guildId: Discord.Snowflake, farkleChannelId: Discord.Snowflake, botCommandsChannelId?: Discord.Snowflake}} */
+        this.ServerDefs = null;
     }
     
     /** @param {Discord.Guild} guild - Current guild. */
@@ -253,7 +250,8 @@ export default class Farkle extends Bot.Module {
     /** @param {Discord.Message} message - The message that was sent. */
     onMessage(message) {
         if(message.member == null || message.guild == null) return;
-        if(message.guild.id === this.KCServerDefs.guildId && message.channel.id !== this.KCServerDefs.farkleChannelId) return;
+        if(this.ServerDefs == null) return;
+        if(message.guild.id === this.ServerDefs.guildId && message.channel.id !== this.ServerDefs.farkleChannelId) return;
 
         const member = message.member;
 
@@ -550,7 +548,7 @@ export default class Farkle extends Bot.Module {
                     if(docCP.user_id === docCG.current_player_user_id) {
                         await turn.bind(this)(message.client, docCG, docCPs, query, "concede");
                     }
-                    await end.bind(this)(message.client, docCG, docVs, docCPs, query, "concede");
+                    await end.bind(this)(message.client, { type: "concede", keep: [], points: 0, player: docCP.user_id }, docCG, docVs, docCPs, query, "concede");
                     state.gameEnded = true;
                 }
                 else {
@@ -647,15 +645,15 @@ export default class Farkle extends Bot.Module {
                         if(docCG.current_player_rolls_count > docCP.highest_rolls_in_turn_without_fold)
                             docCP.highest_rolls_in_turn_without_fold = docCG.current_player_rolls_count;
 
+                        let player = docCG.current_player_user_id;
+                        let points = docCG.current_player_points;
+                        let bank = docCP.total_points_banked;
                         if(docCP.total_points_banked >= docCG.points_goal) {
-                            await end.bind(this)(message.client, docCG, docVs, docCPs, query, "no_concede");
+                            await end.bind(this)(message.client, { type: "finish", keep: keep, points: points, bank: bank, player: player }, docCG, docVs, docCPs, query, "no_concede");
                             state.gameEnded = true;
                             state.updateCurrentMatch = true;
                         }
                         else {
-                            let player = docCG.current_player_user_id;
-                            let points = docCG.current_player_points;
-                            let bank = docCP.total_points_banked;
                             await turn.bind(this)(message.client, docCG, docCPs, query, "finish");
                             if(docCG.high_stakes_variant)
                                 await highstakes.bind(this)(message.client, { type: "finish", keep: keep, points: points, bank: bank, player: player }, docCG, docCPs, docCPVs, query);
@@ -698,14 +696,16 @@ export default class Farkle extends Bot.Module {
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
+        if(this.ServerDefs == null) return;
+
         switch(ext.action) {
             case 'host':
             case 'leave':
             case 'join':
             case 'start':
             case 'spectate': {
-                if(m.guild.id === this.KCServerDefs.guildId && m.channel.id !== this.KCServerDefs.farkleChannelId) {
-                    m.channel.send(`You can only use this command in the <#${this.KCServerDefs.farkleChannelId}> channel.`).then(message => {
+                if(m.guild.id === this.ServerDefs.guildId && m.channel.id !== this.ServerDefs.farkleChannelId) {
+                    m.channel.send(`You can only use this command in the <#${this.ServerDefs.farkleChannelId}> channel.`).then(message => {
                         setTimeout(() => { message.delete(); m.message.delete(); }, 10000);
                     }).catch(logger.error);
                     return;
@@ -715,8 +715,8 @@ export default class Farkle extends Bot.Module {
             case 'games':
             case 'profile':
             case 'rules': {
-                if(m.guild.id === this.KCServerDefs.guildId && (m.channel.id !== this.KCServerDefs.farkleChannelId && m.channel.id !== this.KCServerDefs.botCommandsChannelId)) {
-                    m.channel.send(`You can only use this command in either the <#${this.KCServerDefs.botCommandsChannelId}> channel, or the <#${this.KCServerDefs.farkleChannelId}> channel.`).then(message => {
+                if(m.guild.id === this.ServerDefs.guildId && (m.channel.id !== this.ServerDefs.farkleChannelId && m.channel.id !== this.ServerDefs.botCommandsChannelId)) {
+                    m.channel.send(`You can only use this command in ${this.ServerDefs.botCommandsChannelId == null ? '' : `either the <#${this.ServerDefs.botCommandsChannelId}> channel, or `}the <#${this.ServerDefs.farkleChannelId}> channel.`).then(message => {
                         setTimeout(() => { message.delete(); m.message.delete(); }, 10000);
                     }).catch(logger.error);
                     return;
@@ -2029,13 +2029,14 @@ async function turn(client, docCG, docCPs, query, type) {
 /**
  * @this Farkle
  * @param {Discord.Client} client
+ * @param {{ type: ActionType|"fold"|null, keep: number[], points: number, bank?: number, player: Discord.Snowflake }} action
  * @param {Db.farkle_current_games} docCG 
  * @param {Db.farkle_viewers[]} docVs
  * @param {Db.farkle_current_players[]} docCPs
  * @param {(s: string) => Promise<{results: any, fields: any[] | undefined}>} query
  * @param {"concede"|"no_concede"} type - Whether the second-to-last player conceded the match or not. Purely visual statement.
  */
-async function end(client, docCG, docVs, docCPs, query, type) {
+async function end(client, action, docCG, docVs, docCPs, query, type) {
     for(let player of docCPs) {
         let str = "";
         if(player.user_id === docCG.current_player_user_id)
@@ -2044,7 +2045,7 @@ async function end(client, docCG, docVs, docCPs, query, type) {
             str = `<@${docCG.current_player_user_id}> wins!`;
 
         let embed = getEmbedUser(docCG, docCPs);
-        embed.description = str;
+        embed.description = `${getLastActionString(player, action)}${str}`;
 
         await (await (await client.users.fetch(player.user_id))?.createDM()).send({ embeds: [embed] });
     }
@@ -2053,7 +2054,7 @@ async function end(client, docCG, docVs, docCPs, query, type) {
         let str = `<@${docCG.current_player_user_id}> wins!`;
 
         let embed = getEmbedUser(docCG, docCPs);
-        embed.description = str;
+        embed.description = `${getLastActionString(viewer, action)}${str}`;
         await (await (await client.users.fetch(viewer.user_id))?.createDM()).send({ embeds: [embed] });
     }
 }
