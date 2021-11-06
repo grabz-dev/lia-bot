@@ -30,7 +30,7 @@ core.on('ready', bot => {
             disableCW2: false
         }, bot.locale);
 
-        kcgmm.fetch('cw4').then(() => {
+        //kcgmm.fetch('cw4').then(() => {
             /*const json = JSON.parse('');
             let maps = Object.entries(json.maps);
             maps.sort((a, b) => a[1] - b[1]);
@@ -71,10 +71,10 @@ core.on('ready', bot => {
             }
 
             fs.writeFile("Top_2000_least_beaten_objectives.txt", str, () => {logger.info("Done")});*/
-        }).catch(logger.error);
-        kcgmm.fetch('pf').catch(logger.error);
-        kcgmm.fetch('cw3').catch(logger.error);
-        kcgmm.fetch('cw2').catch(logger.error);
+        //}).catch(logger.error);
+        //kcgmm.fetch('pf').catch(logger.error);
+        //kcgmm.fetch('cw3').catch(logger.error);
+        //kcgmm.fetch('cw2').catch(logger.error);
         
         setInterval(() => {
             kcgmm.fetch('cw4').catch(logger.error);

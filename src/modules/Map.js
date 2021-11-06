@@ -383,7 +383,8 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
 
     //Scores/Downloads
     if(mapData.scores != null && mapData.downloads != null) {
-        str += `Scores/Downloads: ${mapData.scores} : ${mapData.downloads} (${Math.round(mapData.scores / mapData.downloads * 1000) / 1000})`;
+        str += `Scores/Downloads: ${mapData.scores} : ${mapData.downloads}`;
+        if(mapData.downloads > 0) str += ` (${Math.round(mapData.scores / mapData.downloads * 1000) / 1000})`;
         str += '\n';
     }
 
