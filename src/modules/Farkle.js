@@ -1839,6 +1839,10 @@ async function commit(state, docCG, docCP, docCPs, query, client) {
             }
             await query(Bot.Util.SQL.getInsert(playerH, "farkle_history_players"));
         }
+
+        /** @type {(Db.farkle_current_players|Db.farkle_history_players)[]} */
+        let thisGameCHPs = Array.from((await query(`SELECT * FROM farkle_current_players WHERE id_current_games = ${docCG.id}`)).results).concat((await query(`SELECT * FROM farkle_history_players WHERE id_history_games = ${docCG.id}`)).results);
+        postGameEndMessage.call(this, client, docCG, thisGameCHPs).catch(logger.error);
     }
 }
 
@@ -2102,7 +2106,7 @@ async function roll(client, action, docCG, docCPs, docCPVs, query) {
             else
                 embed.description += `**<@${docCG.current_player_user_id}>'s rolls:**\n`;
             if(docCG.opening_turn_point_threshold > 0 && docCPs.find(v => v.user_id === docCG.current_player_user_id)?.total_points_banked === 0) {
-                embed.description += `This is ${attendee.user_id === docCG.current_player_user_id ? "your" : `<@${docCG.current_player_user_id}>'s'`} __opening turn__. In order to be able to \`finish\`, ${attendee.user_id === docCG.current_player_user_id ? "you" : "they"} must do it with a total of at least ${docCG.opening_turn_point_threshold} points.\n`
+                embed.description += `This is ${attendee.user_id === docCG.current_player_user_id ? "your" : `<@${docCG.current_player_user_id}>'s`} __opening turn__. In order to be able to \`finish\`, ${attendee.user_id === docCG.current_player_user_id ? "you" : "they"} must do it with a total of at least ${docCG.opening_turn_point_threshold} points.\n`
             }
 
             embed.description += g;
@@ -2296,3 +2300,33 @@ const Q = Object.freeze({
         return q ? q.games : 0;
     },
 });
+
+/**
+ * @this {Farkle}
+ * @param {Discord.Client} client
+ * @param {Db.farkle_current_games} docCG
+ * @param {(Db.farkle_current_players|Db.farkle_history_players)[]} thisGameCHPs
+ */
+async function postGameEndMessage(client, docCG, thisGameCHPs) {
+    if(this.ServerDefs == null) return;
+
+    var embed = getEmbedBlank();
+    embed.description = `Game ended`;
+    embed.description += `\n  • Players: ${thisGameCHPs.map(v => `<@${v.user_id}>`).join(", ")}`;
+    embed.description += `\n  • Point goal: ${docCG.points_goal}`;
+    if(docCG.opening_turn_point_threshold > 0) embed.description += `\n  • Opening turn point threshold: ${docCG.opening_turn_point_threshold}`;
+    if(docCG.high_stakes_variant) embed.description += `\n  • **High Stakes**`;
+    if(docCG.welfare_variant) embed.description += `\n  • **Welfare**`;
+    
+    embed.description += '\n\n';
+    let players = thisGameCHPs.slice().sort((a, b) => b.total_points_banked - a.total_points_banked);
+    for(let docCP of players) {
+        embed.description += `<@${docCP.user_id}>'s bank: ${docCP.total_points_banked}\n`;
+    }
+
+    let guild = await client.guilds.fetch(this.ServerDefs.guildId);
+    let channel = await guild.channels.fetch(this.ServerDefs.farkleChannelId);
+    if(channel instanceof Discord.TextChannel) {
+        channel.send({ embeds: [embed] });
+    }
+}
