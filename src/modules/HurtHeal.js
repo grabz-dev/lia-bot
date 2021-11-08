@@ -377,6 +377,11 @@ async function action(m, type, args, arg) {
         sortThings(items);
 
         if(type === 'show') {
+            if(args.length > 0) {
+                await handleHHMessage.call(this, query, m.message, true, 'Invalid command, please check for misspellings.', m.channel, true, true);
+                return;
+            }
+
             await sendNewGameMessage.call(this, m, query, type, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions}));
             return;
         }
