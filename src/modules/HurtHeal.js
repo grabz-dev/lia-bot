@@ -334,7 +334,7 @@ function start(m, things) {
         let resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ? ORDER BY id ASC`, [insertId])).results;
         let items = getItemsFromDb(resultsThings);
 
-        await handleHHMessage.call(this, query, m.message, false, { content: 'New game started!', embeds: [getGameStandingsEmbed.call(this, m, {mode: 'current', things: items, game: insertId})] }, m.channel, true, false);
+        await handleHHMessage.call(this, query, m.message, false, { content: 'New game started!', embeds: [await getGameStandingsEmbed.call(this, m, {mode: 'current', things: items, game: insertId})] }, m.channel, true, false);
     }).catch(logger.error);
 }
 
@@ -382,7 +382,7 @@ async function action(m, type, args, arg) {
                 return;
             }
 
-            await sendNewGameMessage.call(this, m, query, type, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions}));
+            await sendNewGameMessage.call(this, m, query, type, await getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions}));
             return;
         }
 
@@ -497,7 +497,7 @@ async function action(m, type, args, arg) {
         sortThings(items);
 
         //Send final message
-        await sendNewGameMessage.call(this, m, query, type, getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `**${currentItem.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentItem.health_cur)}** health.`, action: type, gameOver: isGameOver}), isGameOver, isGameOver ? resultGames : undefined);
+        await sendNewGameMessage.call(this, m, query, type, await getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `**${currentItem.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentItem.health_cur)}** health.`, action: type, gameOver: isGameOver}), isGameOver, isGameOver ? resultGames : undefined);
     });
 }
 
@@ -576,9 +576,9 @@ async function sendNewGameMessage(m, query, type, embed, noRegister, game) {
  * @param {(Db.hurtheal_actions[])=} options.allActions
  * @param {('hurt'|'heal')=} options.action - If undefined, no action was taken
  * @param {boolean=} options.gameOver - Is the game over
- * @returns {Discord.MessageEmbed}
+ * @returns {Promise<Discord.MessageEmbed>}
  */
-function getGameStandingsEmbed(m, options) {
+async function getGameStandingsEmbed(m, options) {
     const game = options.game;
     const action = options.action;
     const str = options.additionalMessage;
@@ -613,9 +613,11 @@ function getGameStandingsEmbed(m, options) {
         let actions = allActions.slice(0, this.lastActionsShown);
         let fieldActions = { name: `Last few actions`, value: '', inline: false }
         for(let i = 0; i < actions.length; i++) {
-            let action = actions[i]
+            let action = actions[i];
             let thing = things.find((v => v.id === action.id_hurtheal_things))
-            let str = `<@${action.user_id}> ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${action.reason ? action.reason : ''}`;
+            let missing = false;
+            if(await m.guild.members.fetch(action.user_id) == null) missing = true;
+            let str = `${missing ? 'Removed user' : `<@${action.user_id}>`} ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${missing ? '' : ` ${action.reason ? Discord.Util.escapeMarkdown(action.reason) : ''}`}`;
             if(i < this.lastActionsCounted) str = `\\> ${str}`;
             fieldActions.value += `${str}\n`;
         }
