@@ -1532,9 +1532,10 @@ function getEmbedBlank() {
 /**
  * @param {Db.farkle_current_games} docCG
  * @param {Db.farkle_current_players[]} docCPs
+ * @param {boolean=} totalIsBank
  * @returns {Discord.MessageEmbed}
  */
-function getEmbedUser(docCG, docCPs) {
+function getEmbedUser(docCG, docCPs, totalIsBank) {
     var docCP = docCPs.find(v => v.user_id === docCG.current_player_user_id);
     const bank = docCP ? docCP.total_points_banked : -1;
     const round = docCG.current_player_points;
@@ -1544,7 +1545,7 @@ function getEmbedUser(docCG, docCPs) {
         color: docCP ? F.colors[docCP.turn_order] : 0,
         timestamp: new Date(),
         footer: {
-            text: `Goal: ${docCG.points_goal} • Bank: ${bank} • Round: ${round} • Total: ${bank+round}`
+            text: `Goal: ${docCG.points_goal} • Bank: ${bank} • Round: ${round} • Total: ${totalIsBank ? bank : bank+round}`
         },
         description: ""
     });
@@ -2215,7 +2216,7 @@ async function end(client, action, docCG, docVs, docCPs, query, type) {
         else
             str = `<@${docCG.current_player_user_id}> wins!`;
 
-        let embed = getEmbedUser(docCG, docCPs);
+        let embed = getEmbedUser(docCG, docCPs, true);
         embed.description = `${getLastActionString(player, action)}${str}`;
 
         await (await (await client.users.fetch(player.user_id))?.createDM()).send({ embeds: [embed] });
@@ -2224,7 +2225,7 @@ async function end(client, action, docCG, docVs, docCPs, query, type) {
     for(let viewer of docVs) {
         let str = `<@${docCG.current_player_user_id}> wins!`;
 
-        let embed = getEmbedUser(docCG, docCPs);
+        let embed = getEmbedUser(docCG, docCPs, true);
         embed.description = `${getLastActionString(viewer, action)}${str}`;
         await (await (await client.users.fetch(viewer.user_id))?.createDM()).send({ embeds: [embed] });
     }
