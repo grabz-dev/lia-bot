@@ -459,6 +459,10 @@ async function action(m, type, args, arg) {
             await handleHHMessage.call(this, query, m.message, true, `**${currentItem.name}** is already at max health.`, m.channel, true, true);
             return;
         }
+        if(Discord.Util.escapeMarkdown(reason).length > 255) {
+            await handleHHMessage.call(this, query, m.message, 30, `The given reason is too long. The character limit is 255 characters (formatting characters contribute to the character limit).`, m.channel, true, true);
+            return;
+        }
 
         //Modify current thing
         switch(type) {
@@ -604,14 +608,16 @@ async function getGameStandingsEmbed(m, options) {
 
     let space = things.length >= 10 ? ' ' : '';
 
-    embed.fields = [];
     for(let thing of things) {
         embed.description += `\`${space && thing.orderId < 10 ? ' ':''}#${thing.orderId}\` \`${getHealthBar.call(this, thing)}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
     }
 
+    embed.description += '\n';
+
     if(allActions != null) {
         let actions = allActions.slice(0, this.lastActionsShown);
-        let fieldActions = { name: `Last few actions`, value: '', inline: false }
+        if(actions.length > 0) embed.description += '**Last few actions**\n';
+
         for(let i = 0; i < actions.length; i++) {
             let action = actions[i];
             let thing = things.find((v => v.id === action.id_hurtheal_things))
@@ -619,7 +625,7 @@ async function getGameStandingsEmbed(m, options) {
             if(await m.guild.members.fetch(action.user_id) == null) missing = true;
             let str = `${missing ? 'Removed user' : `<@${action.user_id}>`} ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${missing ? '' : ` ${action.reason ? Discord.Util.escapeMarkdown(action.reason) : ''}`}`;
             if(i < this.lastActionsCounted) str = `\\> ${str}`;
-            fieldActions.value += `${str}\n`;
+            embed.description += `${str}\n`;
         }
 
         /** @type {Object.<string, number>} */let users = {};
@@ -629,7 +635,7 @@ async function getGameStandingsEmbed(m, options) {
         }
         let playersCount = Object.keys(users).length;
         let actionsCount = allActions.length;
-        fieldActions.value += `${playersCount} player${playersCount != 1 ? 's':''} performed ${actionsCount} action${actionsCount != 1 ? 's':''}.\n`;
+        embed.description += `${playersCount} player${playersCount != 1 ? 's':''} performed ${actionsCount} action${actionsCount != 1 ? 's':''}.\n`;
 
         if(gameOver) {
             /** @type {{user: Discord.Snowflake, actionCount: number}[]} */let usersArr = [];
@@ -644,10 +650,8 @@ async function getGameStandingsEmbed(m, options) {
             }
             if(len < usersArr.length)
                 str += ` __and ${usersArr.length - len} other players__`
-            fieldActions.value += `${str}\n`;
+            embed.description += `${str}\n`;
         }
-
-        if(fieldActions.value.length > 0) embed.fields.push(fieldActions);
     }
 
     return embed;
@@ -854,7 +858,7 @@ async function getChartFromGame(query, game) {
  * @this {HurtHeal}
  * @param {SQLWrapper.Query} query
  * @param {Discord.Message} userMessage
- * @param {boolean} userMessageDelete
+ * @param {boolean|number} userMessageDelete - if true, delete after 10 seconds. if number, delete after provided number of seconds.
  * @param {string | Discord.MessagePayload | Discord.MessageOptions} botMessage
  * @param {Discord.PartialDMChannel | Discord.TextChannel | Discord.ThreadChannel} botChannel
  * @param {boolean} isReply
@@ -868,7 +872,7 @@ async function handleHHMessage(query, userMessage, userMessageDelete, botMessage
         botMessageDelete = false;
     }
 
-    if(userMessageDelete) setTimeout(() => userMessage.delete().catch(logger.error), 10000);
+    if(+userMessageDelete > 0) setTimeout(() => userMessage.delete().catch(logger.error), typeof userMessageDelete === 'number' ? userMessageDelete * 1000 : 10000);
     
     const message = await (async () => {
         if(isReply) return await userMessage.reply(botMessage);
