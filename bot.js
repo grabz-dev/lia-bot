@@ -147,6 +147,12 @@ core.on('ready', bot => {
                 categoryNames: [':video_game: Hurt or Heal', 'hurt or heal', 'hurt heal', 'hh']
             }
 
+            setTimeout(() => {
+                core.addLoop(1000 * 60 * 5, guild => {
+                    hurtheal.loop(guild);
+                });
+            }, 20000);
+
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'show' });
             });

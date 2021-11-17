@@ -421,9 +421,9 @@ export default class Farkle extends Bot.Module {
         //Ensure order of play
         this.queue.push(message);
         if(this.queueRunning) return;
+        this.queueRunning = true;
 
         (async () => {
-            this.queueRunning = true;
             while(this.queue.length > 0) {
                 let qitem = this.queue[0];
                 this.queue.splice(0, 1);

@@ -11,6 +11,7 @@ import { KCUtil } from '../kc/KCUtil.js';
 import Diacritics from 'diacritics';
 import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
 import chartjs from 'chart.js';
+import 'chartjs-adapter-date-fns';
 
 const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 800, height: 500, chartCallback: ChartJS => {
     ChartJS.defaults.color = '#CCCCCC';
@@ -33,6 +34,7 @@ const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 800, height: 500, chart
  * @property {number} timestamp
  * @property {boolean} finished
  * @property {string} theme
+ * @property {number} last_decay_timestamp
  */
 
 /**
@@ -51,11 +53,21 @@ const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 800, height: 500, chart
  * @property {number} id_hurtheal_things
  * @property {number} timestamp
  * @property {Discord.Snowflake} user_id
- * @property {'hurt'|'heal'} action
+ * @property {'hurt'|'heal'|'decay'} action
  * @property {string} reason
  */
 
 /** @typedef {Db.hurtheal_things & {orderId: number}} Item */
+
+/** @typedef {{type: 'hurt'|'heal'|'show'|'decay', args: string[], arg: string, m: Bot.Message}} QueueItem */
+
+/**
+ * 
+ * @param {number} prev 
+ * @param {Db.hurtheal_things} cur 
+ * @returns 
+ */
+const highestDeathOrderThingInGame = (prev, cur) => { if(cur.death_order != null && cur.death_order > prev) return cur.death_order; return prev; };
 
 
 export default class HurtHeal extends Bot.Module {
@@ -76,7 +88,8 @@ export default class HurtHeal extends Bot.Module {
                 guild_id VARCHAR(64) NOT NULL,
                 timestamp BIGINT NOT NULL,
                 finished BOOL NOT NULL,
-                theme VARCHAR(512)
+                theme VARCHAR(512),
+                last_decay_timestamp BIGINT NOT NULL
              )`);
 
             await query(`CREATE TABLE IF NOT EXISTS hurtheal_things (
@@ -103,7 +116,7 @@ export default class HurtHeal extends Bot.Module {
         this.lastActionsShown = 5;
         this.dictionary = {
             'hurt': 'hurt',
-            'heal': 'healed'
+            'heal': 'healed',
         }
         this.chartColors = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080', '#ffffff', '#000000']
         /** @type {Object.<string, string|undefined>} */
@@ -126,7 +139,7 @@ export default class HurtHeal extends Bot.Module {
             aqua: 'aqua',
         }
 
-        /** @type {{type: 'hurt'|'heal'|'show', args: string[], arg: string}[]} */
+        /** @type {QueueItem[]} */
         this.queue = [];
         this.queueRunning = false;
         /** @type {Map<Discord.Snowflake, Discord.Message>} */
@@ -205,18 +218,7 @@ export default class HurtHeal extends Bot.Module {
         case 'show':
         case 'hurt':
         case 'heal': {
-            this.queue.push({ type: ext.action, args, arg });
-            if(this.queueRunning) break;
-
-            (async () => {
-                this.queueRunning = true;
-                while(this.queue.length > 0) {
-                    let qitem = this.queue[0];
-                    this.queue.splice(0, 1);
-                    await action.call(this, m, qitem.type, qitem.args, qitem.arg).catch(logger.error);
-                }
-                this.queueRunning = false;
-            })();
+            addToQueue.call(this, { type: ext.action, args, arg, m }, );
             break;
         }
         case 'help': {
@@ -260,6 +262,39 @@ export default class HurtHeal extends Bot.Module {
                 }, 5000);
             }).catch(logger.error);
         })(message);
+    }
+
+    /** @param {Discord.Guild} guild - Current guild. */
+    loop(guild) {
+
+        this.bot.sql.transaction(async query => {
+            const ms = (1000 * 60 * 60 * 24);
+
+            /** @type {Db.hurtheal_games=} */ let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
+            if(resultGames == null) return;
+
+            const now = Date.now();
+            if(now - resultGames.last_decay_timestamp < ms) return;
+
+            /** @type {Db.hurtheal_setup=} */ let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ${guild.id}`)).results[0];
+            if(resultSetup == null) return;
+
+            //do nothing if all items are 1hp or lower
+            /** @type {Db.hurtheal_things[]} */ let resultThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ?`, [resultGames.id])).results;
+            if(!resultThings.some(v => v.health_cur > 1)) return;
+
+            if(resultSetup.last_channel_id == null) return;
+            const channel = await guild.channels.fetch(resultSetup.last_channel_id);
+            if(!(channel instanceof Discord.TextChannel)) return;
+
+            const message = await channel.send('24 hours have passed with no activity. All items take 1 damage.');
+            if(message.member == null) return;
+
+            return {message, channel}
+        }).then(data => {
+            if(data == null || data.message.member == null) return;
+            addToQueue.call(this, { type: 'decay', args: [], arg: '', m: new Bot.Message(data.message, data.message.member, guild, data.channel) });
+        }).catch(logger.error);
     }
 }
 
@@ -324,7 +359,8 @@ function start(m, things) {
         }
 
         /** @type {number} */
-        let insertId = (await query(`INSERT INTO hurtheal_games (guild_id, timestamp, finished) VALUES (?, ?, FALSE)`, [m.guild.id, Date.now()])).results.insertId;
+        const now = Date.now();
+        let insertId = (await query(`INSERT INTO hurtheal_games (guild_id, timestamp, finished, last_decay_timestamp) VALUES (?, ?, FALSE, ?)`, [m.guild.id, now, now])).results.insertId;
 
         for(let thing of things) {
             await query(`INSERT INTO hurtheal_things (id_hurtheal_games, name, health_cur, health_max) VALUES (?, ?, ?, ?)`, [insertId, thing.name, thing.health, thing.health]);
@@ -341,12 +377,14 @@ function start(m, things) {
 /**
  * @this {HurtHeal}
  * @param {Bot.Message} m - Message of the user executing the command.
- * @param {'hurt'|'heal'|'show'} type
+ * @param {'hurt'|'heal'|'show'|'decay'} type
  * @param {string[]} args
  * @param {string} arg
  */
 async function action(m, type, args, arg) {
     await this.bot.sql.transaction(async (query, mysql) => {
+        const now = Date.now();
+
         /** @type {Db.hurtheal_games=} */ let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
         /** @type {'current'|'last'} */ let mode = 'current';
 
@@ -370,7 +408,7 @@ async function action(m, type, args, arg) {
          * @param {Db.hurtheal_games} resultGames 
          * @returns {Promise<Db.hurtheal_actions[]>}
          */
-        const getActionsWithSort = async (resultGames) => (await query(`SELECT * FROM hurtheal_actions ha JOIN hurtheal_things ht ON ha.id_hurtheal_things = ht.id WHERE ht.id_hurtheal_games = ? ORDER BY ha.id DESC`, [resultGames.id])).results;
+        const getActionsWithSort = async (resultGames) => (await query(`SELECT * FROM hurtheal_actions ha JOIN hurtheal_things ht ON ha.id_hurtheal_things = ht.id WHERE ht.id_hurtheal_games = ? AND ha.action != ? ORDER BY ha.id DESC`, [resultGames.id, 'decay'])).results;
         let resultsActions = await getActionsWithSort(resultGames);
 
         //Sort results for exit commands
@@ -391,12 +429,20 @@ async function action(m, type, args, arg) {
             return;
         }
 
+        /*if(type != 'decay' && 
+           resultsActions.length > 0 &&
+           now - resultsActions[resultsActions.length - 1].timestamp < (1000 * 60 * 60 * 24) &&
+           resultsActions.slice(0, this.lastActionsCounted).find((v => v.user_id === m.member.id))) {
+            await handleHHMessage.call(this, query, m.message, true, `You have already played within the last ${this.lastActionsCounted} actions. Please wait your turn. If nobody plays within the next ${Bot.Util.getFormattedTimeRemaining((resultsActions[resultsActions.length - 1].timestamp + (1000 * 60 * 60 * 24)) - now)}, you'll be able to play again, too.`, m.channel, true, true);
+            return;
+        }*/
+
         if(resultsActions.slice(0, this.lastActionsCounted).find((v => v.user_id === m.member.id))) {
-            await handleHHMessage.call(this, query, m.message, true, `You have already played within the last ${this.lastActionsCounted} actions! Please wait your turn.`, m.channel, true, true);
+            await handleHHMessage.call(this, query, m.message, true, `You have already played within the last ${this.lastActionsCounted} actions. Please wait your turn.`, m.channel, true, true);
             return;
         }
 
-        if(args.length === 0) {
+        if(type != 'decay' && args.length === 0) {
             await handleHHMessage.call(this, query, m.message, true, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, m.channel, true, true);
             return;
         }
@@ -411,87 +457,122 @@ async function action(m, type, args, arg) {
         /** @type {Item=} */ let currentItem;
 
         //Search for ID first
-        if(args.length > 0) {
+        if(type != 'decay') {
             let id = args[0].split(',')[0];
             currentItem = items.find(v => `${v.orderId}` === id || `#${v.orderId}` === id);
 
             //If an item is found, cut ID from reason string
             if(currentItem)
                 reason = reason.substring(reason.indexOf(id) + id.length);
-        }
+            //If an item is not found, start over, search for name and cut reason string appropriately as well
+            else {
+                let assembledName = '';
+                //Example args: ['apple', 'pie,', 'because', 'i', 'love', 'pies']
+                loop:
+                for(let i = 0; i < args.length; i++) {
+                    //Turn 'pie,' into ['pie', ''];
+                    let commaSeparatedArgs = args[i].split(',');
+                    for(let j = 0; j < commaSeparatedArgs.length; j++) {
+                        let nameFragment = commaSeparatedArgs[j];
+                        if(nameFragment.length === 0) continue;
 
-        //If an item is not found, start over, search for name and cut reason string appropriately as well
-        if(currentItem == null) {
-            let assembledName = '';
-            //Example args: ['apple', 'pie,', 'because', 'i', 'love', 'pies']
-            loop:
-            for(let i = 0; i < args.length; i++) {
-                //Turn 'pie,' into ['pie', ''];
-                let commaSeparatedArgs = args[i].split(',');
-                for(let j = 0; j < commaSeparatedArgs.length; j++) {
-                    let nameFragment = commaSeparatedArgs[j];
-                    if(nameFragment.length === 0) continue;
+                        assembledName += ` ${nameFragment}`;
+                        currentItem = items.find(v => simplifyForTest(v.name) === simplifyForTest(assembledName));
+                        reason = reason.substring(reason.indexOf(nameFragment) + nameFragment.length);
 
-                    assembledName += ` ${nameFragment}`;
-                    currentItem = items.find(v => simplifyForTest(v.name) === simplifyForTest(assembledName));
-                    reason = reason.substring(reason.indexOf(nameFragment) + nameFragment.length);
-
-                    if(currentItem != null) break loop;
-                }
+                        if(currentItem != null) break loop;
+                    }
+            }
             }
         }
         
-        //If an item is still not found, error
-        if(currentItem == null) {
-            await handleHHMessage.call(this, query, m.message, true, `Could not determine selection from input.\nMake sure to type the item ID or the full name of the item you want to hurt or heal.`, m.channel, true, true);
-            return;
-        }
-        if(currentItem.health_cur <= 0) {
-            await handleHHMessage.call(this, query, m.message, true, `**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`, m.channel, true, true);
-            return;
-        }
-        if(resultsActions[0] && resultsActions[0].id_hurtheal_things === currentItem.id &&
-           resultsActions[1] && resultsActions[1].id_hurtheal_things === currentItem.id) {
-            await handleHHMessage.call(this, query, m.message, true, `An action cannot be performed on the same item more than twice in a row. Please select a different item.`, m.channel, true, true);
-            return;
-        }
-        if(type === 'heal' && currentItem.health_cur >= currentItem.health_max) {
-            await handleHHMessage.call(this, query, m.message, true, `**${currentItem.name}** is already at max health.`, m.channel, true, true);
-            return;
-        }
-        if(Discord.Util.escapeMarkdown(reason).length > 255) {
-            await handleHHMessage.call(this, query, m.message, 30, `The given reason is too long. The character limit is 255 characters (formatting characters contribute to the character limit).`, m.channel, true, true);
-            return;
+        if(type != 'decay') {
+            //If an item is still not found, error
+            if(currentItem == null) {
+                await handleHHMessage.call(this, query, m.message, true, `Could not determine selection from input.\nMake sure to type the item ID or the full name of the item you want to hurt or heal.`, m.channel, true, true);
+                return;
+            }
+            if(currentItem.health_cur <= 0) {
+                await handleHHMessage.call(this, query, m.message, true, `**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`, m.channel, true, true);
+                return;
+            }
+            if(itemsAlive.length > 2 &&
+            resultsActions[0] && resultsActions[0].id_hurtheal_things === currentItem.id &&
+            resultsActions[1] && resultsActions[1].id_hurtheal_things === currentItem.id) {
+                await handleHHMessage.call(this, query, m.message, true, `An action cannot be performed on the same item more than twice in a row while more than two items are still in play. Please select a different item.`, m.channel, true, true);
+                return;
+            }
+            if(type === 'heal' && currentItem.health_cur >= currentItem.health_max) {
+                await handleHHMessage.call(this, query, m.message, true, `**${currentItem.name}** is already at max health.`, m.channel, true, true);
+                return;
+            }
+            if(Discord.Util.escapeMarkdown(reason).length > 255) {
+                await handleHHMessage.call(this, query, m.message, 30, `The given reason is too long. The character limit is 255 characters (formatting characters contribute to the character limit).`, m.channel, true, true);
+                return;
+            }
+
+            //Modify current thing
+            if(type === 'heal') currentItem.health_cur += 1;
+            else if(type === 'hurt') currentItem.health_cur -= 2;
         }
 
-        //Modify current thing
-        switch(type) {
-        case 'heal': { currentItem.health_cur += 1; break; }
-        case 'hurt': { currentItem.health_cur -= 2; break; }
+        /** @type {Item[]} */
+        const itemsDecayed = [];
+        //Modify current things
+        if(type === 'decay') {
+            if(itemsAlive.some(v => v.health_cur > 1)) {
+                itemsAlive.forEach(v => {
+                    if(v.health_cur > 0) {
+                        v.health_cur -= 1;
+                        itemsDecayed.push(v);
+                    }
+                });
+            }
         }
 
         //Decide if game is over
         let isGameOver = false;
-        if(currentItem.health_cur <= 0) itemsAlive.splice(itemsAlive.indexOf(currentItem), 1);
+        const newDeathOrder = 1 + items.reduce(highestDeathOrderThingInGame, 0)
+        for(let i = 0; i < itemsAlive.length; i++) {
+            const item = itemsAlive[i];
+
+            if(item.health_cur <= 0) {
+                //Give out placement
+                if(item.death_order == null)
+                    item.death_order = newDeathOrder;
+                
+                itemsAlive.splice(i, 1);
+                i--;
+            }
+        }
+
         if(itemsAlive.length <= 1) {
             await query(`UPDATE hurtheal_games SET finished = TRUE WHERE id = ?`, [resultGames.id]);
             isGameOver = true;
         }
 
-        //Give out placement
-        if(currentItem.health_cur <= 0)
-            currentItem.death_order = items.filter((v => v.health_cur <= 0)).length;
         if(isGameOver) {
             let winnerThing = items.find((v => v.health_cur > 0));
             if(winnerThing) {
-                winnerThing.death_order = items.length;
+                winnerThing.death_order = items.reduce(highestDeathOrderThingInGame, 0) + 1;
                 await query(`UPDATE hurtheal_things SET death_order = ? WHERE id_hurtheal_games = ? AND id = ?`, [winnerThing.death_order, resultGames.id, winnerThing.id]);
             }
         }
 
         //Update database
-        await query(`UPDATE hurtheal_things SET health_cur = ?, death_order = ? WHERE id_hurtheal_games = ? AND id = ?`, [currentItem.health_cur, currentItem.death_order, resultGames.id, currentItem.id]);
-        await query(`INSERT INTO hurtheal_actions (id_hurtheal_things, timestamp, user_id, action, reason) VALUES (?, ?, ?, ?, ?)`, [currentItem.id, Date.now(), m.member.id, type, reason]);
+        //If an item was targeted, we know only to update that one. otherwise update all of them
+        if(currentItem != null) {
+            await query(`UPDATE hurtheal_things SET health_cur = ?, death_order = ? WHERE id_hurtheal_games = ? AND id = ?`, [currentItem.health_cur, currentItem.death_order, resultGames.id, currentItem.id]);
+            await query(`INSERT INTO hurtheal_actions (id_hurtheal_things, timestamp, user_id, action, reason) VALUES (?, ?, ?, ?, ?)`, [currentItem.id, now, m.member.id, type, reason]);
+        }
+        else {
+            for(let item of itemsDecayed) {
+                await query(`UPDATE hurtheal_things SET health_cur = ?, death_order = ? WHERE id_hurtheal_games = ? AND id = ?`, [item.health_cur, item.death_order, resultGames.id, item.id]);
+                await query(`INSERT INTO hurtheal_actions (id_hurtheal_things, timestamp, user_id, action, reason) VALUES (?, ?, ?, ?, ?)`, [item.id, now, m.member.id, type, reason]);
+            }
+        }
+
+        await query(`UPDATE hurtheal_games SET last_decay_timestamp = ? WHERE id = ?`, [now, resultGames.id]);
 
         //Refresh actions
         /** @type {Db.hurtheal_actions[]} */
@@ -501,7 +582,7 @@ async function action(m, type, args, arg) {
         sortThings(items);
 
         //Send final message
-        await sendNewGameMessage.call(this, m, query, type, await getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, additionalMessage: `**${currentItem.name}** was ${this.dictionary[type]} and is now at **${Math.max(0, currentItem.health_cur)}** health.`, action: type, gameOver: isGameOver}), isGameOver, isGameOver ? resultGames : undefined);
+        await sendNewGameMessage.call(this, m, query, type, await getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, action: type, gameOver: isGameOver}), isGameOver, isGameOver ? resultGames : undefined);
     });
 }
 
@@ -537,7 +618,7 @@ async function action(m, type, args, arg) {
  * @this {HurtHeal}
  * @param {Bot.Message} m
  * @param {SQLWrapper.Query} query 
- * @param {"hurt" | "heal" | "show"} type
+ * @param {"hurt" | "heal" | "show" | "decay"} type
  * @param {Discord.MessageEmbed} embed
  * @param {boolean=} noRegister - Don't register this message as one that should be deleted later
  * @param {Db.hurtheal_games=} game - Database game ID. Only include this if you want the message to include the image chart of the game
@@ -575,17 +656,15 @@ async function sendNewGameMessage(m, query, type, embed, noRegister, game) {
  * @param {object} options
  * @param {'current'|'last'} options.mode
  * @param {Item[]} options.things
- * @param {string=} options.additionalMessage
  * @param {(Db.hurtheal_games|number)=} options.game
  * @param {(Db.hurtheal_actions[])=} options.allActions
- * @param {('hurt'|'heal')=} options.action - If undefined, no action was taken
+ * @param {('hurt'|'heal'|'decay')=} options.action - If undefined, no action was taken
  * @param {boolean=} options.gameOver - Is the game over
  * @returns {Promise<Discord.MessageEmbed>}
  */
 async function getGameStandingsEmbed(m, options) {
     const game = options.game;
     const action = options.action;
-    const str = options.additionalMessage;
     const mode = options.mode;
     const allActions = options.allActions;
     const things = options.things;
@@ -600,6 +679,7 @@ async function getGameStandingsEmbed(m, options) {
     });
     if(action == 'hurt') embed.color = 16731994;
     else if(action == 'heal') embed.color = 6214143;
+    else if(action == 'decay') embed.color = 16153855;
 
     embed.description = `**🎮 Hurt or Heal**${typeof game === 'object' && game.theme ? `: *${game.theme}*` : ''}\n`;
     if(gameOver) embed.description += `\n**The game is over!**\n`;
@@ -623,7 +703,11 @@ async function getGameStandingsEmbed(m, options) {
             let thing = things.find((v => v.id === action.id_hurtheal_things))
             let missing = false;
             if(await m.guild.members.fetch(action.user_id) == null) missing = true;
-            let str = `${missing ? 'Removed user' : `<@${action.user_id}>`} ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${missing ? '' : ` ${action.reason ? Discord.Util.escapeMarkdown(action.reason) : ''}`}`;
+            
+            let str = (() => {
+                if(action.action === 'decay') return `<@${action.user_id}> reduced the health of all items by 1 due to daily decay.`;
+                return `${missing ? 'Removed user' : `<@${action.user_id}>`} ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${missing ? '' : ` ${action.reason ? Discord.Util.escapeMarkdown(action.reason) : ''}`}`;
+            })();
             if(i < this.lastActionsCounted) str = `\\> ${str}`;
             embed.description += `${str}\n`;
         }
@@ -707,7 +791,8 @@ function getHealthBar(thing) {
  */
 function getThingPlace(thing, things) {
     if(thing.death_order == null) return '';
-    const place = things.length - thing.death_order + 1;
+    const highestDeathOrder = Math.min(things.reduce(highestDeathOrderThingInGame, 0), things.length);
+    const place = highestDeathOrder - thing.death_order + 1 + things.reduce((pv, cv) => { if(cv.death_order == null) return ++pv; return pv; }, 0);
     switch(place) {
     case 1: return ':first_place:';
     case 2: return ':second_place:';
@@ -774,6 +859,22 @@ async function getChartFromGame(query, game) {
     let axesMax = 0;
     for(let thing of allThings) axesMax = Math.max(axesMax, thing.health_max);
 
+    /** @type {{id_hurtheal_things: number[], action: 'hurt'|'heal'|'decay', timestamp: number}[]} */
+    let actionsCollapsed = [];
+    for(let i = 0; i < allActions.length; i++) {
+        let action = allActions[i];
+
+        //collapse actions with identical timestamp
+        if(actionsCollapsed.length > 0 && 
+            actionsCollapsed[actionsCollapsed.length - 1].timestamp === action.timestamp && 
+            actionsCollapsed[actionsCollapsed.length - 1].action === action.action) {
+            actionsCollapsed[actionsCollapsed.length - 1].id_hurtheal_things.push(action.id_hurtheal_things);
+        }
+        else {
+            actionsCollapsed.push({ id_hurtheal_things: [action.id_hurtheal_things], action: action.action, timestamp: action.timestamp });
+        }
+    }
+
     /** @type {import('chart.js').ChartConfiguration} */
     let chart = {
         type: 'line',
@@ -793,11 +894,12 @@ async function getChartFromGame(query, game) {
 
                     let set = {label: thing.name, data: [health], borderColor: color};
                     arr.push(set);
-                    for(let action of allActions) {
-                        if(action.id_hurtheal_things === thing.id) {
+                    for(let action of actionsCollapsed) {
+                        if(action.id_hurtheal_things.includes(thing.id)) {
                             switch(action.action) {
                             case 'hurt': health -= 2; break;
                             case 'heal': health += 1; break;
+                            case 'decay': health -= 1; break;
                             }
                         }
                         health = Math.max(health, 0);
@@ -807,9 +909,12 @@ async function getChartFromGame(query, game) {
                 return arr;
             })(),
             labels: (() => {
-                let arr = [0];
-                for(let i = 1; i < allActions.length + 1; i++)
-                    arr.push(i);
+                //let arr = [0];
+                //for(let i = 1; i < allActions.length + 1; i++)
+                //    arr.push(i);
+
+                let arr = [];
+                for(let action of actionsCollapsed) arr.push(action.timestamp);
                 return arr;
             })(),
         },
@@ -837,6 +942,14 @@ async function getChartFromGame(query, game) {
                     suggestedMin: axesMin,
                     ticks: {
                         stepSize: 1,
+                    }
+                },
+                x: {
+                    type: 'time',
+                    time: {
+                        displayFormats: {
+                            quarter: 'MMM YYYY'
+                        }
                     }
                 }
             },
@@ -891,3 +1004,22 @@ async function handleHHMessage(query, userMessage, userMessageDelete, botMessage
 
     return message;
 } 
+
+/**
+ * @this {HurtHeal}
+ * @param {QueueItem} qItem 
+ */
+function addToQueue(qItem) {
+    this.queue.push(qItem);
+    if(this.queueRunning) return;
+    this.queueRunning = true;
+
+    (async () => {
+        while(this.queue.length > 0) {
+            let qitem = this.queue[0];
+            this.queue.splice(0, 1);
+            await action.call(this, qitem.m, qitem.type, qitem.args, qitem.arg).catch(logger.error);
+        }
+        this.queueRunning = false;
+    })();
+}
