@@ -557,7 +557,7 @@ function newMaps(m, game, kcgmm, dm) {
         
         let embed = getEmbedTemplate(m.member);
         embed.color = KCUtil.gameEmbedColors[game];
-        embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed ${totalCompletedNew} maps (XP mult: ${Math.ceil(this.getExpMultiplier(totalCompletedNew) * 100)/100}x)`;
+        embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed ${totalCompletedNew} maps (XP mult: ${this.prettify(Math.ceil(this.getExpMultiplier(totalCompletedNew) * 100)/100)}x)`;
         
         embed.fields = [];
         
@@ -803,7 +803,7 @@ function ignorelist(m, game) {
  * @returns {string}
  */
 function getFormattedXPBarString(emote, expData, expBarsMax, noXpCur, noXpMax, noCode, noBars) {
-    let lvl = `Lv.${expData.currentLevel}`;
+    let lvl = `Lv.${this.prettify(expData.currentLevel)}`;
     expBarsMax -= lvl.length;
     let xpCur = noXpCur ? '' : Bot.Util.String.fixedWidth(this.prettify(expData.currentXP), 5, ' ');
     expBarsMax -= xpCur.length;
