@@ -600,10 +600,12 @@ async function action(m, type, args, arg) {
             return;
         }
         
-        let buffer = await getChartFromGame.call(this, query, resultGame);
+        let buffer1 = await getChartFromGame.call(this, query, resultGame, 'actions');
+        let buffer2 = await getChartFromGame.call(this, query, resultGame, 'time');
 
         this.bot.sql.transaction(async query => {
-            await handleHHMessage.call(this, query, m.message, true, {files: [buffer]}, m.channel, false, false);
+            await handleHHMessage.call(this, query, m.message, false, {content: 'Item health per actions', files: [buffer1]}, m.channel, false, false);
+            await handleHHMessage.call(this, query, m.message, false, {content: 'Item health per time', files: [buffer2]}, m.channel, false, false);
         }).catch(logger.error);
     }).catch(logger.error);
 }
@@ -624,8 +626,12 @@ async function action(m, type, args, arg) {
  * @param {Db.hurtheal_games=} game - Database game ID. Only include this if you want the message to include the image chart of the game
  */
 async function sendNewGameMessage(m, query, type, embed, noRegister, game) {
-    let image = game != null ? await getChartFromGame.call(this, query, game) : null;
-    const message = await handleHHMessage.call(this, query, m.message, type === 'show' ? true : false, { embeds: [embed], files: image ? [image] : undefined }, m.channel, false, false);
+    let image1 = game != null ? await getChartFromGame.call(this, query, game, 'actions') : null;
+    let image2 = game != null ? await getChartFromGame.call(this, query, game, 'time') : null;
+
+    const message = await handleHHMessage.call(this, query, m.message, type === 'show' ? true : false, { embeds: [embed] }, m.channel, false, false);
+    if(image1) await handleHHMessage.call(this, query, m.message, false, {content: 'Item health per actions', files: [image1]}, m.channel, false, false);
+    if(image2) await handleHHMessage.call(this, query, m.message, false, {content: 'Item health per time', files: [image2]}, m.channel, false, false);
 
     /** @type {Db.hurtheal_setup=} */
     let resultSetup = (await query(`SELECT * FROM hurtheal_setup WHERE guild_id = ? FOR UPDATE`, [m.guild.id])).results[0];
@@ -847,9 +853,10 @@ function getItemsFromDb(things) {
  * @this {HurtHeal}
  * @param {SQLWrapper.Query} query
  * @param {Db.hurtheal_games} game
+ * @param {'time'|'actions'} type
  * @returns {Promise<Buffer>}
  */
-async function getChartFromGame(query, game) {
+async function getChartFromGame(query, game, type) {
     /** @type {Db.hurtheal_things[]} */
     let allThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ?`, [game.id])).results;
     /** @type {Db.hurtheal_actions[]} */
@@ -908,15 +915,6 @@ async function getChartFromGame(query, game) {
                 }
                 return arr;
             })(),
-            labels: (() => {
-                //let arr = [0];
-                //for(let i = 1; i < allActions.length + 1; i++)
-                //    arr.push(i);
-
-                let arr = [];
-                for(let action of actionsCollapsed) arr.push(action.timestamp);
-                return arr;
-            })(),
         },
         options: {
             datasets: {
@@ -943,14 +941,6 @@ async function getChartFromGame(query, game) {
                     ticks: {
                         stepSize: 1,
                     }
-                },
-                x: {
-                    type: 'time',
-                    time: {
-                        displayFormats: {
-                            quarter: 'MMM YYYY'
-                        }
-                    }
                 }
             },
         },
@@ -962,6 +952,34 @@ async function getChartFromGame(query, game) {
                 ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             }
         }]
+    }
+
+    if(type === 'actions') {
+        chart.data.labels = (() => {
+            let arr = [0];
+            for(let i = 1; i < actionsCollapsed.length + 1; i++)
+                arr.push(i);
+            return arr;
+        })();
+    }
+    else if(type === 'time') {
+        chart.data.labels = (() => {
+            let arr = [];
+            for(let action of actionsCollapsed) arr.push(action.timestamp);
+            return arr;
+        })();
+
+        const options = chart.options;
+        if(options && options.scales) {
+            options.scales.x = {
+                type: 'time',
+                time: {
+                    displayFormats: {
+                        quarter: 'MMM YYYY'
+                    }
+                }
+            }
+        }
     }
 
     return await chartJSNodeCanvas.renderToBuffer(chart);
