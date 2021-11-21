@@ -30,7 +30,7 @@ export const KCUtil = Object.freeze({
 
         let str = [];
         str[0] = (time / 60).toString().split('.')[0];
-        str[1] = ((time % 60)).toFixed(1);
+        str[1] = ((time % 60)).toFixed(2);
         if(Number(str[1]) < 10)
             str[1] = '0' + str[1];
         return str[0] + ':' + str[1];

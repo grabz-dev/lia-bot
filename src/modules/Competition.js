@@ -1083,8 +1083,8 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
 
     
     const entries = mapScoreQueryData.objective == null ? mapLeaderboard.entries[0] : mapLeaderboard.entries[mapScoreQueryData.objective];
-    if(entries != null) {
-        value += "```";
+    let leaderboardStr = '';
+    if(entries != null && entries.length > 0) {
         for(let i = 0; i < entries.length; i++) {
             let entry = entries[i];
 
@@ -1093,22 +1093,23 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
             const name = (member ? member.nickname || member.user.username : entry.user).substring(0, 17);
 
             if(i <= this.maxScoresInTable - 1) {
-                value += `#${Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true)}${Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 7, "⠀", false)} ${name}\n`;
+                leaderboardStr += `#${Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true)}${Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 8, "⠀", false)} ${name}\n`;
             }
             else if(i === this.maxScoresInTable) {
-                value += (entries.length - i) + " more scores from: ";
+                leaderboardStr += (entries.length - i) + " more scores from: ";
             }
 
             if(i >= this.maxScoresInTable) {
-                value += `${name}${i < entries.length - 1 ? ', ' : ''}`;
+                leaderboardStr += `${name}${i < entries.length - 1 ? ', ' : ''}`;
             }
         }
-        if(entries.length <= 0)
-            value += "No scores yet!";
-        value += "```";
-    }    
+    }
+    else {
+        leaderboardStr += "No scores yet!";
+    }
 
-    value = value.substring(0, KCUtil.embedLimits.fieldValue);
+    leaderboardStr = leaderboardStr.substring(0, KCUtil.embedLimits.fieldValue - value.length - 40);
+    value = `${value}\`\`\`${leaderboardStr}\`\`\``;
 
     return {
         name: name,

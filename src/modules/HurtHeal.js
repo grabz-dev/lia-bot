@@ -19,6 +19,8 @@ const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 800, height: 500, chart
     ChartJS.defaults.font.family = "Helvetica Neue, Helvetica, Arial, sans-serif"
 }});
 
+const DECAY_HOURS = 12;
+
 /**
  * @typedef {object} Db.hurtheal_setup
  * @property {number} id - Primary key
@@ -268,7 +270,7 @@ export default class HurtHeal extends Bot.Module {
     loop(guild) {
 
         this.bot.sql.transaction(async query => {
-            const ms = (1000 * 60 * 60 * 24);
+            const ms = (1000 * 60 * 60 * DECAY_HOURS);
 
             /** @type {Db.hurtheal_games=} */ let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
             if(resultGames == null) return;
@@ -287,7 +289,7 @@ export default class HurtHeal extends Bot.Module {
             const channel = await guild.channels.fetch(resultSetup.last_channel_id);
             if(!(channel instanceof Discord.TextChannel)) return;
 
-            const message = await channel.send('24 hours have passed with no activity. All items take 1 damage.');
+            const message = await channel.send(DECAY_HOURS + ' hours have passed with no activity. All items take 1 damage.');
             if(message.member == null) return;
 
             return {message, channel}
@@ -695,7 +697,7 @@ async function getGameStandingsEmbed(m, options) {
     let space = things.length >= 10 ? ' ' : '';
 
     for(let thing of things) {
-        embed.description += `\`${space && thing.orderId < 10 ? ' ':''}#${thing.orderId}\` \`${getHealthBar.call(this, thing)}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
+        embed.description += `\`${getHealthBar.call(this, thing)}\` \`${space && thing.orderId < 10 ? ' ':''}#${thing.orderId}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
     }
 
     embed.description += '\n';
