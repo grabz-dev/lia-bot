@@ -452,6 +452,11 @@ export function KCGameMapManager(options, locale) {
     function getMapLeaderboardEntryFromRecord(game, record, options) {
         /** @type {MapLeaderboardEntry[]} */
         let arr = [];
+
+        /** @type {null|number} */
+        let lastTime = null;
+        let rankOffset = 0;
+
         for(let entry of record) {
             let rank = +entry.rank[0];
             let user = entry.user[0]+'';
@@ -461,6 +466,13 @@ export function KCGameMapManager(options, locale) {
             let eco = entry.eco == null ? undefined : +entry.eco[0];
             let unitsBuilt = entry.unitsBuilt == null ? undefined : +entry.unitsBuilt[0];
             let unitsLost = entry.unitsLost == null ? undefined : +entry.unitsLost[0];
+
+            //Handle ties
+            if(lastTime != null && time == lastTime) {
+                rankOffset++;
+                rank -= rankOffset;
+            }
+            lastTime = time;
 
             if(game === 'cw4' && options?.removeMverseTag) {
                 user = user.replace('[M] ', '');
