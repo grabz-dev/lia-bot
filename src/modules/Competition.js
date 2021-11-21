@@ -1266,7 +1266,7 @@ function hasMapStatusChanged(guild, msqd, leaderboard) {
         let len = leaderboardOld.length;
         //let len = Math.min(this.maxScoresInTable, Math.min(leaderboardNew.length, leaderboardOld.length));
         for(let i = 0; i < len; i++) {
-            if(leaderboardOld[i].user !== leaderboardNew[i].user)
+            if(leaderboardOld[i].user !== leaderboardNew[i].user || leaderboardOld[i].time !== leaderboardNew[i].time)
                 return true;
         }
     }
