@@ -1176,7 +1176,10 @@ async function getMapLeaderboardWithOnlyRegisteredUsers(query, guild, game, mapL
         /** @type {Object.<string, boolean>} */
         const names = {};
 
-        let rank = 1;
+        let rank = 0;
+        /** @type {null|number} */
+        let lastTime = null;
+
         for(let entry of oldEntries) {
             /** @type {Db.competition_register} */
             let resultRegister = (await query(`SELECT * FROM competition_register 
@@ -1193,8 +1196,13 @@ async function getMapLeaderboardWithOnlyRegisteredUsers(query, guild, game, mapL
 
             let newEntry = { ...entry };
             newEntry.user = member.id;
+            //Handle ties
+            if(lastTime == null || newEntry.time !== lastTime) {
+                rank++;
+            }
+            lastTime = newEntry.time;
+
             newEntry.rank = rank;
-            rank++;
 
             newEntries[i].push(newEntry);
         }
@@ -1248,7 +1256,15 @@ function hasMapStatusChanged(guild, msqd, leaderboard) {
         let leaderboardNew = leaderboard.entries[leaderboardIndex];
         if(leaderboardOld == null || leaderboardNew == null) return false;
 
-        let len = Math.min(this.maxScoresInTable, Math.min(leaderboardNew.length, leaderboardOld.length));
+        leaderboardOld = leaderboardOld.slice().filter(v => v.rank === 1);
+        leaderboardNew = leaderboardNew.slice().filter(v => v.rank === 1);
+        if(leaderboardOld.length !== leaderboardNew.length) return true;
+        leaderboardOld.sort();
+        leaderboardNew.sort();
+
+        //leaderboard lengths are assumed to be equal by this point
+        let len = leaderboardOld.length;
+        //let len = Math.min(this.maxScoresInTable, Math.min(leaderboardNew.length, leaderboardOld.length));
         for(let i = 0; i < len; i++) {
             if(leaderboardOld[i].user !== leaderboardNew[i].user)
                 return true;

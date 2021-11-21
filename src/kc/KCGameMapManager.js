@@ -457,6 +457,8 @@ export function KCGameMapManager(options, locale) {
         let lastTime = null;
         let rankOffset = 0;
 
+        record.sort((/** @type {any} */ a, /** @type {any} */ b) => +a.time[0] - +b.time[0]);
+
         for(let entry of record) {
             let rank = +entry.rank[0];
             let user = entry.user[0]+'';
@@ -468,7 +470,7 @@ export function KCGameMapManager(options, locale) {
             let unitsLost = entry.unitsLost == null ? undefined : +entry.unitsLost[0];
 
             //Handle ties
-            if(lastTime != null && time == lastTime) {
+            if(lastTime != null && time === lastTime) {
                 rankOffset++;
                 rank -= rankOffset;
             }
