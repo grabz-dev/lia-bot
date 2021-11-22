@@ -212,7 +212,12 @@
                 "Heal an item in Hurt or Heal."
             ],
             "chart": [
-                "!%name% <id>"
+                "!%name% <id>",
+                "See chart for a Hurt or Heal game with the specified ID."
+            ],
+            "list": [
+                "!%name%",
+                "See a list of all previously fully completed Hurt or Heal games."
             ]
         },
         "f": {

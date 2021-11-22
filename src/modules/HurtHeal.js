@@ -20,6 +20,7 @@ const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 800, height: 500, chart
 }});
 
 const DECAY_HOURS = 12;
+const ENTRIES_PER_LIST_PAGE = 10;
 
 /**
  * @typedef {object} Db.hurtheal_setup
@@ -164,15 +165,17 @@ export default class HurtHeal extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'hurt'|'heal'|'start'|'help'|'show'|'theme'|'end'|'chart'} ext.action - Custom parameters provided to function call.
+     * @param {'hurt'|'heal'|'start'|'help'|'show'|'theme'|'end'|'chart'|'list'} ext.action - Custom parameters provided to function call.
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
-        if(m.guild.id === this.KCServerDefs.guildId && m.channel.id !== this.KCServerDefs.hurtHealChannelId) {
-            m.channel.send(`You can only use this command in the <#${this.KCServerDefs.hurtHealChannelId}> channel.`).then(message => {
-                setTimeout(() => { message.delete(); m.message.delete(); }, 10000);
-            }).catch(logger.error);
-            return;
+        if(ext.action !== 'list') {
+            if(m.guild.id === this.KCServerDefs.guildId && m.channel.id !== this.KCServerDefs.hurtHealChannelId) {
+                m.channel.send(`You can only use this command in the <#${this.KCServerDefs.hurtHealChannelId}> channel.`).then(message => {
+                    setTimeout(() => { message.delete(); m.message.delete(); }, 10000);
+                }).catch(logger.error);
+                return;
+            }
         }
 
         switch(ext.action) {
@@ -240,6 +243,10 @@ export default class HurtHeal extends Bot.Module {
             let id = +args[0];
             if(!Number.isFinite(id)) return 'Invalid ID number';
             chart.call(this, m, id);
+            break;
+        }
+        case 'list': {
+            list.call(this, m);
             break;
         }
         }
@@ -593,7 +600,7 @@ async function action(m, type, args, arg) {
  * @param {Bot.Message} m - Message of the user executing the command.
  * @param {number} id
  */
- function chart(m, id) {
+function chart(m, id) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.hurtheal_games} */
         let resultGame = (await query(`SELECT * FROM hurtheal_games WHERE id = ?`, [id])).results[0];
@@ -604,11 +611,71 @@ async function action(m, type, args, arg) {
         
         let buffer1 = await getChartFromGame.call(this, query, resultGame, 'actions');
         let buffer2 = await getChartFromGame.call(this, query, resultGame, 'time');
+        await handleHHMessage.call(this, query, m.message, false, {content: 'Item health per actions', files: [buffer1]}, m.channel, false, false);
+        await handleHHMessage.call(this, query, m.message, false, {content: 'Item health per time', files: [buffer2]}, m.channel, false, false);
+    }).catch(logger.error);
+}
 
-        this.bot.sql.transaction(async query => {
-            await handleHHMessage.call(this, query, m.message, false, {content: 'Item health per actions', files: [buffer1]}, m.channel, false, false);
-            await handleHHMessage.call(this, query, m.message, false, {content: 'Item health per time', files: [buffer2]}, m.channel, false, false);
-        }).catch(logger.error);
+/**
+ * @this {HurtHeal}
+ * @param {Bot.Message} m - Message of the user executing the command.
+ */
+function list(m) {
+    this.bot.sql.transaction(async query => {
+        /** @type {Db.hurtheal_games[]} */
+        let resultsGame = (await query(`select * from hurtheal_games where id not in (select id_hurtheal_games from hurtheal_things where death_order is null and id_hurtheal_games = hurtheal_games.id) order by hurtheal_games.id desc`)).results;
+        let page = 1;
+        const embed = getListEmbed(resultsGame, page, false);
+        if(embed == null) {
+            m.channel.send('No HH game was ever recorded.').catch(logger.error);
+            return;
+        }
+        const maxPages = Math.floor(resultsGame.length / ENTRIES_PER_LIST_PAGE) + 1;
+
+        const message = await m.channel.send({ embeds: [embed] });
+        const collector = message.createReactionCollector({
+            time: 1000 * 60 * 10,
+        })
+
+        collector.on('collect', async (reaction, user) => {
+            //do not remove if bot
+            if(message.member && user.id === message.member.id) return;
+            await reaction.users.remove(user);
+            if(user.id !== m.member.id) return;
+
+            switch(reaction.emoji.name) {
+            case '⬅️':
+                if(page === 1) return;
+                page = Math.max(1, page - 5);
+                break;
+            case '◀️':
+                if(page === 1) return;
+                page--;
+                break;
+            case '▶️':
+                if(page === maxPages) return;
+                page++;
+                break;
+            case '➡️':
+                if(page === maxPages) return;
+                page = Math.min(maxPages, page + 5);
+                break;
+            }
+
+            const embed = getListEmbed(resultsGame, page, false);
+            if(embed) await message.edit({ embeds: [embed] });
+        });
+
+        collector.on('end', async () => {
+            await message.reactions.removeAll();
+            const embed = getListEmbed(resultsGame, page, true);
+            if(embed) await message.edit({ embeds: [embed] });
+        });
+
+        await message.react('⬅️');
+        await message.react('◀️');
+        await message.react('▶️');
+        await message.react('➡️');
     }).catch(logger.error);
 }
 
@@ -617,6 +684,37 @@ async function action(m, type, args, arg) {
 
 
 
+
+/**
+ * 
+ * @param {Db.hurtheal_games[]} resultsGame
+ * @param {number} page
+ * @param {boolean} end
+ * @returns {Discord.MessageEmbed|null}
+ */
+function getListEmbed(resultsGame, page, end) {
+    var embed = new Discord.MessageEmbed({
+        color: 14211288,
+        timestamp: Date.now(),
+        description: '**Hurt or Heal**\n\n',
+    });
+
+    embed.description += `Page ${page}\n\n`
+
+    const startAtIndex = (page - 1) * ENTRIES_PER_LIST_PAGE;
+    //if page is out of bounds, return null
+    if(startAtIndex >= resultsGame.length) return null;
+    const gamesSliced = resultsGame.slice(startAtIndex, startAtIndex + ENTRIES_PER_LIST_PAGE);
+
+    for(let i = 0; i < gamesSliced.length; i++) {
+        const game = gamesSliced[i];
+        embed.description += `Game \`#${game.id}\`: ${game.theme == null ? 'No theme' : game.theme} *(${Bot.Util.getFormattedDate(game.timestamp, false)})*\n`;
+    }
+
+    if(!end) embed.description += `\nReact with arrows to switch pages.`;
+
+    return embed;
+}
 
 /**
  * @this {HurtHeal}

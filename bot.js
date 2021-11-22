@@ -177,6 +177,9 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'chart', authorityLevel: ['MODERATOR', 'EMERITUS_MODERATOR']}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'chart' });
             });
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: 'list', authorityLevel: ['MODERATOR', 'EMERITUS_MODERATOR']}), (message, args, arg) => {
+                return hurtheal.land(message, args, arg, { action: 'list' });
+            });
         })();
 
         core.getModule((await import('./src/modules/Farkle.js')).default).then(farkle => {
