@@ -457,8 +457,6 @@ export function KCGameMapManager(options, locale) {
         let lastTime = null;
         let rankOffset = 0;
 
-        record.sort((/** @type {any} */ a, /** @type {any} */ b) => +a.time[0] - +b.time[0]);
-
         for(let entry of record) {
             let rank = +entry.rank[0];
             let user = entry.user[0]+'';
@@ -514,10 +512,10 @@ export function KCGameMapManager(options, locale) {
         switch(msqd.type) {
             case "custom":
                 if(msqd.id == null) return null;
-                return `https://knucklecracker.com/${gameUrlParam}/${msqd.game === 'cw4' ? 'playLogQuery' : 'scoreQuery'}.php?customID=${msqd.id}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}`;
+                return `https://knucklecracker.com/${gameUrlParam}/${msqd.game === 'cw4' ? 'playLogQuery' : 'scoreQuery'}.php?customID=${msqd.id}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
             case "dmd":
                 if(msqd.id == null) return null;
-                return `https://knucklecracker.com/${gameUrlParam}/scoreQuery.php?dmdID=${msqd.id}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}`;
+                return `https://knucklecracker.com/${gameUrlParam}/scoreQuery.php?dmdID=${msqd.id}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
             case "code": {
                 if(msqd.name == null) return null;
                 if(msqd.size == null) return null;
@@ -526,7 +524,7 @@ export function KCGameMapManager(options, locale) {
                 let hash = crypto.createHash('md5').update(msqd.name.toLowerCase().trim()).digest("hex");
                 let hnum = parseInt(hash.substring(0,8), 16);
                 let gameUID = "procedural" + hnum + "-" + msqd.size + msqd.complexity;
-                return `https://knucklecracker.com/${gameUrlParam}/scoreQuery.php?gameUID=${gameUID}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}`;
+                return `https://knucklecracker.com/${gameUrlParam}/scoreQuery.php?gameUID=${gameUID}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
             }
             case "chronom": {
                 if(msqd.timestamp == null) return null;
@@ -534,10 +532,10 @@ export function KCGameMapManager(options, locale) {
                 let str = `CHRONOM ${chronom_months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 
                 let encode = Buffer.from(str).toString('base64');
-                return `https://knucklecracker.com/${gameUrlParam}/playLogQuery.php?gameUID=${encode}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}`;
+                return `https://knucklecracker.com/${gameUrlParam}/playLogQuery.php?gameUID=${encode}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
             }
             case "misc": {
-                return `https://knucklecracker.com/${gameUrlParam}/${msqd.game === 'cw4' ? 'playLogQuery' : 'scoreQuery'}.php?gameUID=${msqd.gameUID}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}`;
+                return `https://knucklecracker.com/${gameUrlParam}/${msqd.game === 'cw4' ? 'playLogQuery' : 'scoreQuery'}.php?gameUID=${msqd.gameUID}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
             }
             default:
                 return null;
