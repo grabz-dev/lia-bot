@@ -85,7 +85,8 @@ const config = {
             "cw3_dmd" : { "display": "DMD" },
             "pf_custom" : { "display": "Exchange" },
             "cw4_custom" : { "display": "Farsite Colonies" },
-            "cw4_chronom" : { "display": "Chronom" }
+            "cw4_chronom" : { "display": "Chronom" },
+            "cw4_markv" : { "display": "Mark V" }
         }
     },
 }

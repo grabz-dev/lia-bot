@@ -21,7 +21,10 @@
             "bad_cw2_code_complexity": "The complexity parameter of this CW2 code map is not correct.",
             "no_cw2_code_name": "You must specify the name of the CW2 code map.",
             "no_objective": "The map objective wasn't specified.",
-            "bad_objective": "Incorrect objective specified."
+            "bad_objective": "Incorrect objective specified.",
+            "no_markv": "The Mark V seed wasn't specified",
+            "no_markv_params": "The Mark V seed parameters (e.g. #4441) weren't specified",
+            "bad_chronom_date": "Incorrect chronom date specified"
         },
         "emotes": {
             "err_game_name_not_provided": "You must provide the name of the game.",
