@@ -114,7 +114,7 @@ export default class HurtHeal extends Bot.Module {
              )`);
         }).catch(logger.error);
 
-        this.barLength = 10;
+        this.barLength = 20;
         this.lastActionsCounted = 2;
         this.lastActionsShown = 5;
         this.dictionary = {
@@ -795,7 +795,7 @@ async function getGameStandingsEmbed(m, options) {
     let space = things.length >= 10 ? ' ' : '';
 
     for(let thing of things) {
-        embed.description += `\`${getHealthBar.call(this, thing)}\` \`${space && thing.orderId < 10 ? ' ':''}#${thing.orderId}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
+        embed.description += `\`${getHealthBar.call(this, thing, Math.min(this.barLength, things.reduce((p, v) => Math.max(p, v.health_max), 0)))}\` \`${space && thing.orderId < 10 ? ' ':''}#${thing.orderId}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
     }
 
     embed.description += '\n';
@@ -850,9 +850,10 @@ async function getGameStandingsEmbed(m, options) {
 /**
  * @this {HurtHeal}
  * @param {Db.hurtheal_things} thing
+ * @param {number} barLength
  * @returns {string}
  */
-function getHealthBar(thing) {
+function getHealthBar(thing, barLength) {
     let str = '';
     let health = thing.health_cur <= 0 ? 0 : thing.health_cur;
     let overheals = 10;
@@ -862,10 +863,10 @@ function getHealthBar(thing) {
         bars[i] = thing.health_cur - thing.health_max * i;
     }
 
-    for(let i = 0; i < this.barLength; i++) {
+    for(let i = 0; i < barLength; i++) {
         let type = -1;
         for(let j = overheals - 1; j >= 0; j--) {
-            if(i < Math.ceil(bars[j] / thing.health_max * this.barLength)) {
+            if(i < Math.ceil(bars[j] / thing.health_max * barLength)) {
                 type = j;
                 break;
             }
