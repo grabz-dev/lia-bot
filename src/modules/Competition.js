@@ -830,7 +830,7 @@ function intro(m, type) {
         let roleId = this.bot.getRoleId(m.guild.id, 'CHAMPION_OF_KC');
         embed.color = 4482815;
 
-        embed.description = `:fire: **Introduction to Champions**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nPlace #1 at the end of a competition in any of the maps listed in the pinned messages below to become Champion.`;
+        embed.description = `:fire: **Introduction to Champions**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nReach top 5 in the score tally or place #1 at the end of a competition in any of the maps listed in the pinned messages below to become Champion.`;
     }
     else if(type === 'chronom') {
         let roleId = this.bot.getRoleId(m.guild.id, 'MASTER_OF_CHRONOM');
@@ -861,8 +861,12 @@ async function buildScoreTally(guild, channel, query, champion) {
     const championsWeeks = new Discord.Collection();
     /** @type {Discord.Collection<Discord.Snowflake, boolean>} */
     const champions = new Discord.Collection();
+    /** @type {Discord.Collection<Discord.Snowflake, number>} */
+    const userPointsTally = new Discord.Collection();
+
 
     const weeks = 2;
+    const tallyChamps = 5;
     let i = 1;
 
     /** @type {Db.competition_history_competitions[]} */
@@ -881,41 +885,84 @@ async function buildScoreTally(guild, channel, query, champion) {
                 WHERE id_competition_history_maps = '${resultMaps.id}'`)).results;
 
             for(let resultScores of resultsScores) {
-                if(resultScores.user_rank !== 1) continue;
-                
-                championsWeeks.set(resultScores.user_id, i);
-                champions.set(resultScores.user_id, true);
+                let tally = userPointsTally.get(resultScores.user_id)??0;
+                tally += getPointsFromRank(resultScores.user_rank);
+                userPointsTally.set(resultScores.user_id, tally);
+
+                if(resultScores.user_rank === 1) {
+                    championsWeeks.set(resultScores.user_id, i);
+                    champions.set(resultScores.user_id, true);
+                }
             }
         }
         i++;
     }
 
+    championsWeeks.sort((a, b) => b - a);
+    userPointsTally.sort((a, b) => b - a);
+
+    i = 0;
+    userPointsTally.each((value, key) => {
+        if(i < tallyChamps) {
+            champions.set(key, true);
+        }
+        i++;
+    });
+
     await champion.refreshCompetitionChampions(query, guild, champions);
 
-    championsWeeks.sort((a, b) => {
-        return b - a;
-    });
+    (async () => {
+        const embed = new Discord.MessageEmbed({ color: 1482885 });
+        const field = {
+            name: `Score tally from last ${weeks} competitions`,
+            value: "",
+            inline: false
+        }
+        let i = 1;
+        for(let user of userPointsTally) {
+            let points = user[1];
+            let snowflake = user[0];
+            let bold = i <= tallyChamps ? '**' : '';
 
-    const embed = new Discord.MessageEmbed({
-        color: 1482885,
-    });
-    const field = {
-        name: "Current champions",
-        value: "",
-        inline: false
-    }
-    for(let champion of championsWeeks) {
-        let weeks = champion[1];
-        let snowflake = champion[0];
+            field.value += `${bold}\`#${i}\` ${points} points: <@${snowflake}>${bold}\n`;
+            i++;
+        }
+        if(field.value.length === 0) field.value = "None";
+        embed.fields = [];
+        embed.fields.push(field);
 
-        field.value += `\`${weeks} weeks left\` <@${snowflake}>\n`;
-    }
-    if(field.value.length === 0) field.value = "None";
+        await channel.send({embeds: [embed]});
+    })().then(async () => {
+        const embed = new Discord.MessageEmbed({ color: 1482885 });
+        const field = {
+            name: "Current champions",
+            value: "",
+            inline: false
+        }
+        for(let champion of championsWeeks) {
+            let weeks = champion[1];
+            let snowflake = champion[0];
     
-    embed.fields = [];
-    embed.fields.push(field);
+            field.value += `\`${weeks} weeks left\` <@${snowflake}>\n`;
+        }
+        let i = 0;
+        for(let user of userPointsTally) {
+            let points = user[1];
+            let snowflake = user[0];
+            if(championsWeeks.get(snowflake) == null) {
+                field.value += `\`${points} points\` <@${snowflake}>\n`;
+            }
 
-    channel.send({embeds: [embed]});
+            i++;
+            if(i >= tallyChamps) break;
+        }
+        if(field.value.length === 0) field.value = "None";
+        
+        embed.fields = [];
+        embed.fields.push(field);
+    
+        await channel.send({embeds: [embed]});
+    }).catch(logger.error);
 }
 
 /**
