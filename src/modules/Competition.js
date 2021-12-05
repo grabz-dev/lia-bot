@@ -901,13 +901,23 @@ async function buildScoreTally(guild, channel, query, champion) {
     championsWeeks.sort((a, b) => b - a);
     userPointsTally.sort((a, b) => b - a);
 
-    i = 0;
-    userPointsTally.each((value, key) => {
-        if(i < tallyChamps) {
-            champions.set(key, true);
-        }
-        i++;
-    });
+    (() => {
+        let i = 0;
+        let lastPoints = 0;
+        userPointsTally.each((value, key) => {
+            //if we're looking at the 6th player and they have the same score as the 5th player, bump them back down to being a 5th player
+            if(i === tallyChamps && value === lastPoints)
+                i--;
+
+            //if this player is within the first five ranks
+            if(i < tallyChamps) {
+                champions.set(key, true);
+            }
+
+            lastPoints = value;
+            i++;
+        });
+    })();
 
     await champion.refreshCompetitionChampions(query, guild, champions);
 
@@ -919,12 +929,18 @@ async function buildScoreTally(guild, channel, query, champion) {
             inline: false
         }
         let i = 1;
+        let lastPoints = 0;
         for(let user of userPointsTally) {
             let points = user[1];
             let snowflake = user[0];
+
+            if(i - 1 === tallyChamps && points === lastPoints)
+                i--;
+
             let bold = i <= tallyChamps ? '**' : '';
 
             field.value += `${bold}\`#${i}\` ${points} points: <@${snowflake}>${bold}\n`;
+            lastPoints = points;
             i++;
         }
         if(field.value.length === 0) field.value = "None";
