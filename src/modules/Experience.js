@@ -45,6 +45,14 @@
  * @property {number} state - 0 (selected, incomplete), 1 (complete), 2 (ignored)
  */
 
+/**
+ * @typedef {object} Db.experience_maps_markv
+ * @property {number} id - Primary key
+ * @property {number} id_experience_users - Db.experience_users key
+ * @property {string} seed - seed of the Mark V map
+ * @property {number} state - 0 (selected, incomplete), 1 (complete), 2 (ignored)
+ */
+
 
 import Discord from 'discord.js';
 import * as Bot from 'discord-bot-core';
@@ -55,6 +63,7 @@ import { KCUtil } from '../kc/KCUtil.js';
 
 import { CustomManager } from './Experience/CustomManager.js';
 import { CampaignManager } from './Experience/CampaignManager.js';
+import { MarkVManager } from './Experience/MarkVManager.js';
 
 export default class Experience extends Bot.Module {
     /**
@@ -70,7 +79,8 @@ export default class Experience extends Bot.Module {
         this.dots = ['⣀', '⣄', '⣤', '⣦', '⣶', '⣷', '⣿'];
         this.managers = {
             custom: new CustomManager(this),
-            campaign: new CampaignManager(this)
+            campaign: new CampaignManager(this),
+            markv: new MarkVManager(this),
         }
         this.symbols = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc"];
 
@@ -98,6 +108,12 @@ export default class Experience extends Bot.Module {
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 id_experience_users INT UNSIGNED NOT NULL,
                 game_uid VARCHAR(128) BINARY NOT NULL,
+                state TINYINT(2) NOT NULL
+             )`);
+            await query(`CREATE TABLE IF NOT EXISTS experience_maps_markv (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                id_experience_users INT UNSIGNED NOT NULL,
+                seed VARCHAR(128) BINARY NOT NULL,
                 state TINYINT(2) NOT NULL
              )`);
         }).catch(logger.error);
@@ -426,6 +442,7 @@ function profile(m, game, kcgmm, dm) {
             else {
                 const data_custom = await this.managers.custom.profile(query, kcgmm, resultUsers, mapListId);
                 const data_campaign = await this.managers.campaign.profile(query, kcgmm, resultUsers);
+                const data_markv = await this.managers.markv.profile(query, kcgmm, resultUsers);
 
                 let totalCompleted = 0;
                 totalCompleted += data_custom.countTotalCompleted;
@@ -434,6 +451,7 @@ function profile(m, game, kcgmm, dm) {
                 let totalExp = 0;
                 totalExp += this.managers.custom.getExpFromMaps(data_custom.mapsTotalCompleted, kcgmm, totalCompleted);
                 totalExp += this.managers.campaign.getExpFromMaps(data_campaign.mapsTotalCompleted, totalCompleted);
+                totalExp += this.managers.markv.getExpFromMaps(data_markv.mapsTotalCompleted, totalCompleted);
 
                 let expData = getExpDataFromTotalExp(totalExp);
 
@@ -446,6 +464,8 @@ function profile(m, game, kcgmm, dm) {
                     str += `\`#${data_custom.selectedMaps.finished[j].id}\` `;
                 for(let j = 0; j < data_campaign.selectedMaps.finished.length; j++)
                     str += `\`${data_campaign.selectedMaps.finished[j].mapName}\` `;
+                for(let j = 0; j < data_markv.selectedMaps.finished.length; j++)
+                    str += `\`${data_markv.selectedMaps.finished[j]}\` `;
                 str += '\n';
                 str += this.bot.locale.category('experience', 'embed_maps_1');
                 if(games.length === 1) {
@@ -454,6 +474,8 @@ function profile(m, game, kcgmm, dm) {
                         str += this.managers.custom.getMapClaimString(map, kcgmm, totalCompleted) + '\n';
                     for(let map of data_campaign.selectedMaps.unfinished)
                         str += this.managers.campaign.getMapClaimString(map, totalCompleted) + '\n';
+                    for(let map of data_markv.selectedMaps.unfinished)
+                        str += this.managers.markv.getMapClaimString(map, totalCompleted) + '\n';
                     str = str.substring(0, str.length - 1);
                 }
                 else {
@@ -461,6 +483,8 @@ function profile(m, game, kcgmm, dm) {
                         str += `\`#${data_custom.selectedMaps.unfinished[j].id}\` `;
                     for(let j = 0; j < data_campaign.selectedMaps.unfinished.length; j++)
                         str += `\`${data_campaign.selectedMaps.unfinished[j].mapName}\` `;
+                    for(let j = 0; j < data_markv.selectedMaps.unfinished.length; j++)
+                        str += `\`${data_markv.selectedMaps.unfinished[j]}\` `;
                 }
                 
                 field.value = str;
@@ -529,24 +553,30 @@ function newMaps(m, game, kcgmm, dm) {
 
         const data_custom = await this.managers.custom.newMaps(query, kcgmm, resultUsers, mapListArray, mapListId);
         const data_campaign = await this.managers.campaign.newMaps(query, kcgmm, resultUsers);
+        const data_markv = await this.managers.markv.newMaps(query, kcgmm, resultUsers);
 
         let totalCompletedOld = 0;
         totalCompletedOld += data_custom.countOldTotalCompleted;
         totalCompletedOld += data_campaign.countOldTotalCompleted;
+        totalCompletedOld += data_markv.countOldTotalCompleted;
 
         let totalCompletedNew = 0;
         totalCompletedNew += data_custom.countNewTotalCompleted;
         totalCompletedNew += data_campaign.countNewTotalCompleted;
+        totalCompletedNew += data_markv.countNewTotalCompleted;
 
         let totalExpOld = 0;
         totalExpOld += this.managers.custom.getExpFromMaps(data_custom.oldMapsTotalCompleted, kcgmm, totalCompletedOld);
         totalExpOld += this.managers.campaign.getExpFromMaps(data_campaign.oldMapsTotalCompleted, totalCompletedOld);
+        totalExpOld += this.managers.markv.getExpFromMaps(data_markv.oldMapsTotalCompleted, totalCompletedOld);
 
         let totalExpNew = 0;
         totalExpNew += this.managers.custom.getExpFromMaps(data_custom.oldMapsTotalCompleted, kcgmm, totalCompletedNew);
         totalExpNew += this.managers.custom.getExpFromMaps(data_custom.oldSelectedMaps.finished, kcgmm, totalCompletedNew);
         totalExpNew += this.managers.campaign.getExpFromMaps(data_campaign.oldMapsTotalCompleted, totalCompletedNew);
         totalExpNew += this.managers.campaign.getExpFromMaps(data_campaign.oldSelectedMaps.finished, totalCompletedNew);
+        totalExpNew += this.managers.markv.getExpFromMaps(data_markv.oldMapsTotalCompleted, totalCompletedNew);
+        totalExpNew += this.managers.markv.getExpFromMaps(data_markv.oldSelectedMaps.finished, totalCompletedNew);
 
         const expDataOld = getExpDataFromTotalExp(totalExpOld);
 
@@ -557,7 +587,8 @@ function newMaps(m, game, kcgmm, dm) {
         
         let embed = getEmbedTemplate(m.member);
         embed.color = KCUtil.gameEmbedColors[game];
-        embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed ${totalCompletedNew} maps (XP mult: ${this.prettify(Math.ceil(this.getExpMultiplier(totalCompletedNew) * 100)/100)}x)`;
+        const xpMult = Math.ceil(this.getExpMultiplier(totalCompletedNew) * 100)/100;
+        embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed ${totalCompletedNew} maps (XP mult: ${xpMult >= 1000 ? this.prettify(xpMult) : xpMult}x)`;
         
         embed.fields = [];
         
@@ -583,6 +614,8 @@ function newMaps(m, game, kcgmm, dm) {
             fieldNewMaps.value += this.managers.custom.getMapClaimString(map, kcgmm, totalCompletedNew) + '\n';
         for(let map of data_campaign.newSelectedMaps.unfinished)
             fieldNewMaps.value += this.managers.campaign.getMapClaimString(map, totalCompletedNew) + '\n';
+        for(let map of data_markv.newSelectedMaps.unfinished)
+            fieldNewMaps.value += this.managers.markv.getMapClaimString(map, totalCompletedNew) + '\n';
         if(fieldNewMaps.value.length === 0)
             fieldNewMaps.value = `${Bot.Util.getSpecialWhitespace(3)}You've completed everything. Well done!`;
 
@@ -595,7 +628,8 @@ function newMaps(m, game, kcgmm, dm) {
             fieldBeatenMaps.value += this.managers.custom.getMapClaimString(map, kcgmm, totalCompletedNew, true) + '\n';
         for(let map of data_campaign.newSelectedMaps.finished)
             fieldBeatenMaps.value += this.managers.campaign.getMapClaimString(map, totalCompletedNew, true) + '\n';
-
+        for(let map of data_markv.newSelectedMaps.finished)
+            fieldBeatenMaps.value += this.managers.markv.getMapClaimString(map, totalCompletedNew, true) + '\n';
         let fieldInstructions = {
             name: ':information_source: ' + this.bot.locale.category('experience', 'embed_instructions_title'),
             value: this.bot.locale.category('experience', 'embed_results_value', game),
@@ -903,6 +937,7 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
 
         const data_custom = await this.managers.custom.leaderboard(query, resultUser, mapListId);
         const data_campaign = await this.managers.campaign.leaderboard(query, resultUser);
+        const data_markv = await this.managers.markv.leaderboard(query, resultUser);
 
         let totalCompleted = 0;
         totalCompleted += data_custom.countTotalCompleted;
@@ -911,6 +946,7 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
         let totalExp = 0;
         totalExp += this.managers.custom.getExpFromMaps(data_custom.mapsTotalCompleted, kcgmm, totalCompleted);
         totalExp += this.managers.campaign.getExpFromMaps(data_campaign.mapsTotalCompleted, totalCompleted);
+        totalExp += this.managers.markv.getExpFromMaps(data_markv.mapsTotalCompleted, totalCompleted);
 
         if(totalExp > 0) {
             leaders.push({
@@ -979,6 +1015,7 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
 
         const data_custom = await this.managers.custom.leaderboard(query, user, mapListId);
         const data_campaign = await this.managers.campaign.leaderboard(query, user);
+        const data_markv = await this.managers.markv.leaderboard(query, user);
 
         let totalCompleted = 0;
         totalCompleted += data_custom.countTotalCompleted;
@@ -987,6 +1024,7 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
         let totalExp = 0;
         totalExp += this.managers.custom.getExpFromMaps(data_custom.mapsTotalCompleted, kcgmm, totalCompleted);
         totalExp += this.managers.campaign.getExpFromMaps(data_campaign.mapsTotalCompleted, totalCompleted);
+        totalExp += this.managers.markv.getExpFromMaps(data_markv.mapsTotalCompleted, totalCompleted);
 
         msgStr += `\`#${leaders.findIndex(v => v.resultUser.user_id === user.user_id)+1}\``;
         msgStr += getFormattedXPBarString.call(this, '', getExpDataFromTotalExp(totalExp), this.expBarLeadersLength, true);
