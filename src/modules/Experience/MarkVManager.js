@@ -269,8 +269,6 @@ async function getMapsCompleted(maps, userName, kcgmm) {
     /** @type {MarkVMapData[]} */
     let unfinished = [];
 
-    console.log(maps);
-
     let promises = [];
     for(let i = 0; i < maps.length; i++)
         promises[i] = kcgmm.getMapCompleted({game: 'cw4', type: 'markv', name: maps[i]}, userName, undefined, { removeMverseTag: true });
