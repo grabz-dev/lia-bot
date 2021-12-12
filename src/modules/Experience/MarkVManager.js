@@ -115,8 +115,8 @@ export class MarkVManager {
 
         /** @type {MarkVMapData[]} */
         let selectedMarkVMaps = [];
-        selectMarkVMaps.call(this, selectedMarkVMaps, resultUsers, allMapsCompleted, oldMapsParsedFromDb.ignored);
-        selectMarkVMaps.call(this, selectedMarkVMaps, resultUsers, allMapsCompleted, oldMapsParsedFromDb.ignored);
+        //selectMarkVMaps.call(this, selectedMarkVMaps, resultUsers, allMapsCompleted, oldMapsParsedFromDb.ignored);
+        //selectMarkVMaps.call(this, selectedMarkVMaps, resultUsers, allMapsCompleted, oldMapsParsedFromDb.ignored);
         
         await query(`DELETE FROM experience_maps_markv
             WHERE id_experience_users = '${resultUsers.id}' AND state = '0'`);

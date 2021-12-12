@@ -70,7 +70,12 @@ export class CustomManager {
 
         /** @type {KCGameMapManager.MapData[]} */
         const selectedIds = [];
-        selectRandomMaps(selectedIds, kcgmm.getHighestRankedMonthlyMaps(resultUsers.game, 4, 10, allMapsCompleted), allMapsCompleted, oldMapsParsedFromDb.ignored, 4);
+        const maxRank = 10;
+        const highRankMapsToSelect = 4;
+        for(let i = 1; i <= maxRank; i++) {
+            if(selectedIds.length >= highRankMapsToSelect) break;
+            selectRandomMaps(selectedIds, kcgmm.getHighestRankedMonthlyMaps(resultUsers.game, Infinity, i, allMapsCompleted), allMapsCompleted, oldMapsParsedFromDb.ignored, highRankMapsToSelect);
+        }
         selectRandomMaps(selectedIds, mapListsForProcessing.asArray, allMapsCompleted, oldMapsParsedFromDb.ignored, 6);
         selectedIds.sort((a, b) => this.getExpFromMap(b, kcgmm, countNewTotalCompleted) - this.getExpFromMap(a, kcgmm, countNewTotalCompleted));
 
