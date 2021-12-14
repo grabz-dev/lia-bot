@@ -65,7 +65,7 @@ export class CustomManager {
 
         const oldMapsParsedFromDb = getMapsParsedFromDatabase(mapListId, resultsMapsCustom);
         const oldSelectedMaps = await getMapsCompleted(oldMapsParsedFromDb.selected, resultUsers.user_name, kcgmm);
-        const allMapsCompleted = resultsMapsCustom.filter(v => v.state === 1).map(v => v.map_id).concat(oldSelectedMaps.finished.map(v => v.id));
+        const allMapsCompleted = oldMapsParsedFromDb.completed.map(v => v.id).concat(oldSelectedMaps.finished.map(v => v.id));
         const countNewTotalCompleted = allMapsCompleted.length;
 
         /** @type {KCGameMapManager.MapData[]} */
