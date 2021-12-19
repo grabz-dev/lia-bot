@@ -599,7 +599,7 @@ function newMaps(m, game, kcgmm, dm) {
                 if(index === 0) {
                     const roleId = this.bot.getRoleId(m.guild.id, 'CHAMPION_OF_KC');
                     if(roleId) {
-                        embed.description += `\nYou are a <@${roleId}>`;
+                        embed.description += `\nYou are a <@&${roleId}>`;
                     }
                 }
                 else {
@@ -607,7 +607,7 @@ function newMaps(m, game, kcgmm, dm) {
                     const playerAbove = leaders[playerAboveIndex];
                     const lvlDifferential = playerAbove.total.currentLevel - leader.total.currentLevel;
                     if(lvlDifferential > 0) {
-                        embed.description += `\nYou're ${lvlDifferential} levels away from rank #${playerAboveIndex + 1}`;
+                        embed.description += `\nYou're ${lvlDifferential} level${lvlDifferential === 1 ? '' : 's'} away from rank #${playerAboveIndex + 1}`;
                     }
                     else {
                         const xpDifferential = playerAbove.total.currentXP - leader.total.currentXP;
