@@ -588,8 +588,35 @@ function newMaps(m, game, kcgmm, dm) {
         let embed = getEmbedTemplate(m.member);
         embed.color = KCUtil.gameEmbedColors[game];
         const xpMult = Math.ceil(this.getExpMultiplier(totalCompletedNew) * 100)/100;
-        embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed ${totalCompletedNew} maps (XP mult: ${xpMult >= 1000 ? this.prettify(xpMult) : xpMult}x)`;
+        embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed **${totalCompletedNew}** maps (XP mult: **${xpMult >= 1000 ? this.prettify(xpMult) : xpMult}x**)`;
         
+        const leaders = await getLeaderboard.call(this, query, kcgmm, mapListId, m.guild, game);
+        const leader = leaders.find(v => v.resultUser.user_id === m.member.id);
+        if(leader) {
+            const index = leaders.indexOf(leader);
+            if(index >= 0) {
+                embed.description += `\nYour leaderboard rank is **#${index + 1}**`;
+                if(index === 0) {
+                    const roleId = this.bot.getRoleId(m.guild.id, 'CHAMPION_OF_KC');
+                    if(roleId) {
+                        embed.description += `\nYou are a <@${roleId}>`;
+                    }
+                }
+                else {
+                    const playerAboveIndex = index - 1;
+                    const playerAbove = leaders[playerAboveIndex];
+                    const lvlDifferential = playerAbove.total.currentLevel - leader.total.currentLevel;
+                    if(lvlDifferential > 0) {
+                        embed.description += `\nYou're ${lvlDifferential} levels away from rank #${playerAboveIndex + 1}`;
+                    }
+                    else {
+                        const xpDifferential = playerAbove.total.currentXP - leader.total.currentXP;
+                        embed.description += `\nYou're 0 levels and ${xpDifferential} XP away from rank #${playerAboveIndex + 1}`;
+                    }
+                }
+            }
+        }
+
         embed.fields = [];
         
         let fieldXp = {
@@ -922,10 +949,9 @@ function getEmbedTemplate(member) {
  * @param {Discord.Collection<number, KCGameMapManager.MapData>} mapListId
  * @param {Discord.Guild} guild
  * @param {string} game 
- * @param {Discord.GuildMember=} member
- * @returns {Promise<Discord.MessageEmbed>}
+ * @returns {Promise<{ resultUser: Db.experience_users; total: ExpData; }[]>}
  */
-async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member) {
+async function getLeaderboard(query, kcgmm, mapListId, guild, game) {
     /** @type {Db.experience_users[]} */
     let resultsUsers = (await query(`SELECT * FROM experience_users
         WHERE game = '${game}'`)).results;
@@ -956,7 +982,21 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
         }
     }
     leaders.sort((a, b) => b.total.currentLevel - a.total.currentLevel || b.total.currentXP - a.total.currentXP);
+    return leaders;
+}
 
+/**
+ * @this {Experience}
+ * @param {SQLWrapper.Query} query
+ * @param {KCGameMapManager} kcgmm 
+ * @param {Discord.Collection<number, KCGameMapManager.MapData>} mapListId
+ * @param {Discord.Guild} guild
+ * @param {string} game 
+ * @param {Discord.GuildMember=} member
+ * @returns {Promise<Discord.MessageEmbed>}
+ */
+async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member) {
+    const leaders = await getLeaderboard.call(this, query, kcgmm, mapListId, guild, game);
 
     /** @type {Db.experience_users|null} */
     let resultUsers = member == null ? null : (await query(`SELECT * FROM experience_users
