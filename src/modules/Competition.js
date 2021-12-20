@@ -744,7 +744,7 @@ function end(m, kcgmm, champion) {
             const mapData = map.id == null ? undefined : kcgmm.getMapById(map.game, map.id) ?? undefined;
 
             const embed = getEmbedTemplate();
-            const field = await getEmbedFieldFromMapData.call(this, m.guild, registeredMapLeaderboard, map, emotes[map.game], mapData);
+            const field = await getEmbedFieldFromMapData.call(this, m.guild, registeredMapLeaderboard, map, emotes[map.game], mapData, true);
             embed.title = field.name;
             embed.description = field.value;
             embed.footer = {
@@ -1110,9 +1110,10 @@ function getEmbedScores(color, timeRemaining) {
  * @param {KCGameMapManager.MapScoreQueryData} mapScoreQueryData 
  * @param {string} emoteStr
  * @param {KCGameMapManager.MapData=} mapData
+ * @param {boolean=} isPoints
  * @returns {Promise<{name: string, value: string, inline: boolean}>}
  */
-async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData, emoteStr, mapData) {
+async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData, emoteStr, mapData, isPoints) {
     let name = `${emoteStr} ${KCLocaleManager.getDisplayNameFromAlias("map_mode_custom", `${mapScoreQueryData.game}_${mapScoreQueryData.type}`)}`;
     let value = "";
 
@@ -1164,7 +1165,12 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
             const name = (member ? member.nickname || member.user.username : entry.user).substring(0, 17);
 
             if(i <= this.maxScoresInTable - 1) {
-                leaderboardStr += `#${Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true)}${Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 8, "⠀", false)} ${name}\n`;
+                if(isPoints) 
+                    leaderboardStr += `${Bot.Util.String.fixedWidth(getPointsFromRank(entry.rank) + " pts", 6, "⠀", true)}`;
+                else
+                    leaderboardStr += `#${Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true)}`;
+                
+                leaderboardStr += `${Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 8, "⠀", false)} ${name}\n`;
             }
             else if(i === this.maxScoresInTable) {
                 leaderboardStr += (entries.length - i) + " more scores from: ";
