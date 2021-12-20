@@ -68,7 +68,7 @@ export default class Champion extends Bot.Module {
         for(let champion of champions) {
             /** @type {Db.champion_champions|null} */
             let resultChampions = (await query(`SELECT * FROM champion_champions 
-                WHERE guild_id = '${guild.id}' AND entry_key = 'exp_${champion.game}'`)).results[0];
+                WHERE guild_id = '${guild.id}' AND entry_key = 'exp_${champion.game}' FOR UPDATE`)).results[0];
             
             if(resultChampions == null)
                 await query(`INSERT INTO champion_champions (guild_id, entry_key, user_id)

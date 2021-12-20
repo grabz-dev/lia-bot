@@ -416,6 +416,11 @@ export default class Farkle extends Bot.Module {
         }).catch(logger.error); 
     }
 
+    //TODO I believe I can safely remove the queue system if I use locking with FOR UPDATE
+    //and change database type from REPEATABLE READ to READ COMMITTED
+    //but not many people play this and I don't have enough testing accounts
+    //so I'm leaving it as-is for now.
+
     /** @param {Discord.Message} message - The message that was sent. */
     onMessageDM(message) {
         //Ensure order of play

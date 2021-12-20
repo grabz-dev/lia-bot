@@ -314,21 +314,21 @@ export default class Experience extends Bot.Module {
 function register(m, game, name) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.experience_users} */
-        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_id = ? AND user_name = ?`, [game, m.member.id, name])).results[0];
+        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_id = ? AND user_name = ? FOR UPDATE`, [game, m.member.id, name])).results[0];
         if(resultUsers != null) {
             m.message.reply(this.bot.locale.category('experience', 'already_registered_with_this_name', resultUsers.user_name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
             return;
         }
 
         /** @type {Db.experience_users} */
-        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_name = ?`, [game, name])).results[0];
+        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_name = ? FOR UPDATE`, [game, name])).results[0];
         if(resultUsers != null) {
             m.message.reply(this.bot.locale.category('experience', 'name_taken', resultUsers.user_name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
             return;
         }
 
         /** @type {Db.experience_users} */
-        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_id = ?`, [game, m.member.id])).results[0];
+        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_id = ? FOR UPDATE`, [game, m.member.id])).results[0];
         if(resultUsers != null) {
             m.message.reply(this.bot.locale.category('experience', 'already_registered_with_other_name', resultUsers.user_name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
             return;
@@ -525,6 +525,11 @@ function profile(m, game, kcgmm, dm) {
  */
 function newMaps(m, game, kcgmm, dm) {
     this.bot.sql.transaction(async query => {
+        //Fetch current user
+        /** @type {Db.experience_users} */
+        let resultUsers = (await query(`SELECT * FROM experience_users
+            WHERE user_id = '${m.member.id}' AND game = '${game}' FOR UPDATE`)).results[0];
+
         //Get emote for this game
         let emote = ':game_die:';
         await this.bot.sql.transaction(async query => {
@@ -532,11 +537,6 @@ function newMaps(m, game, kcgmm, dm) {
                 WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
             if(result) emote = result.emote;
         }).catch(logger.error);
-
-        //Fetch current user
-        /** @type {Db.experience_users} */
-        let resultUsers = (await query(`SELECT * FROM experience_users
-            WHERE user_id = '${m.member.id}' AND game = '${game}'`)).results[0];
 
         //Exit if user is not registered
         if(resultUsers == null) {
@@ -690,7 +690,7 @@ function newMaps(m, game, kcgmm, dm) {
 function wipe(m, game, id) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.experience_users} */
-        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_id = ?`, [game, id])).results[0];
+        var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_id = ? FOR UPDATE`, [game, id])).results[0];
 
         if(!resultUsers) {
             m.message.reply(this.bot.locale.category('experience', 'wipe_failed_not_registered')).catch(logger.error);
@@ -729,7 +729,7 @@ function ignore(m, game, mapIds) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.experience_users} */
         var resultUsers = (await query(`SELECT * FROM experience_users
-            WHERE game = '${game}' AND user_id = '${m.member.id}'`)).results[0];
+            WHERE game = '${game}' AND user_id = '${m.member.id}' FOR UPDATE`)).results[0];
         
         if(!resultUsers) {
             m.message.reply(this.bot.locale.category('experience', 'not_registered', KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown')).catch(logger.error);
@@ -785,7 +785,7 @@ function unignore(m, game, mapIds) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.experience_users} */
         var resultUsers = (await query(`SELECT * FROM experience_users
-            WHERE game = '${game}' AND user_id = '${m.member.id}'`)).results[0];
+            WHERE game = '${game}' AND user_id = '${m.member.id}' FOR UPDATE`)).results[0];
         
         if(!resultUsers) {
             m.message.reply(this.bot.locale.category('experience', 'not_registered', KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown')).catch(logger.error);

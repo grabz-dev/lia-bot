@@ -400,26 +400,24 @@ export default class Competition extends Bot.Module {
  */
 function register(m, game, name) {
     this.bot.sql.transaction(async query => {
-        await query(`SELECT user_name FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? FOR UPDATE`, [m.guild.id, m.member.id, game]);
-
         let gameName = KCLocaleManager.getDisplayNameFromAlias("game", game) || "unknown";
 
         /** @type {Db.competition_register} */
-        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? AND user_name = ?`, [m.guild.id, m.member.id, game, name])).results[0];
+        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [m.guild.id, m.member.id, game, name])).results[0];
         if(resultRegister) {
             m.message.reply(this.bot.locale.category("competition", "already_registered_with_this_name", name, gameName)).catch(logger.error);
             return;
         }
 
         /** @type {Db.competition_register} */
-        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND game = ? AND user_name = ?`, [m.guild.id, game, name])).results[0];
+        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [m.guild.id, game, name])).results[0];
         if(resultRegister) {
             m.message.reply(this.bot.locale.category("competition", "name_taken", name, gameName)).catch(logger.error);
             return;
         }
 
         /** @type {Db.competition_register} */
-        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ?`, [m.guild.id, m.member.id, game])).results[0];
+        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? FOR UPDATE`, [m.guild.id, m.member.id, game])).results[0];
         if(resultRegister) {
             await query(`UPDATE competition_register SET user_name = ? WHERE guild_id = ? AND user_id = ? AND game = ?`, [name, m.guild.id, m.member.id, game]);
 
@@ -442,7 +440,7 @@ function register(m, game, name) {
 function unregister(m, snowflake) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.competition_register[]} */
-        var resultsRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ?`, [m.guild.id, m.member.id])).results;
+        var resultsRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? FOR UPDATE`, [m.guild.id, m.member.id])).results;
 
         if(resultsRegister.length <= 0) {
             m.message.reply(this.bot.locale.category("competition", "unregister_not_registered")).catch(logger.error);
@@ -577,7 +575,7 @@ function destroy(m) {
 function addMap(m, type, game, msqd, kcgmm) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.competition_main|null} */
-        let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}'`)).results[0];
+        let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}' FOR UPDATE`)).results[0];
 
         if(!resultMain || !resultMain.channel_id) {
             await m.message.reply(this.bot.locale.category("competition", "no_channel"));

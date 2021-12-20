@@ -142,9 +142,6 @@ export default class HurtHeal extends Bot.Module {
             aqua: 'aqua',
         }
 
-        /** @type {QueueItem[]} */
-        this.queue = [];
-        this.queueRunning = false;
         /** @type {Map<Discord.Snowflake, Discord.Message>} */
         this.noDeleteCache = new Map();
 
@@ -223,7 +220,7 @@ export default class HurtHeal extends Bot.Module {
         case 'show':
         case 'hurt':
         case 'heal': {
-            addToQueue.call(this, { type: ext.action, args, arg, m }, );
+            action.call(this, m, ext.action, args, arg);
             break;
         }
         case 'help': {
@@ -302,7 +299,8 @@ export default class HurtHeal extends Bot.Module {
             return {message, channel}
         }).then(data => {
             if(data == null || data.message.member == null) return;
-            addToQueue.call(this, { type: 'decay', args: [], arg: '', m: new Bot.Message(data.message, data.message.member, guild, data.channel) });
+            
+            action.call(this, new Bot.Message(data.message, data.message.member, guild, data.channel), 'decay', [], '');
         }).catch(logger.error);
     }
 }
@@ -361,7 +359,7 @@ function end(m) {
  */
 function start(m, things) {
     this.bot.sql.transaction(async (query, mysql) => {
-        let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
+        let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE FOR UPDATE`)).results[0];
         if(resultGames != null) {
             await handleHHMessage.call(this, query, m.message, false, 'A game is already running, to force finish it use `!hh end`', m.channel, true, false);
             return;
@@ -394,7 +392,7 @@ async function action(m, type, args, arg) {
     await this.bot.sql.transaction(async (query, mysql) => {
         const now = Date.now();
 
-        /** @type {Db.hurtheal_games=} */ let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE`)).results[0];
+        /** @type {Db.hurtheal_games=} */ let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE FOR UPDATE`)).results[0];
         /** @type {'current'|'last'} */ let mode = 'current';
 
         if(resultGames == null) {
@@ -446,10 +444,10 @@ async function action(m, type, args, arg) {
             return;
         }*/
 
-        if(resultsActions.slice(0, this.lastActionsCounted).find((v => v.user_id === m.member.id))) {
+        /*if(resultsActions.slice(0, this.lastActionsCounted).find((v => v.user_id === m.member.id))) {
             await handleHHMessage.call(this, query, m.message, true, `You have already played within the last ${this.lastActionsCounted} actions. Please wait your turn.`, m.channel, true, true);
             return;
-        }
+        }*/
 
         if(type != 'decay' && args.length === 0) {
             await handleHHMessage.call(this, query, m.message, true, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, m.channel, true, true);
@@ -505,12 +503,12 @@ async function action(m, type, args, arg) {
                 await handleHHMessage.call(this, query, m.message, true, `**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`, m.channel, true, true);
                 return;
             }
-            if(itemsAlive.length > 2 &&
+            /*if(itemsAlive.length > 2 &&
             resultsActions[0] && resultsActions[0].id_hurtheal_things === currentItem.id &&
             resultsActions[1] && resultsActions[1].id_hurtheal_things === currentItem.id) {
                 await handleHHMessage.call(this, query, m.message, true, `An action cannot be performed on the same item more than twice in a row while more than two items are still in play. Please select a different item.`, m.channel, true, true);
                 return;
-            }
+            }*/
             if(type === 'heal' && currentItem.health_cur >= currentItem.health_max) {
                 await handleHHMessage.call(this, query, m.message, true, `**${currentItem.name}** is already at max health.`, m.channel, true, true);
                 return;
@@ -808,11 +806,11 @@ async function getGameStandingsEmbed(m, options) {
             let action = actions[i];
             let thing = things.find((v => v.id === action.id_hurtheal_things))
             let missing = false;
-            if(await m.guild.members.fetch(action.user_id) == null) missing = true;
+            if(await m.guild.members.fetch(action.user_id).catch(() => {}) == null) missing = true;
             
             let str = (() => {
                 if(action.action === 'decay') return `<@${action.user_id}> reduced the health of all items by 1 due to daily decay.`;
-                return `${missing ? 'Removed user' : `<@${action.user_id}>`} ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${missing ? '' : ` ${action.reason ? Discord.Util.escapeMarkdown(action.reason) : ''}`}`;
+                return `${missing ? 'Missing user' : `<@${action.user_id}>`} ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${missing ? '' : ` ${action.reason ? Discord.Util.escapeMarkdown(action.reason) : ''}`}`;
             })();
             if(i < this.lastActionsCounted) str = `\\> ${str}`;
             embed.description += `${str}\n`;
@@ -1122,23 +1120,4 @@ async function handleHHMessage(query, userMessage, userMessageDelete, botMessage
     }
 
     return message;
-} 
-
-/**
- * @this {HurtHeal}
- * @param {QueueItem} qItem 
- */
-function addToQueue(qItem) {
-    this.queue.push(qItem);
-    if(this.queueRunning) return;
-    this.queueRunning = true;
-
-    (async () => {
-        while(this.queue.length > 0) {
-            let qitem = this.queue[0];
-            this.queue.splice(0, 1);
-            await action.call(this, qitem.m, qitem.type, qitem.args, qitem.arg).catch(logger.error);
-        }
-        this.queueRunning = false;
-    })();
 }
