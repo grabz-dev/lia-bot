@@ -447,6 +447,7 @@ function profile(m, game, kcgmm, dm) {
                 let totalCompleted = 0;
                 totalCompleted += data_custom.countTotalCompleted;
                 totalCompleted += data_campaign.countTotalCompleted;
+                totalCompleted += data_markv.countTotalCompleted;
 
                 let totalExp = 0;
                 totalExp += this.managers.custom.getExpFromMaps(data_custom.mapsTotalCompleted, kcgmm, totalCompleted);
@@ -968,6 +969,7 @@ async function getLeaderboard(query, kcgmm, mapListId, guild, game) {
         let totalCompleted = 0;
         totalCompleted += data_custom.countTotalCompleted;
         totalCompleted += data_campaign.countTotalCompleted;
+        totalCompleted += data_markv.countTotalCompleted;
 
         let totalExp = 0;
         totalExp += this.managers.custom.getExpFromMaps(data_custom.mapsTotalCompleted, kcgmm, totalCompleted);
