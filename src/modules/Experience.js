@@ -82,7 +82,7 @@ export default class Experience extends Bot.Module {
             campaign: new CampaignManager(this),
             markv: new MarkVManager(this),
         }
-        this.symbols = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc"];
+        this.symbols = ["", "K", "M", "B", "T", "q", "Q", "s", "S", "O", "N", "D"];
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS experience_messages (
