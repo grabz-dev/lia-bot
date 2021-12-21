@@ -444,10 +444,10 @@ async function action(m, type, args, arg) {
             return;
         }*/
 
-        /*if(resultsActions.slice(0, this.lastActionsCounted).find((v => v.user_id === m.member.id))) {
+        if(resultsActions.slice(0, this.lastActionsCounted).find((v => v.user_id === m.member.id))) {
             await handleHHMessage.call(this, query, m.message, true, `You have already played within the last ${this.lastActionsCounted} actions. Please wait your turn.`, m.channel, true, true);
             return;
-        }*/
+        }
 
         if(type != 'decay' && args.length === 0) {
             await handleHHMessage.call(this, query, m.message, true, `You must choose an item to ${type}.\nExample: \`!hh ${type} thing\``, m.channel, true, true);
@@ -503,12 +503,12 @@ async function action(m, type, args, arg) {
                 await handleHHMessage.call(this, query, m.message, true, `**${currentItem.name}** is out of the game. You can only select from: **${itemsAlive.map((v => v.name)).join(', ')}**`, m.channel, true, true);
                 return;
             }
-            /*if(itemsAlive.length > 2 &&
+            if(itemsAlive.length > 2 &&
             resultsActions[0] && resultsActions[0].id_hurtheal_things === currentItem.id &&
             resultsActions[1] && resultsActions[1].id_hurtheal_things === currentItem.id) {
                 await handleHHMessage.call(this, query, m.message, true, `An action cannot be performed on the same item more than twice in a row while more than two items are still in play. Please select a different item.`, m.channel, true, true);
                 return;
-            }*/
+            }
             if(type === 'heal' && currentItem.health_cur >= currentItem.health_max) {
                 await handleHHMessage.call(this, query, m.message, true, `**${currentItem.name}** is already at max health.`, m.channel, true, true);
                 return;
