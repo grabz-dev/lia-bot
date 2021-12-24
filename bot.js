@@ -33,7 +33,7 @@ const core = new Bot.Core({
 core.on('ready', bot => {
     (async () => {
         let kcgmm = new KCGameMapManager({
-            disableCW2: false
+            cacheTimeCW2: 1000 * 60 * 60 * 24
         }, bot.locale);
 
         kcgmm.fetch('cw4').then(() => {
@@ -80,7 +80,11 @@ core.on('ready', bot => {
         }).catch(logger.error);
         kcgmm.fetch('pf').catch(logger.error);
         kcgmm.fetch('cw3').catch(logger.error);
-        kcgmm.fetch('cw2').catch(logger.error);
+        kcgmm.readCacheCW2().catch(e => {
+            logger.error(e);
+            kcgmm.fetch('cw2').catch(logger.error);
+        });
+        
         
         setInterval(() => {
             kcgmm.fetch('cw4').catch(logger.error);

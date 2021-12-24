@@ -5,7 +5,13 @@
 import Discord from 'discord.js';
 import { HttpRequest } from '../../utils/HttpRequest.js';
 import * as Bot from 'discord-bot-core';
+import fs from 'fs';
+import util from 'util';
 const logger = Bot.logger;
+
+const mkdir = util.promisify(fs.mkdir);
+const writeFile = util.promisify(fs.writeFile);
+const readFile = util.promisify(fs.readFile);
 
 const URL = "https://knucklecracker.com/creeperworld2/viewmaps.php?embedded=true&gameVer=0801";
 
@@ -21,16 +27,71 @@ export async function fetchMapsCW2(options) {
     const mapListTemp = new Discord.Collection();
     let currentPage = 0;
 
-    if(options.disableCW2) {
-        logger.warn("[KCGameMapManager.fetchMapsCW2] WARNING. The debug flag \"disableCW2\" is enabled. Make sure this is NOT enabled in production. If this is in a production environment, shut off the bot immediately and change the flag.");
-    }
-
     while(true) {
         let finished = await fetcher.call(this, options, currentPage, mapListTemp);
         if(finished) break;
         currentPage++;
         await Bot.Util.Promise.sleep(1000);
     }
+}
+
+/**
+ * @this {KCGameMapManager}
+ * @param {KCGameMapManagerOptions} options
+ * @returns {Promise<void>}
+ */
+export async function readCacheCW2(options) {
+    const cache = await readCache(options).catch(() => {});
+    if(cache == null || typeof cache === 'string') {
+        throw new Error(`[KCGameMapManager.readCacheCW2] ${cache == null ? 'Other error' : cache}`);
+    }
+
+    const arr = mapListArrFromEntries(cache);
+    this._maps.id.set("cw2", cache);
+    this._maps.array.set("cw2", Object.freeze(arr));
+    logger.info(`[KCGameMapManager.readCacheCW2] Cache loaded`)
+}
+
+/**
+ * @param {KCGameMapManagerOptions} options
+ * @returns {Promise<Discord.Collection<number, MapData>|string>}
+ */
+async function readCache(options) {
+    const now = Date.now();
+    const cache = await readFile('cache/maps-cw2').catch(() => {});
+    if(cache == null) return "Cache missing or unreadable";
+    const json = JSON.parse(cache.toString());
+
+    //Don't really need this
+    //if(now - json.timestamp >= options.cacheTimeCW2) {
+    //    return "Cache too old";
+    //}
+    
+    /** @type {Discord.Collection<number, MapData>} */
+    const data = new Discord.Collection();
+
+    for(const entry of Object.entries(json.data)) {
+        data.set(+entry[0], entry[1]);
+    }
+
+    return data;
+}
+
+/**
+ * 
+ * @param {Discord.Collection<number, MapData>} mapList 
+ */
+async function writeCache(mapList) {
+    const now = Date.now();
+    await mkdir('cache').catch(() => {});
+
+    const data = Object.fromEntries(mapList);
+    const json = {
+        timestamp: now,
+        data: data
+    }
+
+    await writeFile('cache/maps-cw2', JSON.stringify(json)).catch(() => {});
 }
 
 /**
@@ -74,28 +135,33 @@ async function fetcher(options, page, mapListTemp) {
     logger.info("[KCGameMapManager.fetchMapsCW2] Fetching from CW2 web browser. Page " + page + ".");
 
     //If no maps were found on the current page, we finalize and quit.
-    if(exit || (options.disableCW2 && page >= 1)) {
-        /** @type {MapData[]} */
-        let arr = [];
-        for(let obj of Array.from(mapListTemp.values())) arr.push(Object.freeze(obj));
-
-        if(!options.disableCW2 && arr.length < 2500)
-            throw "[KCGameMapManager.fetchMapsCW2] CW2 isn't disabled, but is finding less than 2500 maps.";
+    if(exit) {
+        const arr = mapListArrFromEntries(mapListTemp);
 
         this._maps.id.set("cw2", mapListTemp);
         this._maps.array.set("cw2", Object.freeze(arr));
 
-        logger.info("[KCGameMapManager.fetchMapsCW2] End reached.");
+        logger.info("[KCGameMapManager.fetchMapsCW2] End reached. Page " + page + " contains no entries.");
 
-        if(options.disableCW2) {
-            logger.warn("[KCGameMapManager.fetchMapsCW2] WARNING. The debug flag \"disableCW2\" is enabled. Make sure this is NOT enabled in production. If this is in a production environment, shut off the bot immediately and change the flag.");
-        }
-        else logger.info("[KCGameMapManager.fetchMapsCW2] Page " + page + " contains no entries.");
+        await writeCache(mapListTemp).catch(() => {});
+        logger.info("[KCGameMapManager.fetchMapsCW2] Cache updated.");
 
         return true;
     }
 
     return false;
+}
+
+/**
+ * 
+ * @param {Discord.Collection<number, MapData>} mapListTemp 
+ * @returns {MapData[]}
+ */
+function mapListArrFromEntries(mapListTemp) {
+    /** @type {MapData[]} */
+    let arr = [];
+    for(let obj of Array.from(mapListTemp.values())) arr.push(Object.freeze(obj));
+    return arr;
 }
 
 /**

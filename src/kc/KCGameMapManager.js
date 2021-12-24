@@ -2,7 +2,7 @@
 
 /**
  * @typedef {object} KCGameMapManagerOptions
- * @property {boolean} disableCW2 - Disable lookup of maps for CW2 past the first page. Useful for debugging to prevent the bot from 
+ * @property {number} cacheTimeCW2
  */
 
 /**
@@ -73,7 +73,7 @@ import { HttpRequest } from '../utils/HttpRequest.js';
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 
 import { fetchMapsDefault } from './KCGameMapManager/fetch-maps-default.js';
-import { fetchMapsCW2 } from './KCGameMapManager/fetch-maps-cw2.js';
+import { fetchMapsCW2, readCacheCW2 } from './KCGameMapManager/fetch-maps-cw2.js';
 
 const chronom_months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
 "JULY", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -317,6 +317,13 @@ export function KCGameMapManager(options, locale) {
             //@ts-ignore
             logger.warn(`[KCGameMapManager.fetch] Failed to fetch map data for ${game}. ${err} ${err.stack}`);
         }
+    }
+
+    /**
+     * @returns {Promise<void>}
+     */
+    this.readCacheCW2 = async function() {
+        await readCacheCW2.call(this, options);
     }
 
     /**
