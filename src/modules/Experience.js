@@ -454,6 +454,9 @@ function profile(m, game, kcgmm, dm) {
                 totalExp += this.managers.campaign.getExpFromMaps(data_campaign.mapsTotalCompleted, totalCompleted);
                 totalExp += this.managers.markv.getExpFromMaps(data_markv.mapsTotalCompleted, totalCompleted);
 
+                if(games.length === 1)
+                    embed.description = await getProfileInfoString.call(this, totalCompleted, resultUsers, query, kcgmm, mapListId, m.guild, m.member, game);
+
                 let expData = getExpDataFromTotalExp(totalExp);
 
                 field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
@@ -588,35 +591,7 @@ function newMaps(m, game, kcgmm, dm) {
         
         let embed = getEmbedTemplate(m.member);
         embed.color = KCUtil.gameEmbedColors[game];
-        const xpMult = Math.ceil(this.getExpMultiplier(totalCompletedNew) * 100)/100;
-        embed.description = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed **${totalCompletedNew}** maps (XP mult: **${xpMult >= 1000 ? this.prettify(xpMult) : xpMult}x**)`;
-        
-        const leaders = await getLeaderboard.call(this, query, kcgmm, mapListId, m.guild, game);
-        const leader = leaders.find(v => v.resultUser.user_id === m.member.id);
-        if(leader) {
-            const index = leaders.indexOf(leader);
-            if(index >= 0) {
-                embed.description += `\nYour leaderboard rank is **#${index + 1}**`;
-                if(index === 0) {
-                    const roleId = this.bot.getRoleId(m.guild.id, 'CHAMPION_OF_KC');
-                    if(roleId) {
-                        embed.description += `\nYou are a <@&${roleId}>`;
-                    }
-                }
-                else {
-                    const playerAboveIndex = index - 1;
-                    const playerAbove = leaders[playerAboveIndex];
-                    const lvlDifferential = playerAbove.total.currentLevel - leader.total.currentLevel;
-                    if(lvlDifferential > 0) {
-                        embed.description += `\nYou're ${lvlDifferential} level${lvlDifferential === 1 ? '' : 's'} away from rank #${playerAboveIndex + 1}`;
-                    }
-                    else {
-                        const xpDifferential = playerAbove.total.currentXP - leader.total.currentXP;
-                        embed.description += `\nYou're 0 levels and ${xpDifferential} XP away from rank #${playerAboveIndex + 1}`;
-                    }
-                }
-            }
-        }
+        embed.description = await getProfileInfoString.call(this, totalCompletedNew, resultUsers, query, kcgmm, mapListId, m.guild, m.member, game);
 
         embed.fields = [];
         
@@ -1111,4 +1086,50 @@ function getMapListArray(kcgmm, game) {
     if(arr == null) return null;
 
     return arr.filter(v => !(v.tags && v.tags.includes('MVERSE')));
+}
+
+/**
+ * @this {Experience}
+ * @param {number} totalCompletedNew
+ * @param {Db.experience_users} resultUsers
+ * @param {SQLWrapper.Query} query
+ * @param {KCGameMapManager} kcgmm 
+ * @param {Discord.Collection<number, KCGameMapManager.MapData>} mapListId
+ * @param {Discord.Guild} guild
+ * @param {Discord.GuildMember} member
+ * @param {string} game
+ * @returns {Promise<string>}
+ */
+async function getProfileInfoString(totalCompletedNew, resultUsers, query, kcgmm, mapListId, guild, member, game) {
+    const xpMult = Math.ceil(this.getExpMultiplier(totalCompletedNew) * 100)/100;
+    let str = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed **${totalCompletedNew}** maps (XP mult: **${xpMult >= 1000 ? this.prettify(xpMult) : xpMult}x**)`;
+    
+    const leaders = await getLeaderboard.call(this, query, kcgmm, mapListId, guild, game);
+    const leader = leaders.find(v => v.resultUser.user_id === member.id);
+    if(leader) {
+        const index = leaders.indexOf(leader);
+        if(index >= 0) {
+            str += `\nYour leaderboard rank is **#${index + 1}**`;
+            if(index === 0) {
+                const roleId = this.bot.getRoleId(guild.id, 'CHAMPION_OF_KC');
+                if(roleId) {
+                    str += `\nYou are a <@&${roleId}>`;
+                }
+            }
+            else {
+                const playerAboveIndex = index - 1;
+                const playerAbove = leaders[playerAboveIndex];
+                const lvlDifferential = playerAbove.total.currentLevel - leader.total.currentLevel;
+                if(lvlDifferential > 0) {
+                    str += `\nYou're ${lvlDifferential} level${lvlDifferential === 1 ? '' : 's'} away from rank #${playerAboveIndex + 1}`;
+                }
+                else {
+                    const xpDifferential = playerAbove.total.currentXP - leader.total.currentXP;
+                    str += `\nYou're 0 levels and ${xpDifferential} XP away from rank #${playerAboveIndex + 1}`;
+                }
+            }
+        }
+    }
+
+    return str;
 }
