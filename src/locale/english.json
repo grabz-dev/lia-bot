@@ -359,16 +359,16 @@
                 "%space%<id> - The user mention/ping, or the user ID."
             ],
             "ignore": [
-                "!%name% <game> <map_id>",
-                "Add a map to your ignore list.",
+                "!%name% <game> <map_ids>",
+                "Add one or more maps to your ignore list.",
                 "%space%<game> - cw4, pf, cw3, cw2.",
-                "%space%<map_id> - The ID of the map to ignore."
+                "%space%<map_ids> - Space delimited list of map IDs to ignore, or a single map ID."
             ],
             "unignore": [
-                "!%name% <game> <map_id>",
-                "Remove a map from your ignore list.",
+                "!%name% <game> <map_ids>",
+                "Remove one or more maps from your ignore list.",
                 "%space%<game> - cw4, pf, cw3, cw2.",
-                "%space%<map_id> - The ID of the map to unignore."
+                "%space%<map_ids> - Space delimited list of map IDs to unignore, or a single map ID."
             ],
             "ignorelist": [
                 "!%name% <game>",
