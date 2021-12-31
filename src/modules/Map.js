@@ -215,7 +215,7 @@ async function score(m, mapQueryData, kcgmm) {
         if(result) emote = result.emote;
     }).catch(logger.error);
 
-    let embed = getEmbedTemplate.bind(this)(mapQueryData.game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), true);
+    let embed = getEmbedTemplate.bind(this)(mapQueryData.game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), false);
     embed.fields = [];
     var field = {
         name: `${KCLocaleManager.getDisplayNameFromAlias('map_mode_custom', `${mapQueryData.game}_${mapQueryData.type}`)} Map`,
@@ -249,11 +249,14 @@ async function score(m, mapQueryData, kcgmm) {
         field.value += Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 9, ' ') + ' ';
         field.value += Bot.Util.String.fixedWidth(entry.user, longest, ' ', true);
     }
-    field.value = '```\n' + Bot.Util.String.fixedWidth('', longest + 18, ' ') + '\n' + field.value;
+    field.value = '```\n' + field.value;
     field.value += '\n```';
 
     if(mapQueryData.game === 'cw4') field.value = `Objective: ${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapQueryData.objective+'')}\n` + field.value;
     if(groupName != null) field.value = `Group Filter: ${groupName}\n` + field.value;
+    if(mapQueryData.game === 'cw4' && mapQueryData.type === 'markv') {
+        field.value = mapQueryData.name + '\n' + field.value;
+    }
     if(mapQueryData.game === 'cw4' && mapQueryData.timestamp != null) {
         let date = new Date(mapQueryData.timestamp);
         field.value = `${KCUtil.getMonthFromDate(date, false)} ${KCUtil.getDayFromDate(date)}, ${date.getFullYear()}\n` + field.value;
