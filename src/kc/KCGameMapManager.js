@@ -479,9 +479,16 @@ export function KCGameMapManager(options, locale) {
         let lastTime = null;
         let rankOffset = 0;
 
+        /** @type {Object.<string, true>} */
+        const uniqueUsers = {};
+
         for(let entry of record) {
-            let rank = +entry.rank[0];
             let user = entry.user[0]+'';
+            //Remove duplicate names
+            if(uniqueUsers[user]) continue;
+            uniqueUsers[user] = true;
+
+            let rank = +entry.rank[0];
             let time = +entry.time[0];
             let score = entry.score == null ? undefined : +entry.score[0];
             let plays = entry.plays == null ? undefined : +entry.plays[0];
@@ -492,8 +499,8 @@ export function KCGameMapManager(options, locale) {
             //Handle ties
             if(lastTime != null && time === lastTime) {
                 rankOffset++;
-                rank -= rankOffset;
             }
+            rank -= rankOffset;
             lastTime = time;
 
             if(game === 'cw4' && options?.removeMverseTag) {
