@@ -485,7 +485,10 @@ export function KCGameMapManager(options, locale) {
         for(let entry of record) {
             let user = entry.user[0]+'';
             //Remove duplicate names
-            if(uniqueUsers[user]) continue;
+            if(uniqueUsers[user]) {
+                rankOffset++;
+                continue;
+            }
             uniqueUsers[user] = true;
 
             let rank = +entry.rank[0];
