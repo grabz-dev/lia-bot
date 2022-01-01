@@ -382,6 +382,11 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
         str += `Height: ${mapData.height}`;
     else
         str += `Size: ${mapData.width}x${mapData.height}`;
+
+    //CW4 version
+    if(mapData.version != null) {
+        str += `, Ver: ${mapData.version}`;
+    }
     str += '\n';
 
     //Scores/Downloads

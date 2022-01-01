@@ -66,6 +66,7 @@ export async function fetchMapsDefault(game) {
                 upvotes: +map.b[0],
                 tags: (map.s[0]+'').toUpperCase().split(','),
                 objectives: +map.o[0],
+                version: +map.v[0],
             });
         }
         //Fill CW3 and PF game properties

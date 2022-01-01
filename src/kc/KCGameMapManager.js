@@ -38,6 +38,7 @@
  * @property {string[]=} tags - CW4 only. The tags on this map.
  * @property {number=} objectives - CW4 only. Objectives available on this map, as a byte.
  * @property {number=} timestamp - CW3, PF, CW4 only. Map upload unix timestamp.
+ * @property {number=} version - CW4 only
  */
 
 /**
