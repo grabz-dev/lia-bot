@@ -67,7 +67,7 @@ export default class Map extends Bot.Module {
                 if(id <= 0 || id > 1000000 || Number.isNaN(id) || !Number.isFinite(id)) continue;
                 //Under normal circumstances, all checks have passed.
                 if(message.guild != null && message.member != null && this.kcgmm != null) {
-                    await map.call(this, { channel: channel, guild: message.guild, member: message.member, message: message }, game, id, this.kcgmm, true);
+                    await map.call(this, { channel: channel, guild: message.guild, member: message.member, message: message }, game, id, this.kcgmm, true, true);
                     count++;
                 }
                 //Don't post more than 2 map embeds, even if more valid splits are found.
@@ -160,8 +160,9 @@ export default class Map extends Bot.Module {
 * @param {number} id
 * @param {KCGameMapManager} kcgmm
 * @param {boolean=} suppressError
+* @param {boolean=} allowTemporaryDelete
 */
-async function map(m, game, id, kcgmm, suppressError) {
+async function map(m, game, id, kcgmm, suppressError, allowTemporaryDelete) {
     let emote = ':game_die:';
     await this.bot.sql.transaction(async query => {
         let result = (await query(`SELECT * FROM emotes_game
@@ -171,7 +172,10 @@ async function map(m, game, id, kcgmm, suppressError) {
 
     let mapData = kcgmm.getMapById(game, id);
     if(mapData != null) {
-        m.channel.send({ embeds:[await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm)] }).catch(logger.error);
+        const embed = await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm);
+        m.channel.send({ embeds:[embed] }).then(message => {
+            if(allowTemporaryDelete) userDeletionHandler(m, message, embed);
+        }).catch(logger.error);
         return;
     }
 
@@ -188,8 +192,11 @@ async function map(m, game, id, kcgmm, suppressError) {
                 if(suppressError) message.delete();
             }
             else {
-                message.delete();
-                m.channel.send({ embeds:[await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm)] }).catch(logger.error);
+                message.delete().catch(logger.error);
+                const embed = await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm);
+                m.channel.send({ embeds:[embed] }).then(message => {
+                    if(allowTemporaryDelete) userDeletionHandler(m, message, embed);
+                }).catch(logger.error);
             }
         })().catch(e => {
             logger.info(e);
@@ -457,4 +464,36 @@ function getEmbedTemplate(game, emote, thumbnail, thumbnailURL) {
         thumbnail: thumbnail ? thumbnailURL != null ? {url: thumbnailURL} : ((emote ? {url: emote.url} : undefined)) : undefined,
         fields: [],
     });
+}
+
+/**
+ * @param {Bot.Message} m
+ * @param {Discord.Message} message
+ * @param {Discord.MessageEmbed} embed
+ */
+function userDeletionHandler(m, message, embed) {
+    const collector = message.createReactionCollector({
+        time: 1000 * 60 * 1,
+    })
+
+    collector.on('collect', async (reaction, user) => {
+        //do not remove if bot
+        if(message.member && user.id === message.member.id) return;
+        await reaction.users.remove(user);
+
+        if(user.id === m.member.id || Bot.Util.isMemberModerator(m.member) || Bot.Util.isMemberAdmin(m.member)) {
+            switch(reaction.emoji.name) {
+            case '❌':
+                message.delete().catch(logger.error);
+                break;
+            }
+        }
+    });
+
+    collector.on('end', async () => {
+        if(!message.deleted)
+            await message.reactions.removeAll();
+    });
+
+    message.react('❌').catch(logger.error);
 }
