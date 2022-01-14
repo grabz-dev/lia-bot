@@ -197,7 +197,10 @@ export class CustomManager {
         const rank = kcgmm.getMapMonthlyRank(map);
         if(rank == null) return str;
 
-        return `${str} (#${rank} ${month} ${date.getFullYear()})`;
+        if(rank <= 10) return `${str} (#${rank} ${month} ${date.getFullYear()})`;
+        if(map.upvotes != null) return `${str} (${map.upvotes}\\👍)`;
+        if(map.rating != null) return `${str} (${map.rating} rating)`;
+        return str;
     }
 }
 
