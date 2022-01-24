@@ -224,7 +224,7 @@ export default class Competition extends Bot.Module {
                 register.call(this, m, game, name);
                 return;
             case 'add-map':
-            case 'remove-map':
+            case 'remove-map': {
                 const _data = ext.kcgmm.getMapQueryObjectFromCommandParameters(args);
                 if(_data.err) return _data.err;
 
@@ -232,9 +232,18 @@ export default class Competition extends Bot.Module {
 
                 addMap.call(this, m, ext.action, game, mapQueryData, ext.kcgmm);
                 return;
-            case 'map':
-                map.call(this, m, ext.kcgmm, game, ext.map);
+            }
+            case 'map': {
+                if(args.length > 1) {
+                    const _data = ext.kcgmm.getMapQueryObjectFromCommandParameters(args);
+                    if(_data.err) return _data.err;
+                    const mapQueryData = _data.data;
+                    map.call(this, m, ext.kcgmm, game, ext.map, mapQueryData);
+                }
+                else
+                    map.call(this, m, ext.kcgmm, game, ext.map);
                 return;
+            }
             }
         case 'unregister':
             let snowflake = args[0];
@@ -619,18 +628,7 @@ function addMap(m, type, game, msqd, kcgmm) {
                 return;
             }
 
-            /** @type {Db.competition_history_maps[]} */
-            var resultsHistoryMaps = (await query(`SELECT * FROM competition_history_maps chm JOIN competition_history_competitions chc ON chc.id = chm.id_competition_history_competitions
-                WHERE chc.guild_id = ${mysql.escape(m.guild.id)}
-                AND chm.game = ${mysql.escape(game)}
-                AND chm.type = ${mysql.escape(msqd.type)}
-                AND chm.map_id ${msqd.id == null ? 'IS NULL' : `= ${mysql.escape(msqd.id)}`}
-                AND chm.size ${msqd.size == null ? 'IS NULL' : `= ${mysql.escape(msqd.size)}`}
-                AND chm.complexity ${msqd.complexity == null ? 'IS NULL' : `= ${mysql.escape(msqd.complexity)}`}
-                AND chm.name ${msqd.name == null ? 'IS NULL' : `= ${mysql.escape(msqd.name)}`}
-                AND chm.objective ${msqd.objective == null ? 'IS NULL' : `= ${mysql.escape(msqd.objective)}`}
-                AND chm.timestamp ${msqd.name == null ? 'IS NULL' : `= ${mysql.escape(msqd.timestamp)}`}`)).results;
-            if(resultsHistoryMaps.length > 0) {
+            if(await getMapAlreadyFeaturedInPreviousCompetition(query, m, game, msqd)) {
                 await m.message.reply(this.bot.locale.category("competition", "addmap_already_in_history"));
                 return;
             }
@@ -787,9 +785,20 @@ function end(m, kcgmm, champion) {
  * @param {KCGameMapManager} kcgmm
  * @param {string} game
  * @param {import('./Map.js').default} map
+ * @param {KCGameMapManager.MapScoreQueryData=} msqd
  */
-function map(m, kcgmm, game, map) {
+function map(m, kcgmm, game, map, msqd) {
     this.bot.sql.transaction(async query => {
+        if(msqd != null) {
+            if(await getMapAlreadyFeaturedInPreviousCompetition(query, m, game, msqd)) {
+                m.channel.send('❌ This map was already featured in a previous competition.').catch(logger.error);
+            }
+            else {
+                m.channel.send('✅ This map was not featured in a previous competition.').catch(logger.error);
+            }
+            return;
+        }
+
         let mapList = kcgmm.getMapListId(game);
         if(!mapList) {
             m.channel.send(this.bot.locale.category('competition', 'game_not_supported')).catch(logger.error);
@@ -1346,5 +1355,29 @@ function hasMapStatusChanged(guild, msqd, leaderboard) {
                 return true;
         }
     }
+    return false;
+}
+
+/**
+ * @this {Competition}
+ * @param {SQLWrapper.Query} query
+ * @param {Bot.Message} m
+ * @param {string} game
+ * @param {KCGameMapManager.MapScoreQueryData} msqd
+ * @returns {Promise<boolean>}
+ */
+async function getMapAlreadyFeaturedInPreviousCompetition(query, m, game, msqd) {
+    /** @type {Db.competition_history_maps[]} */
+    var resultsHistoryMaps = (await query(`SELECT * FROM competition_history_maps chm JOIN competition_history_competitions chc ON chc.id = chm.id_competition_history_competitions
+        WHERE chc.guild_id = ${mysql.escape(m.guild.id)}
+        AND chm.game = ${mysql.escape(game)}
+        AND chm.type = ${mysql.escape(msqd.type)}
+        AND chm.map_id ${msqd.id == null ? 'IS NULL' : `= ${mysql.escape(msqd.id)}`}
+        AND chm.size ${msqd.size == null ? 'IS NULL' : `= ${mysql.escape(msqd.size)}`}
+        AND chm.complexity ${msqd.complexity == null ? 'IS NULL' : `= ${mysql.escape(msqd.complexity)}`}
+        AND chm.name ${msqd.name == null ? 'IS NULL' : `= ${mysql.escape(msqd.name)}`}
+        AND chm.objective ${msqd.objective == null ? 'IS NULL' : `= ${mysql.escape(msqd.objective)}`}
+        AND chm.timestamp ${msqd.timestamp == null ? 'IS NULL' : `= ${mysql.escape(msqd.timestamp)}`}`)).results;
+    if(resultsHistoryMaps.length > 0) return true;
     return false;
 }
