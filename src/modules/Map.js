@@ -412,9 +412,9 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
 
     //Rating/Upvotes/Downvotes
     if(game === 'cw2')
-        str += `Rating: **${mapData.upvotes}**\\👍  **${mapData.downvotes}**\\👎`;
+        str += `Rating: **${mapData.upvotes}**👍  **${mapData.downvotes}**👎`;
     else if(game === 'cw4')
-        str += `Rating: **${mapData.upvotes}**\\👍`;
+        str += `Rating: **${mapData.upvotes}**👍`;
     else
         str += `Rating: **${mapData.rating}** (${mapData.ratings} ratings)`;
     str += '\n';

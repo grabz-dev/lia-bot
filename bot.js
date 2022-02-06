@@ -286,7 +286,7 @@ core.on('ready', bot => {
 
             core.getModule((await import('./src/modules/Chronom.js')).default).then(chronom => {
                 setTimeout(() => {
-                    core.addLoop(1000 * 60 * 49, guild => {
+                    core.addLoop(1000 * 60 * 27, guild => {
                         chronom.loop(guild, kcgmm);
                     });
                 }, 5000);
@@ -296,8 +296,8 @@ core.on('ready', bot => {
             }).catch(logger.error);
 
             setTimeout(() => {
-                core.addLoop(1000 * 60 * 27, guild => {
-                    competition.loop(guild, kcgmm);
+                core.addLoop(1000 * 60 * 14, guild => {
+                    competition.loop(guild, kcgmm, champion);
                 });
             }, 5000);
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {

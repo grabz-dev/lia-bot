@@ -20,6 +20,7 @@ import mysql from 'mysql';
  * @property {Discord.Snowflake|null} channel_id - Competition channel ID.
  * @property {number|null} time_start - Start timestamp.
  * @property {number|null} time_end - End timestamp.
+ * @property {number|null} time_end_offset
  */
 
 /**
@@ -101,6 +102,7 @@ export default class Competition extends Bot.Module {
 
         this.games = ["cw4", "pf", "cw3", "cw2"];
         this.maxScoresInTable = 8;
+        this.timeOffsetHours = 24;
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS competition_main (
@@ -108,7 +110,8 @@ export default class Competition extends Bot.Module {
                 guild_id VARCHAR(64) NOT NULL,
                 channel_id VARCHAR(64),
                 time_start BIGINT,
-                time_end BIGINT
+                time_end BIGINT,
+                time_end_offset BIGINT
              )`);
 
             await query(`CREATE TABLE IF NOT EXISTS competition_messages (
@@ -170,6 +173,8 @@ export default class Competition extends Bot.Module {
                 game VARCHAR(16) NOT NULL,
                 user_name VARCHAR(128) BINARY NOT NULL
              )`);
+
+            await query(`ALTER TABLE competition_main ADD COLUMN time_end_offset BIGINT`).catch(() => {});
         }).catch(logger.error);
     }
 
@@ -286,7 +291,7 @@ export default class Competition extends Bot.Module {
             buildTally.call(this, m, ext.champion);
             return;
         case 'end':
-            end.call(this, m, ext.kcgmm, ext.champion);
+            end.call(this, m, m.guild, ext.kcgmm, ext.champion);
             return;
         case 'intro':
             switch(arg) {
@@ -302,9 +307,10 @@ export default class Competition extends Bot.Module {
     /** 
      * @param {Discord.Guild} guild 
      * @param {KCGameMapManager} kcgmm
+     * @param {(import('./Champion.js').default)=} champion
      * @returns {Promise<void>}
      */
-    async loop(guild, kcgmm) {
+    async loop(guild, kcgmm, champion) {
         const now = Date.now();
 
         /** @type {Object.<string, string>} */
@@ -396,6 +402,20 @@ export default class Competition extends Bot.Module {
                 else
                     message.edit({content: content, embeds: [embed]}).catch(logger.error);
             });
+        }).catch(logger.error);
+
+        await this.bot.sql.transaction(async query => {
+            /** @type {Db.competition_main|null} */
+            let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}'`)).results[0];
+            if(resultMain == null) return;
+            if(resultMain.time_end == null) return;
+            if(resultMain.time_end_offset == null) return;
+
+            let timeEnd = resultMain.time_end + resultMain.time_end_offset;
+            
+            if(now >= timeEnd) return true;
+        }).then(shouldEnd => {
+            if(shouldEnd && champion) end.call(this, null, guild, kcgmm, champion, true);
         }).catch(logger.error);
     }
 }
@@ -545,7 +565,9 @@ function start(m, startTime, endTime) {
             return;
         }
 
-        await query(`UPDATE competition_main SET time_start = '${startTime}', time_end = '${endTime}'
+        let timeOffset = Math.floor(1000 * 60 * 60 * this.timeOffsetHours * Math.random());
+
+        await query(`UPDATE competition_main SET time_start = '${startTime}', time_end = '${endTime}', time_end_offset = '${timeOffset}'
             WHERE guild_id = '${m.guild.id}'`);
 
         channel.send(this.bot.locale.category("competition", "start_message")).catch(logger.error);
@@ -563,7 +585,7 @@ function destroy(m) {
         await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}' FOR UPDATE`);
 
         await query(`DELETE FROM competition_messages WHERE guild_id = '${m.guild.id}'`);
-        await query(`UPDATE competition_main SET time_start = NULL, time_end = NULL WHERE guild_id = '${m.guild.id}'`);
+        await query(`UPDATE competition_main SET time_start = NULL, time_end = NULL, time_end_offset = NULL WHERE guild_id = '${m.guild.id}'`);
         await query(`DELETE FROM competition_maps WHERE guild_id = '${m.guild.id}'`);
 
         this.cache.set(m.guild.id, 'comp_maps', []);
@@ -675,51 +697,53 @@ function buildTally(m, champion) {
 /**
  * End the current competition, save it to history, tally up scores and post all related messages.
  * @this Competition
- * @param {Bot.Message} m - Message of the user executing the command.
+ * @param {Bot.Message|null} m - Message of the user executing the command.
+ * @param {Discord.Guild} guild
  * @param {KCGameMapManager} kcgmm
  * @param {import('./Champion.js').default} champion
+ * @param {boolean=} noRefresh
  */
-function end(m, kcgmm, champion) {
+function end(m, guild, kcgmm, champion, noRefresh) {
     const now = Date.now();
 
     this.bot.sql.transaction(async query => {
-        await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}' FOR UPDATE`);
+        await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}' FOR UPDATE`);
 
-        await m.message.reply(this.bot.locale.category("competition", "end_in_progress"));
+        if(m) await m.message.reply(this.bot.locale.category("competition", "end_in_progress"));
 
         /** @type {Object.<string, string>} */
         let emotes = {};
         await this.bot.sql.transaction(async query => {
             /** @type {any[]} */
             let results = (await query(`SELECT * FROM emotes_game
-                                       WHERE guild_id = '${m.guild.id}'`)).results;
+                                       WHERE guild_id = '${guild.id}'`)).results;
             emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
         }).catch(logger.error);
 
         /** @type {Db.competition_main|null} */
-        let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}'`)).results[0];
+        let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}'`)).results[0];
         /** @type {Db.competition_maps[]} */
-        let resultsMaps = (await query(`SELECT * FROM competition_maps WHERE guild_id = '${m.guild.id}'`)).results;
+        let resultsMaps = (await query(`SELECT * FROM competition_maps WHERE guild_id = '${guild.id}'`)).results;
 
         if(!resultMain || resultMain.channel_id == null) {
-            await m.message.reply(this.bot.locale.category("competition", "no_channel"));
+            if(m) await m.message.reply(this.bot.locale.category("competition", "no_channel"));
             return;
         }
-        const channel = m.guild.channels.resolve(resultMain.channel_id);
+        const channel = guild.channels.resolve(resultMain.channel_id);
         if(!channel || !(channel instanceof Discord.TextChannel)) {
-            await m.message.reply(this.bot.locale.category("competition", "channel_no_access"));
+            if(m) await m.message.reply(this.bot.locale.category("competition", "channel_no_access"));
             return;
         }
         if(!resultMain.time_start) {
-            await m.message.reply(this.bot.locale.category("competition", "not_running"));
+            if(m) await m.message.reply(this.bot.locale.category("competition", "not_running"));
             return;
         }
         if(resultsMaps.length <= 0) {
-            await m.message.reply(this.bot.locale.category("competition", "cant_end_no_maps"));
+            if(m) await m.message.reply(this.bot.locale.category("competition", "cant_end_no_maps"));
             return;
         }
 
-        await this.loop(m.guild, kcgmm);
+        if(!noRefresh) await this.loop(guild, kcgmm);
 
         await Bot.Util.Promise.sleep(1000);
         await channel.send(this.bot.locale.category("competition", "end_channel_ended"));
@@ -733,14 +757,14 @@ function end(m, kcgmm, champion) {
             let map = getMapScoreQueryDataFromDatabase(resultMaps);
 
             const fullMapLeaderboard = await kcgmm.getMapScores(map, undefined, "specialevent");
-            const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(query, m.guild, map.game, fullMapLeaderboard);
+            const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(query, guild, map.game, fullMapLeaderboard);
             
             maps.set(resultMaps, registeredMapLeaderboard);
             
             const mapData = map.id == null ? undefined : kcgmm.getMapById(map.game, map.id) ?? undefined;
 
             const embed = getEmbedTemplate();
-            const field = await getEmbedFieldFromMapData.call(this, m.guild, registeredMapLeaderboard, map, emotes[map.game], mapData, true);
+            const field = await getEmbedFieldFromMapData.call(this, guild, registeredMapLeaderboard, map, emotes[map.game], mapData, true);
             embed.title = field.name;
             embed.description = field.value;
             embed.footer = {
@@ -751,7 +775,7 @@ function end(m, kcgmm, champion) {
         }
 
         let insertComps = (await query(`INSERT INTO competition_history_competitions (guild_id, time_end)
-            VALUES ('${m.guild.id}', '${now}')`)).results;
+            VALUES ('${guild.id}', '${now}')`)).results;
 
         for(let map of maps.keys()) {
             let insertMaps = (await query(`INSERT INTO competition_history_maps (id_competition_history_competitions, game, type, map_id, size, complexity, name, objective, timestamp)
@@ -767,14 +791,14 @@ function end(m, kcgmm, champion) {
             }
         }
 
-        await query(`DELETE FROM competition_messages WHERE guild_id = '${m.guild.id}'`);
-        await query(`UPDATE competition_main SET time_start = NULL, time_end = NULL WHERE guild_id = '${m.guild.id}'`);
-        await query(`DELETE FROM competition_maps WHERE guild_id = '${m.guild.id}'`);
+        await query(`DELETE FROM competition_messages WHERE guild_id = '${guild.id}'`);
+        await query(`UPDATE competition_main SET time_start = NULL, time_end = NULL, time_end_offset = NULL WHERE guild_id = '${guild.id}'`);
+        await query(`DELETE FROM competition_maps WHERE guild_id = '${guild.id}'`);
 
-        await m.message.reply(this.bot.locale.category("competition", "end_success"));
-        await buildScoreTally.call(this, m.guild, channel, query, champion);
+        if(m) await m.message.reply(this.bot.locale.category("competition", "end_success"));
+        await buildScoreTally.call(this, guild, channel, query, champion);
 
-        this.cache.set(m.guild.id, 'comp_maps', []);
+        this.cache.set(guild.id, 'comp_maps', []);
     }).catch(logger.error);
 }
 
