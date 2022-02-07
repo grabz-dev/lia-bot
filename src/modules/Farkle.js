@@ -281,7 +281,6 @@ export default class Farkle extends Bot.Module {
                 for(let docCG of docCGs) {
                     this.cache.set('0', `bot_playing_${docCG.id}`, true);
                     await this.botPlayerLoop(/** @type {number} */(docCG.id));
-                    console.log('bot_playing = true on id' + docCG.id);
                 }
             }
         }).catch(logger.error);
@@ -907,7 +906,6 @@ export default class Farkle extends Bot.Module {
      * @param {number} gameId 
      */
     async botPlayerLoop(gameId) {
-        console.log(`looping bot_playing_${gameId} ${this.cache.get('0', `bot_playing_${gameId}`)}`);
         setTimeout(() => this._botPlayerLoop(gameId), (Math.random() + 1) * 3500);
     }
 
@@ -945,7 +943,6 @@ export default class Farkle extends Bot.Module {
 
         /** @type {Discord.GuildMember[]} */
         var members = [m.member];
-        console.log(args);
         for(let arg of args) {
             let snowflake = Bot.Util.getSnowflakeFromDiscordPing(arg);
             if(!snowflake) continue;
@@ -2220,11 +2217,9 @@ async function roll(client, action, docCG, docCPs, docCPVs, query) {
             if(attendee.user_id === docCG.current_player_user_id && attendee.channel_dm_id == null) {
                 this.cache.set('0', `bot_playing_${docCG.id}`, true);
                 await this.botPlayerLoop(/** @type {number} */(docCG.id));
-                console.log('roll bot_playing = true on id '+ docCG.id);
             }
             else {
                 this.cache.set('0', `bot_playing_${docCG.id}`, false);
-                console.log('roll bot_playing = false on id '+ docCG.id);
             }
 
             await sendDM(client, attendee.user_id, attendee, embed);
