@@ -6,6 +6,8 @@ import Discord from 'discord.js';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 
+import * as AIBrain from './Farkle/AIBrain.js';
+
 /**
  * @typedef {object} Db.farkle_servers
  * @property {number=} id
@@ -29,7 +31,7 @@ const logger = Bot.logger;
  * @property {boolean} ready_status
  * @property {number} turn_order
  * @property {Discord.Snowflake} user_id
- * @property {Discord.Snowflake} channel_dm_id
+ * @property {(Discord.Snowflake|null)=} channel_dm_id
  * @property {number} total_points_banked
  * @property {number} total_points_lost
  * @property {number} total_points_skipped
@@ -69,6 +71,7 @@ const logger = Bot.logger;
  * @property {boolean} high_stakes_variant
  * @property {boolean} current_player_high_stakes_choice
  * @property {boolean} welfare_variant
+ * @property {number} ai_version
  */
 
 /**
@@ -112,6 +115,7 @@ const logger = Bot.logger;
  * @property {number} opening_turn_point_threshold
  * @property {boolean} high_stakes_variant
  * @property {boolean} welfare_variant
+ * @property {number} ai_version
  */
 
 /**
@@ -228,7 +232,7 @@ export default class Farkle extends Bot.Module {
         /** @type {null|{guildId: Discord.Snowflake, farkleChannelId: Discord.Snowflake, botCommandsChannelId?: Discord.Snowflake}} */
         this.ServerDefs = null;
 
-        /** @type {Discord.Message[]} */
+        /** @type {(Discord.Message|{user: Discord.User, msg: string, gameId: number})[]} */
         this.queue = [];
         this.queueRunning = false;
     }
@@ -238,11 +242,11 @@ export default class Farkle extends Bot.Module {
         super.init(guild);
 
         this.bot.sql.transaction(async query => {
-            await query(`CREATE TABLE IF NOT EXISTS farkle_current_players (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, id_current_games BIGINT UNSIGNED NOT NULL, ready_status BOOLEAN NOT NULL, turn_order SMALLINT NOT NULL, user_id TINYTEXT NOT NULL, channel_dm_id TINYTEXT NOT NULL, total_points_banked SMALLINT UNSIGNED NOT NULL, total_points_lost SMALLINT UNSIGNED NOT NULL, total_points_skipped SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, total_points_welfare_gained SMALLINT UNSIGNED NOT NULL, total_points_welfare_lost SMALLINT UNSIGNED NOT NULL, total_rolls INT UNSIGNED NOT NULL, total_folds INT UNSIGNED NOT NULL, total_finishes INT UNSIGNED NOT NULL, total_skips INT UNSIGNED NOT NULL, total_welfares INT UNSIGNED NOT NULL, highest_points_banked SMALLINT UNSIGNED NOT NULL, highest_points_lost SMALLINT UNSIGNED NOT NULL, highest_points_skipped SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, highest_points_welfare_gained SMALLINT UNSIGNED NOT NULL, highest_points_welfare_lost SMALLINT UNSIGNED NOT NULL, highest_rolls_in_turn INT UNSIGNED NOT NULL, highest_rolls_in_turn_without_fold INT UNSIGNED NOT NULL);`);
-            await query(`CREATE TABLE IF NOT EXISTS farkle_current_games (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, has_started BOOLEAN NOT NULL, match_start_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, current_player_user_id TINYTEXT NOT NULL, current_player_rolls TINYTEXT NOT NULL, current_player_points SMALLINT UNSIGNED NOT NULL, current_player_rolls_count INT UNSIGNED NOT NULL, current_player_points_piggybacked INT UNSIGNED NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL, high_stakes_variant BOOLEAN NOT NULL, current_player_high_stakes_choice BOOLEAN NOT NULL, welfare_variant BOOLEAN NOT NULL);`);
+            await query(`CREATE TABLE IF NOT EXISTS farkle_current_players (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, id_current_games BIGINT UNSIGNED NOT NULL, ready_status BOOLEAN NOT NULL, turn_order SMALLINT NOT NULL, user_id TINYTEXT NOT NULL, channel_dm_id TINYTEXT, total_points_banked SMALLINT UNSIGNED NOT NULL, total_points_lost SMALLINT UNSIGNED NOT NULL, total_points_skipped SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, total_points_welfare_gained SMALLINT UNSIGNED NOT NULL, total_points_welfare_lost SMALLINT UNSIGNED NOT NULL, total_rolls INT UNSIGNED NOT NULL, total_folds INT UNSIGNED NOT NULL, total_finishes INT UNSIGNED NOT NULL, total_skips INT UNSIGNED NOT NULL, total_welfares INT UNSIGNED NOT NULL, highest_points_banked SMALLINT UNSIGNED NOT NULL, highest_points_lost SMALLINT UNSIGNED NOT NULL, highest_points_skipped SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, highest_points_welfare_gained SMALLINT UNSIGNED NOT NULL, highest_points_welfare_lost SMALLINT UNSIGNED NOT NULL, highest_rolls_in_turn INT UNSIGNED NOT NULL, highest_rolls_in_turn_without_fold INT UNSIGNED NOT NULL);`);
+            await query(`CREATE TABLE IF NOT EXISTS farkle_current_games (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, has_started BOOLEAN NOT NULL, match_start_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, current_player_user_id TINYTEXT NOT NULL, current_player_rolls TINYTEXT NOT NULL, current_player_points SMALLINT UNSIGNED NOT NULL, current_player_rolls_count INT UNSIGNED NOT NULL, current_player_points_piggybacked INT UNSIGNED NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL, high_stakes_variant BOOLEAN NOT NULL, current_player_high_stakes_choice BOOLEAN NOT NULL, welfare_variant BOOLEAN NOT NULL, ai_version TINYINT NOT NULL);`);
         
             await query(`CREATE TABLE IF NOT EXISTS farkle_history_players (id BIGINT UNSIGNED PRIMARY KEY, id_history_games BIGINT UNSIGNED NOT NULL, user_id TINYTEXT NOT NULL, turn_order SMALLINT NOT NULL, has_conceded BOOLEAN NOT NULL, total_points_banked SMALLINT UNSIGNED NOT NULL, total_points_lost SMALLINT UNSIGNED NOT NULL, total_points_skipped SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, total_points_welfare_gained SMALLINT UNSIGNED NOT NULL, total_points_welfare_lost SMALLINT UNSIGNED NOT NULL, total_rolls INT UNSIGNED NOT NULL, total_folds INT UNSIGNED NOT NULL, total_finishes INT UNSIGNED NOT NULL, total_skips INT UNSIGNED NOT NULL, total_welfares INT UNSIGNED NOT NULL, highest_points_banked SMALLINT UNSIGNED NOT NULL, highest_points_lost SMALLINT UNSIGNED NOT NULL, highest_points_skipped SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, highest_points_welfare_gained SMALLINT UNSIGNED NOT NULL, highest_points_welfare_lost SMALLINT UNSIGNED NOT NULL, highest_rolls_in_turn INT UNSIGNED NOT NULL, highest_rolls_in_turn_without_fold INT UNSIGNED NOT NULL);`);
-            await query(`CREATE TABLE IF NOT EXISTS farkle_history_games (id BIGINT UNSIGNED PRIMARY KEY, guild_id TINYTEXT NOT NULL, match_start_time BIGINT NOT NULL, match_end_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, user_id_winner TINYTEXT NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL, high_stakes_variant BOOLEAN NOT NULL, welfare_variant BOOLEAN NOT NULL);`);
+            await query(`CREATE TABLE IF NOT EXISTS farkle_history_games (id BIGINT UNSIGNED PRIMARY KEY, guild_id TINYTEXT NOT NULL, match_start_time BIGINT NOT NULL, match_end_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, user_id_winner TINYTEXT NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL, high_stakes_variant BOOLEAN NOT NULL, welfare_variant BOOLEAN NOT NULL, ai_version TINYINT NOT NULL);`);
         
             await query(`CREATE TABLE IF NOT EXISTS farkle_servers (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, user_id TINYTEXT NOT NULL, user_id_host TINYTEXT NOT NULL)`)
             await query(`CREATE TABLE IF NOT EXISTS farkle_users (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id TINYTEXT NOT NULL, skin TINYTEXT NOT NULL)`);
@@ -261,7 +265,24 @@ export default class Farkle extends Bot.Module {
             for(let attendee of docCPVs) {
                 let member = await guild.members.fetch(attendee.user_id);
                 if(!member) return; //TODO
-                await member.createDM();
+                if(attendee.channel_dm_id != null) await member.createDM();
+            }
+        }).catch(logger.error);
+
+        this.bot.sql.transaction(async query => {
+            await query('ALTER TABLE farkle_current_players MODIFY COLUMN channel_dm_id TINYTEXT').catch(() => {});
+            await query('ALTER TABLE farkle_current_games ADD COLUMN ai_version TINYINT NOT NULL').catch(() => {});
+            await query('ALTER TABLE farkle_history_games ADD COLUMN ai_version TINYINT NOT NULL').catch(() => {});
+
+            
+            if(guild.client.user) {
+                /** @type {Db.farkle_current_games[]} */
+                let docCGs = (await query(`SELECT * FROM farkle_current_games WHERE current_player_user_id = ${guild.client.user.id}`)).results;
+                for(let docCG of docCGs) {
+                    this.cache.set('0', `bot_playing_${docCG.id}`, true);
+                    await this.botPlayerLoop(/** @type {number} */(docCG.id));
+                    console.log('bot_playing = true on id' + docCG.id);
+                }
             }
         }).catch(logger.error);
     }
@@ -269,6 +290,7 @@ export default class Farkle extends Bot.Module {
     /** @param {Discord.Message} message - The message that was sent. */
     onMessage(message) {
         if(message.member == null || message.guild == null) return;
+        const guild = message.guild;
         if(this.ServerDefs == null) return;
         if(message.guild.id === this.ServerDefs.guildId && message.channel.id !== this.ServerDefs.farkleChannelId) return;
 
@@ -289,7 +311,16 @@ export default class Farkle extends Bot.Module {
             return;
         }
 
+        const ai = (() => {
+            if(prep.members.length === 1) return false;
+            if(arg.indexOf('ai') > -1) {
+                arg = arg.split('ai').join('');
+                return true;
+            }
+            return false;
+        })();
         const highStakes = (() => {
+            if(prep.members.length === 1 || ai) return false;
             if(arg.indexOf('hs') > -1) {
                 arg = arg.split('hs').join('');
                 return true;
@@ -297,6 +328,7 @@ export default class Farkle extends Bot.Module {
             return false;
         })();
         const welfare = (() => {
+            if(prep.members.length === 1 || ai) return false;
             if(arg.indexOf('wf') > -1) {
                 arg = arg.split('wf').join('');
                 return true;
@@ -309,6 +341,7 @@ export default class Farkle extends Bot.Module {
             threshold: +[args[1]?.trim()]
         }
         if(aobj.threshold == null) aobj.threshold = 0;
+        if(prep.members.length === 1 || ai) aobj.threshold = 0;
 
         if(!Number.isFinite(aobj.goal)) {
             message.channel.send("The specified point goal is invalid.").catch(logger.error);
@@ -351,15 +384,21 @@ export default class Farkle extends Bot.Module {
                 opening_turn_point_threshold: aobj.threshold,
                 high_stakes_variant: highStakes,
                 current_player_high_stakes_choice: false,
-                welfare_variant: welfare
+                welfare_variant: welfare,
+                ai_version: AIBrain.VERSION
             }
 
             var doc = (await query(Bot.Util.SQL.getInsert(game, "farkle_current_games") + "; SELECT LAST_INSERT_ID();")).results[1][0];
             game.id = Object.values(doc)[0];
 
+            const botId = guild.client.user?.id??'';
+            if(prep.members.length === 1 || ai) {
+                prep.members.push(await guild.members.fetch(botId));
+            }
+
             for(let i = 0; i < prep.members.length; i++) {
                 /** @type {Db.farkle_current_players[]} */
-                var docCPs = (await query(`SELECT * FROM farkle_current_players WHERE user_id = ${prep.members[i].id}`)).results;
+                var docCPs = (await query(`SELECT * FROM farkle_current_players WHERE user_id = ${prep.members[i].id} AND id_current_games = ${game.id}`)).results;
                 if(docCPs.length > 0) continue;
 
                 var embed = getEmbedBlank();
@@ -375,15 +414,16 @@ export default class Farkle extends Bot.Module {
                 embed.description += `\n  • Players: ${prep.members.join(", ")}\n`;
                 embed.description += `\nType \`ready\` or \`r\` if you want to play.\nType \`reject\` to cancel the match.`;
                 
-                await prep.channels[i].send({ embeds: [embed] });
+                if(prep.channels[i]) await prep.channels[i].send({ embeds: [embed] });
+                const isBot = prep.members[i].id === botId;
 
                 /** @type {Db.farkle_current_players} */
                 const player = {
                     id_current_games: /** @type {number} */(game.id),
-                    ready_status: false,
+                    ready_status: isBot ? true : false,
                     turn_order: 0,
                     user_id: prep.members[i].id,
-                    channel_dm_id: prep.channels[i].id,
+                    channel_dm_id: isBot ? null : prep.channels[i].id,
                     total_points_banked: 0,
                     total_points_lost: 0,
                     total_points_skipped: 0,
@@ -406,6 +446,7 @@ export default class Farkle extends Bot.Module {
                     highest_rolls_in_turn: 0,
                     highest_rolls_in_turn_without_fold: 0,
                 }
+                if(player.channel_dm_id == null) delete player.channel_dm_id;
                 
                 await query(Bot.Util.SQL.getInsert(player, "farkle_current_players"));
             }
@@ -421,7 +462,7 @@ export default class Farkle extends Bot.Module {
     //but not many people play this and I don't have enough testing accounts
     //so I'm leaving it as-is for now.
 
-    /** @param {Discord.Message} message - The message that was sent. */
+    /** @param {Discord.Message|{user: Discord.User, msg: string, gameId: number}} message - The message that was sent. */
     onMessageDM(message) {
         //Ensure order of play
         this.queue.push(message);
@@ -432,7 +473,8 @@ export default class Farkle extends Bot.Module {
             while(this.queue.length > 0) {
                 let qitem = this.queue[0];
                 this.queue.splice(0, 1);
-                await this.play(qitem);
+                if(qitem instanceof Discord.Message) await this.play({ author: qitem.author, content: qitem.content.toLowerCase(), client: qitem.author.client, gameId: null });
+                else await this.play({ author: qitem.user, content: qitem.msg.toLowerCase(), client: qitem.user.client, gameId: qitem.gameId });
             }
             this.queueRunning = false;
         })();
@@ -440,7 +482,7 @@ export default class Farkle extends Bot.Module {
 
     /**
      * 
-     * @param {Discord.Message} message 
+     * @param {{author: Discord.User, content: string, client: Discord.Client, gameId: number?}} message 
      * @returns 
      */
     async play(message) {
@@ -480,7 +522,7 @@ export default class Farkle extends Bot.Module {
 
         await this.bot.sql.transaction(async query => {
             /** @type {Db.farkle_current_players|undefined} */
-            var _docCP = (await query(`SELECT * FROM farkle_current_players WHERE user_id = ${user.id}`)).results[0];
+            var _docCP = (await query(`SELECT * FROM farkle_current_players WHERE user_id = ${user.id}${message.gameId != null ? ` AND id_current_games = ${message.gameId}` : ''}`)).results[0];
             if(!_docCP) return;
 
             /** @type {Db.farkle_current_players[]} */
@@ -514,7 +556,7 @@ export default class Farkle extends Bot.Module {
 
                 embed.description += "\nType \`concede\` to drop out of the match.";
 
-                await message.channel.send({ embeds: [embed] });
+                if(message instanceof Discord.Message) await message.channel.send({ embeds: [embed] });
                 return;
             }
             else if(type === "hurry") {
@@ -528,7 +570,7 @@ export default class Farkle extends Bot.Module {
                 for(let attendee of docCPVs) {
                     let embed = getEmbedBlank();
                     embed.description = `<@${docCP.user_id}> wants to hurry. <@${docCG.current_player_user_id}> has 90 seconds to make a move.`;
-                    await (await (await user.client.users.fetch(attendee.user_id))?.createDM()).send({ embeds: [embed] });
+                    await sendDM(user.client, attendee.user_id, attendee, embed);
                 }
 
                 var timeout = setTimeout(() => {
@@ -571,7 +613,7 @@ export default class Farkle extends Bot.Module {
                     for(let attendee of docCPVs) {
                         let embed = getEmbedBlank();
                         embed.description = `${user} is ready to play!`;
-                        await (await (await user.client.users.fetch(attendee.user_id))?.createDM()).send({ embeds: [embed] })
+                        await sendDM(user.client, attendee.user_id, attendee, embed);
                     }
 
                     docCP.ready_status = true;
@@ -584,7 +626,7 @@ export default class Farkle extends Bot.Module {
                 let embed = getEmbedBlank();
                 embed.description = `Everyone is ready, and the game begins!\n\n`;
                 for(let attendee of docCPVs) {
-                    await (await (await user.client.users.fetch(attendee.user_id))?.createDM()).send({ embeds: [embed] })
+                    await sendDM(user.client, attendee.user_id, attendee, embed);
                 }
 
                 await Bot.Util.Promise.sleep(2500);
@@ -600,7 +642,7 @@ export default class Farkle extends Bot.Module {
                 for(let attendee of docCPVs) {
                     let embed = getEmbedBlank();
                     embed.description = `<@${docCP.user_id}> has conceded the match.`;
-                    await (await (await user.client.users.fetch(attendee.user_id))?.createDM()).send({ embeds: [embed] });
+                    await sendDM(user.client, attendee.user_id, attendee, embed);
                 }
 
                 if(docCPs.length === 2) {
@@ -635,14 +677,14 @@ export default class Farkle extends Bot.Module {
                 for(let attendee of docCPVs) {
                     let embed = getEmbedBlank();
                     embed.description = `<@${user.id}> does not want to play. Match cancelled.`;
-                    await (await (await user.client.users.fetch(attendee.user_id))?.createDM()).send({ embeds: [embed] });
+                    await sendDM(user.client, attendee.user_id, attendee, embed);
                 }
             }
             else if(type === "keep" || type === "finish" || type === "continue" || type === "new") {
                 if(docCG.current_player_user_id.length === 0)
                     return;
                 if(docCG.current_player_user_id !== docCP.user_id) {
-                    await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send(`It's not your turn yet! Waiting on <@${docCG.current_player_user_id}>.`);
+                    await sendDM(user.client, docCP.user_id, docCP, `It's not your turn yet! Waiting on <@${docCG.current_player_user_id}>.`);
                     return;
                 }
 
@@ -660,7 +702,7 @@ export default class Farkle extends Bot.Module {
                     }
 
                     if(!getValidKeep(JSON.parse(docCG.current_player_rolls), keep)) {
-                        await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send("Selected dice must match the rolls!");
+                        await sendDM(user.client, docCP.user_id, docCP, "Selected dice must match the rolls!");
                         return;
                     }
 
@@ -669,13 +711,13 @@ export default class Farkle extends Bot.Module {
                     docCG.current_player_rolls = JSON.stringify(rolls);
 
                     if(points === 0) {
-                        await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send("This keep is invalid.");
+                        await sendDM(user.client, docCP.user_id, docCP, "This keep is invalid.");
                         return;
                     }
 
                     let totalPoints = points + docCG.current_player_points;
                     if(type === "finish" && docCP.total_points_banked === 0 && totalPoints < docCG.opening_turn_point_threshold) {
-                        await (await (await user.client.users.fetch(docCP.user_id))?.createDM()).send(`You cannot finish your opening turn with less than ${docCG.opening_turn_point_threshold} points. This finish would bank ${totalPoints}.`);
+                        await sendDM(user.client, docCP.user_id, docCP, `You cannot finish your opening turn with less than ${docCG.opening_turn_point_threshold} points. This finish would bank ${totalPoints}.`);
                         return;
                     }
 
@@ -861,6 +903,35 @@ export default class Farkle extends Bot.Module {
     }
 
     /**
+     * 
+     * @param {number} gameId 
+     */
+    async botPlayerLoop(gameId) {
+        console.log(`looping bot_playing_${gameId} ${this.cache.get('0', `bot_playing_${gameId}`)}`);
+        setTimeout(() => this._botPlayerLoop(gameId), (Math.random() + 1) * 3500);
+    }
+
+    /**
+     * 
+     * @param {number} gameId 
+     */
+    async _botPlayerLoop(gameId) {
+        if(this.cache.get('0', `bot_playing_${gameId}`)) {
+            await this.bot.sql.transaction(async query => {
+                /** @type {Db.farkle_current_games} */
+                let docCG = (await query(`SELECT * FROM farkle_current_games WHERE id = ${gameId} AND current_player_user_id = ${this.bot.client.user?.id}`)).results[0];
+
+                if(docCG != null) {
+                    let currentPlayerRolls = docCG.current_player_rolls;
+                    let str = AIBrain.determineMove(JSON.parse(currentPlayerRolls));
+                    if(this.bot.client.user) this.onMessageDM({ user: this.bot.client.user, msg: str, gameId });
+                }
+                else this.cache.set('0', `bot_playing_${gameId}`, false);
+            }).catch(logger.error);
+        }
+    }
+
+    /**
      * Module Function: Invite player(s) to play Farkle!
      * @param {Bot.Message} m - Message of the user executing the command.
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
@@ -874,6 +945,7 @@ export default class Farkle extends Bot.Module {
 
         /** @type {Discord.GuildMember[]} */
         var members = [m.member];
+        console.log(args);
         for(let arg of args) {
             let snowflake = Bot.Util.getSnowflakeFromDiscordPing(arg);
             if(!snowflake) continue;
@@ -885,9 +957,9 @@ export default class Farkle extends Bot.Module {
             if(prep) return;
         }
         members = [ ...new Set(members) ];
-        if(members.length <= 1) {
-            return "No valid members found. Mention the users or type their user ID's.";
-        }
+        //if(members.length <= 1) {
+        //    return "No valid members found. Mention the users or type their user ID's.";
+        //}
         if(members.some(v => v.user.bot)) {
             return "You can't invite a bot!";
         }
@@ -938,12 +1010,15 @@ export default class Farkle extends Bot.Module {
             }
 
             let embed = getEmbedBlank();
+
             embed.description = `Choose the __points goal__ between 1000 and 10000 (suggested 4000).
 Followed by a comma, optionally choose the __opening turn point threshold__ between 350 and 1000 (commonly 350, 400, 500, or 1000).
 Optionally choose if you would like to play the __high-stakes variant__ by typing \`hs\` anywhere.
 Optionally choose if you would like to play the __welfare variant__ by typing \`wf\` anywhere.
+Optionally choose if you would like to play with an AI opponent by typing \`ai\` anywhere (does not support variants).
     
 Examples:
+\`4000 ai\` - 4000 goal, include an AI player.
 \`4000\` - 4000 goal, 0 opening turn threshold.
 \`6000, 500\` - 6000 goal, 500 opening turn threshold.
 \`5000 hs\` - 5000 goal, high-stakes variant.
@@ -951,6 +1026,14 @@ Examples:
 
 Type \`cancel\` to cancel the match.`;
 
+            if(members.length === 1) {
+                embed.description = `You're playing a solo game.\nChoose the __points goal__ between 1000 and 10000 (suggested 4000).
+    
+Examples:
+\`4000\` - 4000 goal.
+
+Type \`cancel\` to cancel the match.`;
+            }
             await m.channel.send({embeds: [embed]});
         }).catch(console.error);
     }
@@ -980,7 +1063,7 @@ Type \`cancel\` to cancel the match.`;
             }
 
             let embed = getEmbedBlank();
-            embed.description = `<@${server.user_id}> is looking for people to play Farkle!\n\nType -> !farkle join <@${server.user_id}> <- to join.`;
+            embed.description = `<@${server.user_id}> is looking for people to play Farkle!\n\nType -> !farkle join <@${server.user_id}> <- to join.\n\nType \`!farkle start\` to start a solo game with an AI player.`;
 
             /** @type {Db.farkle_servers|undefined} */
             var docS = (await query(`SELECT * FROM farkle_servers WHERE user_id = ${m.member.id}`)).results[0];
@@ -1162,10 +1245,10 @@ Type \`cancel\` to cancel the match.`;
 
             /** @type {Db.farkle_servers[]} */
             var docSs = (await query(`SELECT * FROM farkle_servers WHERE guild_id = ${m.guild.id} AND user_id_host = ${m.member.id}`)).results;
-            if(docSs.length <= 1) {
-                await m.channel.send("Nobody has joined your lobby yet.");
-                return;
-            }
+            //if(docSs.length <= 1) {
+            //    await m.channel.send("Nobody has joined your lobby yet.");
+            //    return;
+            //}
 
             await query(`DELETE FROM farkle_servers WHERE user_id_host = ${m.member.id}`);
 
@@ -1809,7 +1892,8 @@ async function commit(state, docCG, docCP, docCPs, query, client) {
             user_id_winner: docCG.current_player_user_id,
             opening_turn_point_threshold: docCG.opening_turn_point_threshold,
             high_stakes_variant: docCG.high_stakes_variant,
-            welfare_variant: docCG.welfare_variant
+            welfare_variant: docCG.welfare_variant,
+            ai_version: docCG.ai_version
         }
         await query(Bot.Util.SQL.getInsert(gameH, "farkle_history_games"));
 
@@ -1910,7 +1994,7 @@ async function decide(client, docCG, docCP, docCPs, docCPVs) {
 
         embed.description = str;
         for(let attendee of docCPVs) {
-            await (await (await client.users.fetch(attendee.user_id))?.createDM()).send({ embeds: [embed] });
+            await sendDM(client, attendee.user_id, attendee, embed);
         }
 
         await Bot.Util.Promise.sleep(2500);
@@ -2027,7 +2111,7 @@ async function highstakes(client, action, docCG, docCPs, docCPVs, query) {
             embed.description += `<@${docCG.current_player_user_id}> is choosing to either begin their turn with a fresh set of six dice, or to continue the previous player's turn. There ${count === 1 ? `**is 1 die**` : `**are ${count} dice**`} on the table to reroll, and <@${docCG.current_player_user_id}> would start with **${action.points} points**.`;
         }
 
-        await (await (await client.users.fetch(attendee.user_id))?.createDM()).send({ embeds: [embed] });
+        await sendDM(client, attendee.user_id, attendee, embed);
     }
     
 }
@@ -2055,7 +2139,7 @@ async function highstakes(client, action, docCG, docCPs, docCPVs, query) {
         }
         embed.description += '\n\n**Farkle!**';
 
-        await (await (await client.users.fetch(attendee.user_id))?.createDM()).send({ embeds: [embed] });
+        await sendDM(client, attendee.user_id, attendee, embed);
     }
  }
 
@@ -2132,8 +2216,18 @@ async function roll(client, action, docCG, docCPs, docCPVs, query) {
                         embed.description += `\n\`help\` • \`hurry\` • \`concede\``;
                 }
             }
-            
-            await (await (await client.users.fetch(attendee.user_id))?.createDM()).send({ embeds: [embed] });
+
+            if(attendee.user_id === docCG.current_player_user_id && attendee.channel_dm_id == null) {
+                this.cache.set('0', `bot_playing_${docCG.id}`, true);
+                await this.botPlayerLoop(/** @type {number} */(docCG.id));
+                console.log('roll bot_playing = true on id '+ docCG.id);
+            }
+            else {
+                this.cache.set('0', `bot_playing_${docCG.id}`, false);
+                console.log('roll bot_playing = false on id '+ docCG.id);
+            }
+
+            await sendDM(client, attendee.user_id, attendee, embed);
         }
         
         if(fold) {
@@ -2200,7 +2294,7 @@ async function turn(client, docCG, docCPs, query, type) {
     }
     embed.description = str;
     
-    await (await (await client.users.fetch(playerNext.user_id))?.createDM()).send({ embeds: [embed] });
+    await sendDM(client, playerNext.user_id, playerNext, embed);
 }
 
 /**
@@ -2224,7 +2318,7 @@ async function end(client, action, docCG, docVs, docCPs, query, type) {
         let embed = getEmbedUser(docCG, docCPs, true);
         embed.description = `${getLastActionString(player, action)}${str}`;
 
-        await (await (await client.users.fetch(player.user_id))?.createDM()).send({ embeds: [embed] });
+        await sendDM(client, player.user_id, player, embed);
     }
 
     for(let viewer of docVs) {
@@ -2232,7 +2326,7 @@ async function end(client, action, docCG, docVs, docCPs, query, type) {
 
         let embed = getEmbedUser(docCG, docCPs, true);
         embed.description = `${getLastActionString(viewer, action)}${str}`;
-        await (await (await client.users.fetch(viewer.user_id))?.createDM()).send({ embeds: [embed] });
+        await sendDM(client, viewer.user_id, viewer, embed);
     }
 }
 
@@ -2335,4 +2429,15 @@ async function postGameEndMessage(client, docCG, thisGameCHPs) {
     if(channel instanceof Discord.TextChannel) {
         channel.send({ embeds: [embed] });
     }
+}
+
+/**
+ * @param {Discord.Client} client 
+ * @param {string} user_id
+ * @param {Db.farkle_current_players|Db.farkle_viewers} docCPV
+ * @param {Discord.MessageEmbed|string} embed
+ */
+async function sendDM(client, user_id, docCPV, embed) {
+    if(docCPV.channel_dm_id == null) return;
+    await (await (await client.users.fetch(user_id))?.createDM()).send(typeof embed === 'string' ? embed : { embeds: [embed] });
 }
