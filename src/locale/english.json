@@ -224,6 +224,10 @@
             ]
         },
         "f": {
+            "solo": [
+                "!%name%",
+                "Play a solo Farkle game against AI."
+            ],
             "host": [
                 "!%name%",
                 "Host a new Farkle pre-game lobby."

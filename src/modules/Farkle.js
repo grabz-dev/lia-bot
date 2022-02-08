@@ -838,7 +838,7 @@ export default class Farkle extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'host'|'leave'|'join'|'start'|'skin'|'games'|'profile'|'spectate'|'rules'} ext.action - Custom parameters provided to function call.
+     * @param {'solo'|'host'|'leave'|'join'|'start'|'skin'|'games'|'profile'|'spectate'|'rules'} ext.action - Custom parameters provided to function call.
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
@@ -871,6 +871,9 @@ export default class Farkle extends Bot.Module {
         }
 
         switch(ext.action) {
+            case 'solo':
+                this.solo(m, args, arg, ext);
+                break;
             case 'host':
                 this.host(m, args, arg, ext);
                 break;
@@ -927,6 +930,38 @@ export default class Farkle extends Bot.Module {
                 else this.cache.set('0', `bot_playing_${gameId}`, false);
             }).catch(logger.error);
         }
+    }
+
+    /**
+     * Module Function: Play Farkle solo
+     * @param {Bot.Message} m - Message of the user executing the command.
+     * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
+     * @param {string} arg - The full string written by the user after the command.
+     * @param {object} ext - Custom parameters provided to function call.
+     * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
+     */
+    solo(m, args, arg, ext) {
+        this.bot.sql.transaction(async query => {
+            /** @type {Db.farkle_current_players[]} */
+            var docCPs = (await query(`SELECT * FROM farkle_current_players WHERE user_id = ${m.member.id}`)).results;
+            if(docCPs.length > 0) {
+                await m.channel.send("You're already in a Farkle match!");
+                return false;
+            }
+            
+            /** @type {Db.farkle_servers|undefined} */
+            var docS = (await query(`SELECT * FROM farkle_servers WHERE user_id = ${m.member.id}`)).results[0];
+            if(docS) {
+                if(docS.user_id !== docS.user_id_host) {
+                    await m.channel.send("You are already in another lobby! Leave it first.");
+                    return false;
+                }
+            }
+
+            return true;
+        }).then(go => {
+            if(go) this.farkle(m, [m.member.id], m.member.id+'', ext);
+        }).catch(logger.error);
     }
 
     /**
@@ -1237,14 +1272,14 @@ Type \`cancel\` to cancel the match.`;
             var docSs = (await query(`SELECT * FROM farkle_servers WHERE guild_id = ${m.guild.id} AND user_id_host = ${m.member.id} AND user_id = user_id_host`)).results;
             if(docSs.length === 0) {
                 await m.channel.send("You're not a host of a lobby.");
-                return;
+                return false;
             }
 
             /** @type {Db.farkle_servers[]} */
             var docSs = (await query(`SELECT * FROM farkle_servers WHERE guild_id = ${m.guild.id} AND user_id_host = ${m.member.id}`)).results;
             //if(docSs.length <= 1) {
             //    await m.channel.send("Nobody has joined your lobby yet.");
-            //    return;
+            //    return false;
             //}
 
             await query(`DELETE FROM farkle_servers WHERE user_id_host = ${m.member.id}`);
@@ -1252,6 +1287,7 @@ Type \`cancel\` to cancel the match.`;
             let args = docSs.map(v => v.user_id);
             return args;
         }).then(args => {
+            if(args == false) return;
             let arg = (args??[]).join(" ");
             this.farkle(m, args??[], arg, ext);
         }).catch(logger.error);

@@ -197,6 +197,9 @@ core.on('ready', bot => {
                 botCommandsChannelId: "457188713978527746"
             }
 
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['solo'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                return farkle.land(message, args, arg, { action: 'solo' });
+            });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['host', 'h'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return farkle.land(message, args, arg, { action: 'host' });
             });
