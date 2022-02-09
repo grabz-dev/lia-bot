@@ -2466,18 +2466,23 @@ async function postGameEndMessage(client, docCG, thisGameCHPs) {
     if(this.ServerDefs == null) return;
 
     var embed = getEmbedBlank();
-    embed.description = `Game ended`;
-    embed.description += `\n  • Players: ${thisGameCHPs.map(v => `<@${v.user_id}>`).join(", ")}`;
-    embed.description += `\n  • Point goal: ${docCG.points_goal}`;
-    if(docCG.opening_turn_point_threshold > 0) embed.description += `\n  • Opening turn point threshold: ${docCG.opening_turn_point_threshold}`;
-    if(docCG.high_stakes_variant) embed.description += `\n  • **High Stakes**`;
-    if(docCG.welfare_variant) embed.description += `\n  • **Welfare**`;
-    
-    embed.description += '\n\n';
+    embed.title = null;
+    embed.timestamp = null;
+
     let players = thisGameCHPs.slice().sort((a, b) => b.total_points_banked - a.total_points_banked);
-    for(let docCP of players) {
-        embed.description += `<@${docCP.user_id}>'s bank: ${docCP.total_points_banked}\n`;
+    embed.description = `Game ended between `;
+    for(let i = 0; i < players.length; i++) {
+        let docCP = players[i];
+        embed.description += `<@${docCP.user_id}> (${docCP.total_points_banked})`;
+        if(i + 1 !== players.length) {
+            embed.description += ', ';
+        }
     }
+
+    embed.description += `\nPoint goal: **${docCG.points_goal}**`;
+    if(docCG.opening_turn_point_threshold > 0) embed.description += `  •  Opening turn point threshold: **${docCG.opening_turn_point_threshold}**`;
+    if(docCG.high_stakes_variant) embed.description += `  •  **High Stakes**`;
+    if(docCG.welfare_variant) embed.description += `  •  **Welfare**`;
 
     let guild = await client.guilds.fetch(this.ServerDefs.guildId);
     let channel = await guild.channels.fetch(this.ServerDefs.farkleChannelId);
