@@ -14,6 +14,8 @@ import * as AIBrain from './Farkle/AIBrain.js';
  * @property {Discord.Snowflake} guild_id
  * @property {Discord.Snowflake} user_id
  * @property {Discord.Snowflake} user_id_host
+ * @property {Discord.Snowflake} channel_id
+ * @property {Discord.Snowflake} message_id
  */
 
 /**
@@ -131,37 +133,7 @@ import * as AIBrain from './Farkle/AIBrain.js';
 const MAX_DICE = 6;
 
 const F = Object.freeze({
-    matches: Object.freeze([
-        { m: [1, 2, 3, 4, 5, 6],    p: 1500 },
-        { m: [2, 3, 4, 5, 6],       p: 750  },
-        { m: [1, 2, 3, 4, 5],       p: 500  },
-        { m: [1, 1, 1, 1, 1, 1],    p: 8000 },
-        { m: [1, 1, 1, 1, 1],       p: 4000 },
-        { m: [1, 1, 1, 1],          p: 2000 },
-        { m: [1, 1, 1],             p: 1000 },
-        { m: [5, 5, 5, 5, 5, 5],    p: 4000 },
-        { m: [5, 5, 5, 5, 5],       p: 2000 },
-        { m: [5, 5, 5, 5],          p: 1000 },
-        { m: [5, 5, 5],             p: 500 },
-        { m: [6, 6, 6, 6, 6, 6],    p: 4800 },
-        { m: [6, 6, 6, 6, 6],       p: 2400 },
-        { m: [6, 6, 6, 6],          p: 1200 },
-        { m: [6, 6, 6],             p: 600 },
-        { m: [4, 4, 4, 4, 4, 4],    p: 3200 },
-        { m: [4, 4, 4, 4, 4],       p: 1600 },
-        { m: [4, 4, 4, 4],          p: 800  },
-        { m: [4, 4, 4],             p: 400  },
-        { m: [3, 3, 3, 3, 3, 3],    p: 2400 },
-        { m: [3, 3, 3, 3, 3],       p: 1200 },
-        { m: [3, 3, 3, 3],          p: 600  },
-        { m: [3, 3, 3],             p: 300  },
-        { m: [2, 2, 2, 2, 2, 2],    p: 1600 },
-        { m: [2, 2, 2, 2, 2],       p: 800 },
-        { m: [2, 2, 2, 2],          p: 400 },
-        { m: [2, 2, 2],             p: 200 },
-        { m: [1],                   p: 100 },
-        { m: [5],                   p: 50  },
-    ]),
+    matches: AIBrain.matches,
     colors: Object.freeze([
         0,         
         11460749,
@@ -248,7 +220,7 @@ export default class Farkle extends Bot.Module {
             await query(`CREATE TABLE IF NOT EXISTS farkle_history_players (id BIGINT UNSIGNED PRIMARY KEY, id_history_games BIGINT UNSIGNED NOT NULL, user_id TINYTEXT NOT NULL, turn_order SMALLINT NOT NULL, has_conceded BOOLEAN NOT NULL, total_points_banked SMALLINT UNSIGNED NOT NULL, total_points_lost SMALLINT UNSIGNED NOT NULL, total_points_skipped SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, total_points_welfare_gained SMALLINT UNSIGNED NOT NULL, total_points_welfare_lost SMALLINT UNSIGNED NOT NULL, total_rolls INT UNSIGNED NOT NULL, total_folds INT UNSIGNED NOT NULL, total_finishes INT UNSIGNED NOT NULL, total_skips INT UNSIGNED NOT NULL, total_welfares INT UNSIGNED NOT NULL, highest_points_banked SMALLINT UNSIGNED NOT NULL, highest_points_lost SMALLINT UNSIGNED NOT NULL, highest_points_skipped SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, highest_points_welfare_gained SMALLINT UNSIGNED NOT NULL, highest_points_welfare_lost SMALLINT UNSIGNED NOT NULL, highest_rolls_in_turn INT UNSIGNED NOT NULL, highest_rolls_in_turn_without_fold INT UNSIGNED NOT NULL);`);
             await query(`CREATE TABLE IF NOT EXISTS farkle_history_games (id BIGINT UNSIGNED PRIMARY KEY, guild_id TINYTEXT NOT NULL, match_start_time BIGINT NOT NULL, match_end_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, user_id_winner TINYTEXT NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL, high_stakes_variant BOOLEAN NOT NULL, welfare_variant BOOLEAN NOT NULL, ai_version TINYINT NOT NULL);`);
         
-            await query(`CREATE TABLE IF NOT EXISTS farkle_servers (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, user_id TINYTEXT NOT NULL, user_id_host TINYTEXT NOT NULL)`)
+            await query(`CREATE TABLE IF NOT EXISTS farkle_servers (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, user_id TINYTEXT NOT NULL, user_id_host TINYTEXT NOT NULL, channel_id TINYTEXT NOT NULL, message_id TINYTEXT NOT NULL)`)
             await query(`CREATE TABLE IF NOT EXISTS farkle_users (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id TINYTEXT NOT NULL, skin TINYTEXT NOT NULL)`);
             await query(`CREATE TABLE IF NOT EXISTS farkle_viewers (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id_target TINYTEXT NOT NULL, user_id TINYTEXT NOT NULL, channel_dm_id TINYTEXT NOT NULL)`);
 
@@ -273,7 +245,8 @@ export default class Farkle extends Bot.Module {
             await query('ALTER TABLE farkle_current_players MODIFY COLUMN channel_dm_id TINYTEXT').catch(() => {});
             await query('ALTER TABLE farkle_current_games ADD COLUMN ai_version TINYINT NOT NULL').catch(() => {});
             await query('ALTER TABLE farkle_history_games ADD COLUMN ai_version TINYINT NOT NULL').catch(() => {});
-
+            await query('ALTER TABLE farkle_servers ADD COLUMN channel_id TINYTEXT NOT NULL').catch(() => {});
+            await query('ALTER TABLE farkle_servers ADD COLUMN message_id TINYTEXT NOT NULL').catch(() => {});
             
             if(guild.client.user) {
                 /** @type {Db.farkle_current_games[]} */
@@ -302,6 +275,7 @@ export default class Farkle extends Bot.Module {
         let arg = message.content;
         if(arg.indexOf("cancel") > -1) {
             message.channel.send("Match cancelled.").catch(logger.error);
+            prep.farkleMessage.delete().catch(logger.error);
             
             for(let i = 0; i < prep.members.length; i++) {
                 this.cache.set("0", `prep${prep.members[i].id}`, undefined);
@@ -449,6 +423,8 @@ export default class Farkle extends Bot.Module {
                 
                 await query(Bot.Util.SQL.getInsert(player, "farkle_current_players"));
             }
+
+            prep.farkleMessage.delete().catch(logger.error);
 
             for(let i = 0; i < prep.members.length; i++) {
                 this.cache.set("0", `prep${prep.members[i].id}`, undefined);
@@ -921,10 +897,16 @@ export default class Farkle extends Bot.Module {
             await this.bot.sql.transaction(async query => {
                 /** @type {Db.farkle_current_games} */
                 let docCG = (await query(`SELECT * FROM farkle_current_games WHERE id = ${gameId} AND current_player_user_id = ${this.bot.client.user?.id}`)).results[0];
-
                 if(docCG != null) {
+                    /** @type {Db.farkle_current_players} */
+                    let docCP = (await query(`SELECT * FROM farkle_current_players WHERE id_current_games = ${gameId} AND user_id = ${docCG.current_player_user_id}`)).results[0];
+
                     let currentPlayerRolls = docCG.current_player_rolls;
-                    let str = AIBrain.determineMove(JSON.parse(currentPlayerRolls));
+                    let str = AIBrain.determineMove(JSON.parse(currentPlayerRolls), {
+                        pointsGoal: docCG.points_goal,
+                        pointsCurrent: docCG.current_player_points,
+                        pointsBanked: docCP.total_points_banked
+                    }, {});
                     if(this.bot.client.user) this.onMessageDM({ user: this.bot.client.user, msg: str, gameId });
                 }
                 else this.cache.set('0', `bot_playing_${gameId}`, false);
@@ -1031,16 +1013,6 @@ export default class Farkle extends Bot.Module {
 
             let now = new Date();
 
-            for(let i = 0; i < members.length; i++) {
-                this.cache.set("0", `prep${members[i].id}`, {
-                    date: now,
-                    members: members,
-                    host: m.member,
-                    channels: channels,
-                    guild: m.guild
-                });
-            }
-
             let embed = getEmbedBlank();
 
             embed.description = `Choose the __points goal__ between 1000 and 10000 (suggested 4000).
@@ -1066,7 +1038,18 @@ Examples:
 
 Type \`cancel\` to cancel the match.`;
             }
-            await m.channel.send({embeds: [embed]});
+            const farkleMessage = await m.channel.send({embeds: [embed]});
+
+            for(let i = 0; i < members.length; i++) {
+                this.cache.set("0", `prep${members[i].id}`, {
+                    date: now,
+                    members: members,
+                    host: m.member,
+                    channels: channels,
+                    guild: m.guild,
+                    farkleMessage: farkleMessage,
+                });
+            }
         }).catch(console.error);
     }
 
@@ -1091,7 +1074,9 @@ Type \`cancel\` to cancel the match.`;
             let server = {
                 guild_id: m.guild.id,
                 user_id: m.member.id,
-                user_id_host: m.member.id
+                user_id_host: m.member.id,
+                channel_id: m.channel.id,
+                message_id: ''
             }
 
             let embed = getEmbedBlank();
@@ -1100,8 +1085,14 @@ Type \`cancel\` to cancel the match.`;
             /** @type {Db.farkle_servers|undefined} */
             var docS = (await query(`SELECT * FROM farkle_servers WHERE user_id = ${m.member.id}`)).results[0];
             if(docS) {
+                const prevMessageChannel = await m.guild.channels.fetch(docS.channel_id).catch(() => {});
+                const prevMessage = prevMessageChannel instanceof Discord.TextChannel ? await prevMessageChannel.messages.fetch(docS.message_id).catch(() => {}) : undefined;
+
                 if(docS.user_id === docS.user_id_host) {
-                    await m.channel.send({ embeds: [embed] });
+                    if(prevMessage) prevMessage.delete();
+                    const serverMessage = await m.channel.send({ embeds: [embed] });
+                    server.message_id = serverMessage.id;
+                    await query(`UPDATE farkle_servers SET channel_id = ${serverMessage.channel.id}, message_id = ${serverMessage.id} WHERE id = ${docS.id}`);
                     return;
                 }
                 else {
@@ -1109,8 +1100,9 @@ Type \`cancel\` to cancel the match.`;
                     return;
                 }
             }
-
-            await m.channel.send({ embeds: [embed] });
+            
+            const serverMessage = await m.channel.send({ embeds: [embed] });
+            server.message_id = serverMessage.id;
 
             await query(Bot.Util.SQL.getInsert(server, "farkle_servers"));
         }).catch(logger.error);
@@ -1132,6 +1124,16 @@ Type \`cancel\` to cancel the match.`;
                 await m.channel.send("You're not in a lobby.");
                 return;
             }
+
+            
+            /** @type {Db.farkle_servers|undefined} */
+            var docShost = (await query(`SELECT * FROM farkle_servers WHERE user_id_host = ${docS.user_id_host} AND guild_id = ${m.guild.id} AND user_id = ${docS.user_id_host}`)).results[0];
+            if(!docShost) throw new Error('no host');
+        
+            const prevMessageChannel = await m.guild.channels.fetch(docShost.channel_id).catch(() => {});
+            const prevMessage = prevMessageChannel instanceof Discord.TextChannel ? await prevMessageChannel.messages.fetch(docShost.message_id).catch(() => {}) : undefined;
+            if(prevMessage) prevMessage.delete().catch(logger.error);
+            /** @type {null|Discord.Message} */ let serverMessage = null;
             
             if(docS.user_id_host !== docS.user_id) {
                 await query(`DELETE FROM farkle_servers WHERE user_id = ${m.member.id}`);
@@ -1141,14 +1143,16 @@ Type \`cancel\` to cancel the match.`;
 
                 let embed = getEmbedBlank();
                 embed.description = `<@${docS.user_id}> left.\nThere's ${docSs.length} player(s) waiting: ${docSs.map(v => `<@${v.user_id}> `)}\n\n${docSs.length > 1 ? `<@${docS.user_id_host}> needs to type \`!farkle start\` to begin the game, or wait for more players.` : ""}`;
-                await m.channel.send({ content: docSs.length > 1 ? `<@${docS.user_id_host}>` : "", embeds: [embed] });
+                serverMessage = await m.channel.send({ content: docSs.length > 1 ? `<@${docS.user_id_host}>` : undefined, embeds: [embed] });
+
+                await query(`UPDATE farkle_servers SET channel_id = ${serverMessage.channel.id}, message_id = ${serverMessage.id} WHERE user_id_host = ${docShost.user_id_host}`);
             }
             else {
                 await query(`DELETE FROM farkle_servers WHERE user_id_host = ${m.member.id}`);
 
                 let embed = getEmbedBlank();
                 embed.description = `${m.member} disbanded the lobby.`;
-                await m.channel.send({ embeds: [embed] });
+                serverMessage = await m.channel.send({ embeds: [embed] });
             }
         }).catch(logger.error);
     }
@@ -1185,21 +1189,33 @@ Type \`cancel\` to cancel the match.`;
             return;
         }
 
-        /** @type {Db.farkle_servers} */
-        let server = {
-            guild_id: m.guild.id,
-            user_id: m.member.id,
-            user_id_host: hostMember.id
-        }
-
-        await query(Bot.Util.SQL.getInsert(server, "farkle_servers"));
-
         /** @type {Db.farkle_servers[]} */
         var docSs = (await query(`SELECT * FROM farkle_servers WHERE user_id_host = ${hostMember.id}`)).results;
 
         let embed = getEmbedBlank();
         embed.description = `${m.member} has joined!\nThere's ${docSs.length} player(s) waiting: ${docSs.map(v => `<@${v.user_id}> `)}\n\n${hostMember} needs to type \`!farkle start\` to begin the game, or wait for more players.`;
-        await m.channel.send({ content: `${hostMember}`, embeds: [embed] });
+        const serverMessage =  await m.channel.send({ content: `${hostMember}`, embeds: [embed] });
+
+        /** @type {Db.farkle_servers|undefined} */
+        var docS = (await query(`SELECT * FROM farkle_servers WHERE user_id_host = ${hostMember.id} AND guild_id = ${m.guild.id} AND user_id = ${hostMember.id}`)).results[0];
+        if(docS) {
+            const prevMessageChannel = await m.guild.channels.fetch(docS.channel_id).catch(() => {});
+            const prevMessage = prevMessageChannel instanceof Discord.TextChannel ? await prevMessageChannel.messages.fetch(docS.message_id).catch(() => {}) : undefined;
+            if(prevMessage) prevMessage.delete().catch(logger.error)
+
+            await query(`UPDATE farkle_servers SET channel_id = ${serverMessage.channel.id}, message_id = ${serverMessage.id} WHERE user_id_host = ${docS.user_id_host}`);
+        }
+
+        /** @type {Db.farkle_servers} */
+        let server = {
+            guild_id: m.guild.id,
+            user_id: m.member.id,
+            user_id_host: hostMember.id,
+            channel_id: serverMessage.channel.id,
+            message_id: serverMessage.id
+        }
+
+        await query(Bot.Util.SQL.getInsert(server, "farkle_servers")); 
     }
 
     /**
@@ -1281,6 +1297,14 @@ Type \`cancel\` to cancel the match.`;
             //    await m.channel.send("Nobody has joined your lobby yet.");
             //    return false;
             //}
+
+            /** @type {Db.farkle_servers|undefined} */
+            var docS = (await query(`SELECT * FROM farkle_servers WHERE user_id = ${m.member.id}`)).results[0];
+            if(docS) {
+                const prevMessageChannel = await m.guild.channels.fetch(docS.channel_id).catch(() => {});
+                const prevMessage = prevMessageChannel instanceof Discord.TextChannel ? await prevMessageChannel.messages.fetch(docS.message_id).catch(() => {}) : undefined;
+                if(prevMessage) prevMessage.delete().catch(logger.error);
+            }
 
             await query(`DELETE FROM farkle_servers WHERE user_id_host = ${m.member.id}`);
 

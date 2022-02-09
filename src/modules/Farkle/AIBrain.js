@@ -1,4 +1,36 @@
-export const VERSION = 1;
+export const VERSION = 2;
+
+export const matches = Object.freeze([
+    { m: [1, 2, 3, 4, 5, 6],    p: 1500 },
+    { m: [2, 3, 4, 5, 6],       p: 750  },
+    { m: [1, 2, 3, 4, 5],       p: 500  },
+    { m: [1, 1, 1, 1, 1, 1],    p: 8000 },
+    { m: [1, 1, 1, 1, 1],       p: 4000 },
+    { m: [1, 1, 1, 1],          p: 2000 },
+    { m: [1, 1, 1],             p: 1000 },
+    { m: [5, 5, 5, 5, 5, 5],    p: 4000 },
+    { m: [5, 5, 5, 5, 5],       p: 2000 },
+    { m: [5, 5, 5, 5],          p: 1000 },
+    { m: [5, 5, 5],             p: 500 },
+    { m: [6, 6, 6, 6, 6, 6],    p: 4800 },
+    { m: [6, 6, 6, 6, 6],       p: 2400 },
+    { m: [6, 6, 6, 6],          p: 1200 },
+    { m: [6, 6, 6],             p: 600 },
+    { m: [4, 4, 4, 4, 4, 4],    p: 3200 },
+    { m: [4, 4, 4, 4, 4],       p: 1600 },
+    { m: [4, 4, 4, 4],          p: 800  },
+    { m: [4, 4, 4],             p: 400  },
+    { m: [3, 3, 3, 3, 3, 3],    p: 2400 },
+    { m: [3, 3, 3, 3, 3],       p: 1200 },
+    { m: [3, 3, 3, 3],          p: 600  },
+    { m: [3, 3, 3],             p: 300  },
+    { m: [2, 2, 2, 2, 2, 2],    p: 1600 },
+    { m: [2, 2, 2, 2, 2],       p: 800 },
+    { m: [2, 2, 2, 2],          p: 400 },
+    { m: [2, 2, 2],             p: 200 },
+    { m: [1],                   p: 100 },
+    { m: [5],                   p: 50  },
+]);
 
 const check = {
     /** @param {number[]} rolls */
@@ -113,13 +145,25 @@ const check = {
 /**
  * 
  * @param {number[]} rolls 
- * @param {string=} str
- * @param {boolean=} noCheckNext
+ * @param {object} data
+ * @param {number} data.pointsBanked
+ * @param {number} data.pointsCurrent
+ * @param {number} data.pointsGoal
+ * @param {object} internal
+ * @param {boolean=} internal.forceFinish 
+ * @param {string=} internal.str
+ * @param {boolean=} internal.noCheckNext
  * @returns {string}
  */
-export function determineMove(rolls, str, noCheckNext) {
+export function determineMove(rolls, data, internal) {
+    let str = internal.str;
     if(str == null) str = '';
     const diceLeft = rolls.length;
+    const pointsToGoal = data.pointsGoal - data.pointsCurrent - data.pointsBanked;
+
+    if(haveEnoughPoints(rolls, pointsToGoal)) {
+        internal.forceFinish = true;
+    }
 
     if(check.sixInARow(rolls))          str += '123456';
     if(check.fiveInARowHigher(rolls))   str += '23456';
@@ -129,7 +173,7 @@ export function determineMove(rolls, str, noCheckNext) {
     [1, 6, 5, 4, 3, 2].forEach(v => { if(check.ofAKind(4, v, rolls)) str += `${v}${v}${v}${v}`; });
     [1, 6, 5, 4, 3, 2].forEach(v => { if(check.ofAKind(3, v, rolls)) str += `${v}${v}${v}`; });
 
-    if(rolls.length >= 5) {
+    if(!internal.forceFinish && rolls.length >= 5) {
         if(check.single(1, rolls)) str += '1';
         else if(check.single(5, rolls)) str += '5';
     }
@@ -141,15 +185,47 @@ export function determineMove(rolls, str, noCheckNext) {
     }
 
     if(rolls.length - diceLeft > 1) {
-        return determineMove(rolls, str);
+        return determineMove(rolls, data, { str });
     }
 
-    if(!noCheckNext) {
+    if(!internal.noCheckNext) {
         const nextRolls = rolls.slice();
-        determineMove(nextRolls, '', true);
-        if(rolls.length <= 3 && nextRolls.length !== 0) str = `f${str}`;
+        determineMove(nextRolls, data, { str: '', noCheckNext: true });
+        if(internal.forceFinish || (rolls.length <= 3 && nextRolls.length !== 0)) str = `f${str}`;
         else str = `k${str}`;
     }
 
     return str;
+}
+
+/**
+ * @param {number[]} rolls
+ * @param {number} pointsToGoal
+ */
+function haveEnoughPoints(rolls, pointsToGoal) {
+    for(let match of matches) {
+        let overlap = arrayOverlap(rolls, match.m);
+        let points = match.p;
+
+        if(overlap && points >= pointsToGoal) return true;
+    }
+
+    return false;
+}
+
+/**
+ * 
+ * @param {number[]} rolls 
+ * @param {number[]} combo
+ */
+function arrayOverlap(rolls, combo) {
+    rolls = rolls.slice();
+
+    for(let comboVal of combo) {
+        let index = rolls.indexOf(comboVal);
+        if(index <= -1) return false;
+        rolls.splice(index, 1);
+    }
+
+    return true;
 }
