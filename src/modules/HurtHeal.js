@@ -473,23 +473,23 @@ async function action(m, type, args, arg) {
                 reason = reason.substring(reason.indexOf(id) + id.length);
             //If an item is not found, start over, search for name and cut reason string appropriately as well
             else {
-                let assembledName = '';
-                //Example args: ['apple', 'pie,', 'because', 'i', 'love', 'pies']
-                loop:
-                for(let i = 0; i < args.length; i++) {
-                    //Turn 'pie,' into ['pie', ''];
-                    let commaSeparatedArgs = args[i].split(',');
-                    for(let j = 0; j < commaSeparatedArgs.length; j++) {
-                        let nameFragment = commaSeparatedArgs[j];
-                        if(nameFragment.length === 0) continue;
-
-                        assembledName += ` ${nameFragment}`;
-                        currentItem = items.find(v => simplifyForTest(v.name) === simplifyForTest(assembledName));
-                        reason = reason.substring(reason.indexOf(nameFragment) + nameFragment.length);
-
-                        if(currentItem != null) break loop;
+                let wordArgs = [];
+                for(let commaArgs of arg.split(',')) {
+                    for(let spaceArgs of commaArgs.split(' ')) {
+                        wordArgs.push(spaceArgs);
                     }
-            }
+                }
+
+                //Example args: ['apple', 'pie,', 'because', 'i', 'love', 'pies']
+                for(let i = args.length; i > 0; i--) {
+                    let assembledName = wordArgs.slice(0, i).join(' ');
+                    currentItem = items.find(v => simplifyForTest(v.name) === simplifyForTest(assembledName));
+
+                    if(currentItem != null) {
+                        reason = reason.substring(assembledName.length);
+                        break;
+                    }
+                }
             }
         }
         
