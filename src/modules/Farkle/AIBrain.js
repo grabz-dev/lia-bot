@@ -1,4 +1,5 @@
-export const VERSION = 2;
+export const VERSION = 3;
+const DEBUG = false;
 
 export const matches = Object.freeze([
     { m: [1, 2, 3, 4, 5, 6],    p: 1500 },
@@ -31,6 +32,11 @@ export const matches = Object.freeze([
     { m: [1],                   p: 100 },
     { m: [5],                   p: 50  },
 ]);
+
+const matchesTotal = /** @type {{m: number[], p: number}[]} */([]).concat(matches).concat([
+    { m: [1],                   p: 100 },
+    { m: [5],                   p: 50  },
+])
 
 const check = {
     /** @param {number[]} rolls */
@@ -153,64 +159,121 @@ const check = {
  * @param {boolean=} internal.forceFinish 
  * @param {string=} internal.str
  * @param {boolean=} internal.noCheckNext
+ * @param {boolean=} internal.ignoreThreeTwos
+ * @param {boolean=} internal.forceKeep
  * @returns {string}
  */
 export function determineMove(rolls, data, internal) {
-    let str = internal.str;
-    if(str == null) str = '';
+    const _debug = DEBUG && !internal.noCheckNext;
+
+    if(_debug && internal.str == null) console.info(`---- NEW DICE ----`);
+    if(internal.str == null) internal.str = '';
+    delete internal.forceFinish;
+    delete internal.forceKeep;
+    delete internal.ignoreThreeTwos;
+
+    if(_debug) console.info(`---- ${rolls} ----`);
+
     const diceLeft = rolls.length;
     const pointsToGoal = data.pointsGoal - data.pointsCurrent - data.pointsBanked;
+    const nextMinimumDiceLeft = nextMinimumDiceLeftThisRoll(rolls);
+    const bestPoints = bestPointsThisRoll(rolls);
 
-    if(haveEnoughPoints(rolls, pointsToGoal)) {
+    if(_debug) console.info(`diceLeft: ${diceLeft}, pointsToGoal: ${pointsToGoal}, nextMinimumDiceLeft: ${nextMinimumDiceLeft}, bestPoints: ${bestPoints}`);
+
+    //Finish if we have enough points to win on this roll.
+    if(bestPoints >= pointsToGoal) {
         internal.forceFinish = true;
+        if(_debug) console.info(`forceFinish = true, close enough to end`);
+    }
+    //Finish on 5 dice if >=350 points and we can't keep everything
+    else if(rolls.length === 5 && bestPoints + data.pointsCurrent >= 350 && nextMinimumDiceLeft > 0) {
+        internal.forceFinish = true;
+        if(_debug) console.info(`forceFinish = true, >=350 on 5 roll`);
+    }
+    else if(rolls.length < 6 && bestPoints + data.pointsCurrent >= 1000 && nextMinimumDiceLeft > 0) {
+        internal.forceFinish = true;
+        if(_debug) console.info(`forceFinish = true, >=1000 on <5 dice - too risky`);
+    }
+    //Ignore 222 on first turn if there isn't another three of a kind
+    else if(rolls.length === 6 && arrayOverlap(rolls, [2, 2, 2]) && nextMinimumDiceLeft > 0 && nextMinimumDiceLeft < 3) {
+        internal.ignoreThreeTwos = true;
+        if(_debug) console.info(`ignoreThreeTwos = true`);
+    }
+    //Do not finish with 200 points or less
+    else if(bestPoints + data.pointsCurrent <= 250) {
+        internal.forceKeep = true;
+        if(_debug) console.info(`forceKeep = true, <=250 points`);
     }
 
-    if(check.sixInARow(rolls))          str += '123456';
-    if(check.fiveInARowHigher(rolls))   str += '23456';
-    if(check.fiveInARowLower(rolls))    str += '12345';
-    [1, 6, 5, 4, 3, 2].forEach(v => { if(check.ofAKind(6, v, rolls)) str += `${v}${v}${v}${v}${v}${v}`; });
-    [1, 6, 5, 4, 3, 2].forEach(v => { if(check.ofAKind(5, v, rolls)) str += `${v}${v}${v}${v}${v}`; });
-    [1, 6, 5, 4, 3, 2].forEach(v => { if(check.ofAKind(4, v, rolls)) str += `${v}${v}${v}${v}`; });
-    [1, 6, 5, 4, 3, 2].forEach(v => { if(check.ofAKind(3, v, rolls)) str += `${v}${v}${v}`; });
+    if(check.sixInARow(rolls))          internal.str += '123456';
+    if(check.fiveInARowHigher(rolls))   internal.str += '23456';
+    if(check.fiveInARowLower(rolls))    internal.str += '12345';
+    [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(6, v, rolls)) internal.str += `${v}${v}${v}${v}${v}${v}`; });
+    [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(5, v, rolls)) internal.str += `${v}${v}${v}${v}${v}`; });
+    [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(4, v, rolls)) internal.str += `${v}${v}${v}${v}`; });
+    (internal.ignoreThreeTwos ? [1, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6]).forEach(v => { if(check.ofAKind(3, v, rolls)) internal.str += `${v}${v}${v}`; });
 
-    if(!internal.forceFinish && rolls.length >= 5) {
-        if(check.single(1, rolls)) str += '1';
-        else if(check.single(5, rolls)) str += '5';
+    if((!internal.forceFinish && rolls.length >= 5) || internal.forceKeep) {
+        if(_debug) console.info(`...keeping one dice...`);
+        if(check.single(1, rolls)) internal.str += '1';
+        else if(check.single(5, rolls)) internal.str += '5';
     }
     else {
-        if(check.single(1, rolls)) str += '1';
-        if(check.single(1, rolls)) str += '1';
-        if(check.single(5, rolls)) str += '5';
-        if(check.single(5, rolls)) str += '5';
+        if(_debug) console.info(`...keeping everything...`);
+        if(check.single(1, rolls)) internal.str += '1';
+        if(check.single(1, rolls)) internal.str += '1';
+        if(check.single(5, rolls)) internal.str += '5';
+        if(check.single(5, rolls)) internal.str += '5';
     }
 
     if(rolls.length - diceLeft > 1) {
-        return determineMove(rolls, data, { str });
+        return determineMove(rolls, data, internal);
     }
 
     if(!internal.noCheckNext) {
         const nextRolls = rolls.slice();
         determineMove(nextRolls, data, { str: '', noCheckNext: true });
-        if(internal.forceFinish || (rolls.length <= 3 && nextRolls.length !== 0)) str = `f${str}`;
-        else str = `k${str}`;
+
+        if(internal.forceFinish) return `f${internal.str}`;
+        if(internal.forceKeep) return `k${internal.str}`;
+        if(rolls.length <= 3 && nextRolls.length !== 0) return `f${internal.str}`;
+        return `k${internal.str}`;
     }
 
-    return str;
+    return internal.str;
 }
 
 /**
  * @param {number[]} rolls
- * @param {number} pointsToGoal
  */
-function haveEnoughPoints(rolls, pointsToGoal) {
-    for(let match of matches) {
-        let overlap = arrayOverlap(rolls, match.m);
-        let points = match.p;
+function bestPointsThisRoll(rolls) {
+    let sRolls = rolls.slice();
+    let points = 0;
 
-        if(overlap && points >= pointsToGoal) return true;
+    for(let match of matchesTotal) {
+        let overlap = arrayOverlap(sRolls, match.m);
+        if(overlap) {
+            sRolls = overlap;
+            points += match.p;
+        }
     }
 
-    return false;
+    return points;
+}
+
+/**
+ * @param {number[]} rolls
+ */
+ function nextMinimumDiceLeftThisRoll(rolls) {
+    let sRolls = rolls.slice();
+
+    for(let match of matchesTotal) {
+        let overlap = arrayOverlap(sRolls, match.m);
+        if(overlap) sRolls = overlap;
+    }
+
+    return sRolls.length;
 }
 
 /**
@@ -223,9 +286,9 @@ function arrayOverlap(rolls, combo) {
 
     for(let comboVal of combo) {
         let index = rolls.indexOf(comboVal);
-        if(index <= -1) return false;
+        if(index <= -1) return null;
         rolls.splice(index, 1);
     }
 
-    return true;
+    return rolls;
 }

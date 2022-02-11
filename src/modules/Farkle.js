@@ -253,7 +253,7 @@ export default class Farkle extends Bot.Module {
                 let docCGs = (await query(`SELECT * FROM farkle_current_games WHERE current_player_user_id = ${guild.client.user.id}`)).results;
                 for(let docCG of docCGs) {
                     this.cache.set('0', `bot_playing_${docCG.id}`, true);
-                    await this.botPlayerLoop(/** @type {number} */(docCG.id));
+                    this.botPlayerLoop(/** @type {number} */(docCG.id));
                 }
             }
         }).catch(logger.error);
@@ -884,7 +884,7 @@ export default class Farkle extends Bot.Module {
      * 
      * @param {number} gameId 
      */
-    async botPlayerLoop(gameId) {
+    botPlayerLoop(gameId) {
         setTimeout(() => this._botPlayerLoop(gameId), (Math.random() + 1) * 3500);
     }
 
@@ -1569,6 +1569,11 @@ Type \`cancel\` to cancel the match.`;
             var docCP = (await query(`SELECT * FROM farkle_current_players WHERE user_id = ${hostMember.id}`)).results[0];
             if(docCP == null) {
                 await m.channel.send("This user is not in a game.");
+                return;
+            }
+
+            if(docCP.channel_dm_id == null) {
+                await m.channel.send("You can't spectate me. Spectate a player that's playing against me instead.");
                 return;
             }
 
@@ -2274,14 +2279,6 @@ async function roll(client, action, docCG, docCPs, docCPVs, query) {
                 }
             }
 
-            if(attendee.user_id === docCG.current_player_user_id && attendee.channel_dm_id == null) {
-                this.cache.set('0', `bot_playing_${docCG.id}`, true);
-                await this.botPlayerLoop(/** @type {number} */(docCG.id));
-            }
-            else {
-                this.cache.set('0', `bot_playing_${docCG.id}`, false);
-            }
-
             await sendDM(client, attendee.user_id, attendee, embed);
         }
         
@@ -2298,6 +2295,18 @@ async function roll(client, action, docCG, docCPs, docCPVs, query) {
             await turn.bind(this)(client, docCG, docCPs, query, "fold");
         }
         else {
+            //AI action
+            for(let docCP of docCPs) {
+                if(docCP.user_id === docCG.current_player_user_id && docCP.channel_dm_id == null) {
+                    this.cache.set('0', `bot_playing_${docCG.id}`, true);
+                    this.botPlayerLoop(/** @type {number} */(docCG.id));
+                }
+                else {
+                    this.cache.set('0', `bot_playing_${docCG.id}`, false);
+                }
+            }
+            
+
             break;
         }
     }
