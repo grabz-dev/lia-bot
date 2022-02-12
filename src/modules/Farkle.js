@@ -9,6 +9,12 @@ const logger = Bot.logger;
 import * as AIBrain from './Farkle/AIBrain.js';
 
 /**
+ * @typedef {object} Db.farkle_channels
+ * @property {Discord.Snowflake} guild_id
+ * @property {Discord.Snowflake} channel_id
+ */
+
+/**
  * @typedef {object} Db.farkle_servers
  * @property {number=} id
  * @property {Discord.Snowflake} guild_id
@@ -201,9 +207,6 @@ export default class Farkle extends Bot.Module {
     constructor(bot) {
         super(bot);
 
-        /** @type {null|{guildId: Discord.Snowflake, farkleChannelId: Discord.Snowflake, botCommandsChannelId?: Discord.Snowflake}} */
-        this.ServerDefs = null;
-
         /** @type {(Discord.Message|{user: Discord.User, msg: string, gameId: number})[]} */
         this.queue = [];
         this.queueRunning = false;
@@ -214,6 +217,8 @@ export default class Farkle extends Bot.Module {
         super.init(guild);
 
         this.bot.sql.transaction(async query => {
+            await query(`CREATE TABLE IF NOT EXISTS farkle_channels (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, channel_id TINYTEXT NOT NULL)`);
+
             await query(`CREATE TABLE IF NOT EXISTS farkle_current_players (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, id_current_games BIGINT UNSIGNED NOT NULL, ready_status BOOLEAN NOT NULL, turn_order SMALLINT NOT NULL, user_id TINYTEXT NOT NULL, channel_dm_id TINYTEXT, total_points_banked SMALLINT UNSIGNED NOT NULL, total_points_lost SMALLINT UNSIGNED NOT NULL, total_points_skipped SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, total_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, total_points_welfare_gained SMALLINT UNSIGNED NOT NULL, total_points_welfare_lost SMALLINT UNSIGNED NOT NULL, total_rolls INT UNSIGNED NOT NULL, total_folds INT UNSIGNED NOT NULL, total_finishes INT UNSIGNED NOT NULL, total_skips INT UNSIGNED NOT NULL, total_welfares INT UNSIGNED NOT NULL, highest_points_banked SMALLINT UNSIGNED NOT NULL, highest_points_lost SMALLINT UNSIGNED NOT NULL, highest_points_skipped SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_banked SMALLINT UNSIGNED NOT NULL, highest_points_piggybacked_lost SMALLINT UNSIGNED NOT NULL, highest_points_welfare_gained SMALLINT UNSIGNED NOT NULL, highest_points_welfare_lost SMALLINT UNSIGNED NOT NULL, highest_rolls_in_turn INT UNSIGNED NOT NULL, highest_rolls_in_turn_without_fold INT UNSIGNED NOT NULL);`);
             await query(`CREATE TABLE IF NOT EXISTS farkle_current_games (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, guild_id TINYTEXT NOT NULL, has_started BOOLEAN NOT NULL, match_start_time BIGINT NOT NULL, points_goal SMALLINT UNSIGNED NOT NULL, current_player_user_id TINYTEXT NOT NULL, current_player_rolls TINYTEXT NOT NULL, current_player_points SMALLINT UNSIGNED NOT NULL, current_player_rolls_count INT UNSIGNED NOT NULL, current_player_points_piggybacked INT UNSIGNED NOT NULL, opening_turn_point_threshold SMALLINT UNSIGNED NOT NULL, high_stakes_variant BOOLEAN NOT NULL, current_player_high_stakes_choice BOOLEAN NOT NULL, welfare_variant BOOLEAN NOT NULL, ai_version TINYINT NOT NULL);`);
         
@@ -257,19 +262,28 @@ export default class Farkle extends Bot.Module {
                 }
             }
         }).catch(logger.error);
+
+        this.bot.sql.transaction(async query => {
+            /** @type {Db.farkle_channels} */
+            let resultChannels = (await query(`SELECT * FROM farkle_channels WHERE guild_id = ?`, [guild.id])).results[0];
+            if(resultChannels) this.cache.set(guild.id, "farkle_channel_id", resultChannels.channel_id);
+        }).catch(logger.error);
     }
 
     /** @param {Discord.Message} message - The message that was sent. */
     onMessage(message) {
         if(message.member == null || message.guild == null) return;
         const guild = message.guild;
-        if(this.ServerDefs == null) return;
-        if(message.guild.id === this.ServerDefs.guildId && message.channel.id !== this.ServerDefs.farkleChannelId) return;
 
         const member = message.member;
 
         var prep = this.cache.get("0", `prep${member.id}`);
-        if(!prep) return;
+        var farkleChannel = this.cache.get(message.guild.id, "farkle_channel_id");
+        if(farkleChannel != null) {
+            if(message.channel.id !== farkleChannel) return;
+        }
+        if(prep == null) return;
+        if(prep.guild.id !== message.guild.id) return;
         if(message.member.id !== prep.host.id) return;
         
         let arg = message.content;
@@ -814,31 +828,25 @@ export default class Farkle extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'solo'|'host'|'leave'|'join'|'start'|'skin'|'games'|'profile'|'spectate'|'rules'} ext.action - Custom parameters provided to function call.
+     * @param {'setchannel'|'solo'|'host'|'leave'|'join'|'start'|'skin'|'games'|'profile'|'spectate'|'rules'} ext.action - Custom parameters provided to function call.
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
-        if(this.ServerDefs == null) return;
+        var farkleChannel = this.cache.get(m.guild.id, "farkle_channel_id");
 
         switch(ext.action) {
+            case 'solo':
             case 'host':
             case 'leave':
             case 'join':
             case 'start':
-            case 'spectate': {
-                if(m.guild.id === this.ServerDefs.guildId && m.channel.id !== this.ServerDefs.farkleChannelId) {
-                    m.channel.send(`You can only use this command in the <#${this.ServerDefs.farkleChannelId}> channel.`).then(message => {
-                        setTimeout(() => { message.delete(); m.message.delete(); }, 10000);
-                    }).catch(logger.error);
-                    return;
-                }
-            }
+            case 'spectate': 
             case 'skin':
             case 'games':
             case 'profile':
             case 'rules': {
-                if(m.guild.id === this.ServerDefs.guildId && (m.channel.id !== this.ServerDefs.farkleChannelId && m.channel.id !== this.ServerDefs.botCommandsChannelId)) {
-                    m.channel.send(`You can only use this command in ${this.ServerDefs.botCommandsChannelId == null ? '' : `either the <#${this.ServerDefs.botCommandsChannelId}> channel, or `}the <#${this.ServerDefs.farkleChannelId}> channel.`).then(message => {
+                if(farkleChannel != null && m.channel.id !== farkleChannel) {
+                    m.channel.send(`You can only use this command in the <#${farkleChannel}> channel.`).then(message => {
                         setTimeout(() => { message.delete(); m.message.delete(); }, 10000);
                     }).catch(logger.error);
                     return;
@@ -847,6 +855,9 @@ export default class Farkle extends Bot.Module {
         }
 
         switch(ext.action) {
+            case 'setchannel':
+                this.setChannel(m, args, arg, ext);
+                break;
             case 'solo':
                 this.solo(m, args, arg, ext);
                 break;
@@ -912,6 +923,30 @@ export default class Farkle extends Bot.Module {
                 else this.cache.set('0', `bot_playing_${gameId}`, false);
             }).catch(logger.error);
         }
+    }
+
+    /**
+     * Module Function: Set exclusive Farkle channel
+     * @param {Bot.Message} m - Message of the user executing the command.
+     * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
+     * @param {string} arg - The full string written by the user after the command.
+     * @param {object} ext - Custom parameters provided to function call.
+     * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
+     */
+    setChannel(m, args, arg, ext) {
+        this.bot.sql.transaction(async query => {
+            /** @type {Db.farkle_channels=} */
+            var resultChannels = (await query(`SELECT * FROM farkle_channels WHERE guild_id = ${m.guild.id}`)).results[0]
+            if(resultChannels == null) {
+                await query(`INSERT INTO farkle_channels (guild_id, channel_id) VALUES (?, ?)`, [m.guild.id, m.channel.id]);
+            }
+            else {
+                await query(`UPDATE farkle_channels SET channel_id = ? WHERE guild_id = ?`, [m.channel.id, m.guild.id]);
+            }
+
+            await m.channel.send('Farkle channel set.');
+            this.cache.set(m.guild.id, "farkle_channel_id", m.channel.id);
+        }).catch(logger.error);
     }
 
     /**
@@ -2472,8 +2507,6 @@ const Q = Object.freeze({
  * @param {(Db.farkle_current_players|Db.farkle_history_players)[]} thisGameCHPs
  */
 async function postGameEndMessage(client, docCG, thisGameCHPs) {
-    if(this.ServerDefs == null) return;
-
     var embed = getEmbedBlank();
     embed.title = null;
     embed.timestamp = null;
@@ -2493,10 +2526,13 @@ async function postGameEndMessage(client, docCG, thisGameCHPs) {
     if(docCG.high_stakes_variant) embed.description += `  •  **High Stakes**`;
     if(docCG.welfare_variant) embed.description += `  •  **Welfare**`;
 
-    let guild = await client.guilds.fetch(this.ServerDefs.guildId);
-    let channel = await guild.channels.fetch(this.ServerDefs.farkleChannelId);
-    if(channel instanceof Discord.TextChannel) {
-        channel.send({ embeds: [embed] });
+    var farkleChannel = this.cache.get(docCG.guild_id, "farkle_channel_id");
+    if(farkleChannel != null) {
+        let guild = await client.guilds.fetch(docCG.guild_id);
+        let channel = await guild.channels.fetch(farkleChannel);
+        if(channel instanceof Discord.TextChannel) {
+            channel.send({ embeds: [embed] });
+        }
     }
 }
 

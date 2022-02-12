@@ -191,12 +191,9 @@ core.on('ready', bot => {
                 categoryNames: [':video_game: Farkle', 'farkle', 'f']
             }
 
-            farkle.ServerDefs = {
-                guildId: "192420539204239361",
-                farkleChannelId: "903995409729462312",
-                botCommandsChannelId: "457188713978527746"
-            }
-
+            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['setchannel'], authorityLevel: null}), (message, args, arg) => {
+                return farkle.land(message, args, arg, { action: 'setchannel' });
+            });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['solo'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return farkle.land(message, args, arg, { action: 'solo' });
             });
