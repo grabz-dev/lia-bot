@@ -370,7 +370,7 @@ async function getMultipleMapsMessageEmbed(maps, emoteStr, guild, game, kcgmm) {
     embed.description = '';
 
     for(const map of maps) {
-        embed.description += `**Map #${map.id}** - ${map.title} __by ${map.author}__\n`;
+        embed.description += `**Map #${map.id}** - [${map.title}](https://knucklecracker.com/forums/index.php?topic=${map.forumId}) __by ${map.author}__\n`;
     }
 
     return embed;
