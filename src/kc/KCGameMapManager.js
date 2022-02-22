@@ -198,6 +198,30 @@ export function KCGameMapManager(options, locale) {
     }
 
     /**
+     * 
+     * @param {string} game 
+     * @param {string} title 
+     * @returns {MapData|MapData[]|null}
+     */
+    this.getMapByTitle = function(game, title) {
+        let mapArr = this._maps.array.get(game);
+        if(mapArr == null) return null;
+
+        title = title.toLowerCase().replaceAll(' ', '');
+        /** @type { MapData[] } */
+        const mapsFound = [];
+
+        for(const map of mapArr) {
+            const mapTitle = map.title.toLowerCase().replaceAll(' ', '');
+            if(title === mapTitle) mapsFound.push(Object.assign({}, map))
+        }
+
+        if(mapsFound.length === 0) return null;
+        if(mapsFound.length === 1) return mapsFound[0];
+        return mapsFound;
+    }
+
+    /**
      * Returns map list array for specific month sorted from best to worst
      * @param {string} game //cw3 pf cw4
      * @param {number} timestamp

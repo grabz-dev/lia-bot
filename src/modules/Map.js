@@ -121,8 +121,13 @@ export default class Map extends Bot.Module {
                 let id = Number(mapId.replace('#', ''));
                 if(id < 0)
                     return this.bot.locale.category('mapdata', 'err_mapid_negative');
-                if(!Number.isFinite(id) || id <= 0)
-                    return this.bot.locale.category('mapdata', 'err_mapid_invalid');
+                if(!Number.isFinite(id) || id <= 0) {
+                    //return this.bot.locale.category('mapdata', 'err_mapid_invalid');
+                    let title = arg;
+                    title = title.substring(args[0].length + 1)
+                    map.call(this, m, game, title, ext.kcgmm).catch(logger.error);
+                    return;
+                }
 
                 map.call(this, m, game, id, ext.kcgmm).catch(logger.error);
                 return;
@@ -157,7 +162,7 @@ export default class Map extends Bot.Module {
 * @this {Map}
 * @param {Bot.Message} m - Message of the user executing the command.
 * @param {string} game
-* @param {number} id
+* @param {number|string} id
 * @param {KCGameMapManager} kcgmm
 * @param {boolean=} suppressError
 * @param {boolean=} allowTemporaryDelete
@@ -170,12 +175,20 @@ async function map(m, game, id, kcgmm, suppressError, allowTemporaryDelete) {
         if(result) emote = result.emote;
     }).catch(logger.error);
 
-    let mapData = kcgmm.getMapById(game, id);
+    let mapData = typeof id === 'number' ? kcgmm.getMapById(game, id) : kcgmm.getMapByTitle(game, id);
     if(mapData != null) {
-        const embed = await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm);
+        const embed = mapData instanceof Array ?
+            await getMultipleMapsMessageEmbed.call(this, mapData, emote, m.guild, game, kcgmm)
+            :
+            await getMapMessageEmbed.call(this, mapData, emote, m.guild, game, kcgmm);
+
         m.channel.send({ embeds:[embed] }).then(message => {
             if(allowTemporaryDelete) userDeletionHandler(m, message, embed);
         }).catch(logger.error);
+        return;
+    }
+    else if(typeof id === 'string') {
+        m.channel.send("Couldn't find requested map by title. Try with map ID?").catch(logger.error);
         return;
     }
 
@@ -340,7 +353,28 @@ async function bestof(m, game, date, maps) {
 
 
 
+/**
+ * @this Map
+ * @param {KCGameMapManager.MapData[]} maps 
+ * @param {string} emoteStr 
+ * @param {Discord.Guild} guild 
+ * @param {string} game 
+ * @param {KCGameMapManager} kcgmm
+ * @returns {Promise<Discord.MessageEmbed>}
+ */
+async function getMultipleMapsMessageEmbed(maps, emoteStr, guild, game, kcgmm) {
+    let emoteId = Bot.Util.getSnowflakeFromDiscordPing(emoteStr);
+    let emote = emoteId ? guild.emojis.resolve(emoteId) : null;
 
+    let embed = getEmbedTemplate.bind(this)(game, emote, false);
+    embed.description = '';
+
+    for(const map of maps) {
+        embed.description += `**Map #${map.id}** - ${map.title} __by ${map.author}__\n`;
+    }
+
+    return embed;
+}
 
 /**
  * @this Map
