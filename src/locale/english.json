@@ -363,10 +363,11 @@
                 "%space%<id> - The user mention/ping, or the user ID."
             ],
             "ignore": [
-                "!%name% <game> <map_ids>",
+                "!%name% <game> <map_ids> rest",
                 "Add one or more maps to your ignore list.",
                 "%space%<game> - cw4, pf, cw3, cw2.",
-                "%space%<map_ids> - Space delimited list of map IDs to ignore, or a single map ID."
+                "%space%<map_ids> - Space delimited list of map IDs to ignore, or a single map ID.",
+                "%space% rest - If the keyword rest is included, all currently incomplete selected maps will also be included."
             ],
             "unignore": [
                 "!%name% <game> <map_ids>",
