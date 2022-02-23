@@ -265,10 +265,10 @@ core.on('ready', bot => {
                 return experience.land(message, args, arg, { action: 'wipe' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'ignore', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'ignore' });
+                return experience.land(message, args, arg, { action: 'ignore', kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'unignore', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'unignore' });
+                return experience.land(message, args, arg, { action: 'unignore', kcgmm: kcgmm });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'ignorelist', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'ignorelist' });

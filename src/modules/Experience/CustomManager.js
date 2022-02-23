@@ -237,7 +237,7 @@ function getMapsParsedFromDatabase(mapListByIds, arr) {
  * @param {KCGameMapManager} kcgmm
  * @returns {Promise<{finished: KCGameMapManager.MapData[], unfinished: KCGameMapManager.MapData[]}>} 
  */
-async function getMapsCompleted(maps, userName, kcgmm) {
+export async function getMapsCompleted(maps, userName, kcgmm) {
     /** @type {KCGameMapManager.MapData[]} */
     let finished = [];
     /** @type {KCGameMapManager.MapData[]} */
