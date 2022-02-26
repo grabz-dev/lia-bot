@@ -338,6 +338,8 @@ export default class Competition extends Bot.Module {
             if(channel == null || !(channel instanceof Discord.TextChannel))
                 return;
                 
+            const overtimeRemaining = (resultMain.time_end_offset??0) - (Date.now() - (resultMain.time_end??0));
+
             /** @type {Discord.Collection<string, Discord.Message>} */
             const messages = new Discord.Collection();
             for(let resultMessages of resultsMessages) {
@@ -361,7 +363,7 @@ export default class Competition extends Bot.Module {
                 const emote = (emotes && map.game && emotes[map.game]) ? emotes[map.game] : ":map:";
                 let embed = embeds.get(map.game);
                 if(!embed) {
-                    embed = getEmbedScores(KCUtil.gameEmbedColors[map.game], timeLeft);
+                    embed = getEmbedScores(KCUtil.gameEmbedColors[map.game], timeLeft, overtimeRemaining);
                     embeds.set(map.game, embed);
                 }
 
@@ -398,7 +400,7 @@ export default class Competition extends Bot.Module {
                 
                 let embed = embeds.get(game);
                 if(embed == null)
-                    message.edit({content: content, embeds: [getEmbedScores(KCUtil.gameEmbedColors[game], timeLeft)]}).catch(logger.error);
+                    message.edit({content: content, embeds: [getEmbedScores(KCUtil.gameEmbedColors[game], timeLeft, overtimeRemaining)]}).catch(logger.error);
                 else
                     message.edit({content: content, embeds: [embed]}).catch(logger.error);
             });
@@ -1118,9 +1120,10 @@ function getEmbedTemplate() {
 /**
  * @param {number} color
  * @param {number=} timeRemaining - in milliseconds.
+ * @param {number=} overtimeRemaining - in milliseconds
  * @returns {Discord.MessageEmbed}
  */
-function getEmbedScores(color, timeRemaining) {
+function getEmbedScores(color, timeRemaining, overtimeRemaining) {
     const embed = new Discord.MessageEmbed({
         color: color,
         description: "",
@@ -1128,7 +1131,7 @@ function getEmbedScores(color, timeRemaining) {
     });
     if(timeRemaining != null) {
         embed.footer = {
-            text: "Time left: " + (timeRemaining > 0 ? Bot.Util.getFormattedTimeRemaining(timeRemaining) : "OVERTIME")
+            text: timeRemaining > 0 ? `Time left: ${Bot.Util.getFormattedTimeRemaining(timeRemaining)}` : `OVERTIME (randomly between 0 and ${Bot.Util.getFormattedTimeRemaining(overtimeRemaining??0)} left)`
         }
     }
     return embed;
