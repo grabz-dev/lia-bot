@@ -896,7 +896,10 @@ async function buildScoreTally(guild, channel, query, champion) {
     const champions = new Discord.Collection();
     /** @type {Discord.Collection<Discord.Snowflake, number>} */
     const userPointsTally = new Discord.Collection();
-
+    /** @type {Discord.Collection<Discord.Snowflake, Promise<void | Discord.GuildMember>>} */
+    const guildMembersPromise = new Discord.Collection();
+    /** @type {Discord.Collection<Discord.Snowflake, Discord.GuildMember>} */
+    const guildMembers = new Discord.Collection();
 
     const weeks = 2;
     const tallyChamps = 5;
@@ -921,6 +924,7 @@ async function buildScoreTally(guild, channel, query, champion) {
                 let tally = userPointsTally.get(resultScores.user_id)??0;
                 tally += getPointsFromRank(resultScores.user_rank);
                 userPointsTally.set(resultScores.user_id, tally);
+                guildMembersPromise.set(resultScores.user_id, guild.members.fetch(resultScores.user_id).catch(() => {}));
 
                 if(resultScores.user_rank === 1) {
                     championsWeeks.set(resultScores.user_id, i);
@@ -929,6 +933,12 @@ async function buildScoreTally(guild, channel, query, champion) {
             }
         }
         i++;
+    }
+
+    for(let keyval of guildMembersPromise) {
+        const member = await keyval[1];
+        if(member instanceof Discord.GuildMember)
+            guildMembers.set(keyval[0], member);
     }
 
     championsWeeks.sort((a, b) => b - a);
@@ -971,8 +981,10 @@ async function buildScoreTally(guild, channel, query, champion) {
                 i--;
 
             let bold = i <= tallyChamps ? '**' : '';
-
-            field.value += `${bold}\`#${i}\` ${points} points: <@${snowflake}>${bold}\n`;
+            
+            const championMember = guildMembers.get(snowflake);
+            const name = championMember ? (championMember.nickname ?? championMember.user.username) : null;
+            if(name) field.value += `${bold}\`#${i}\` ${points} points: ${name}${bold}\n`;
             lastPoints = points;
             i++;
         }
@@ -991,15 +1003,19 @@ async function buildScoreTally(guild, channel, query, champion) {
         for(let champion of championsWeeks) {
             let weeks = champion[1];
             let snowflake = champion[0];
-    
-            field.value += `\`${weeks} weeks left\` <@${snowflake}>\n`;
+            
+            const championMember = guildMembers.get(snowflake);
+            const name = championMember ? (championMember.nickname ?? championMember.user.username) : null;
+            if(name) field.value += `\`${weeks} weeks left\` ${name}\n`;
         }
         let i = 0;
         for(let user of userPointsTally) {
             let points = user[1];
             let snowflake = user[0];
             if(championsWeeks.get(snowflake) == null) {
-                field.value += `\`${points} points\` <@${snowflake}>\n`;
+                const championMember = guildMembers.get(snowflake);
+                const name = championMember ? (championMember.nickname ?? championMember.user.username) : null;
+                if(name) field.value += `\`${points} points\` ${name}\n`;
             }
 
             i++;
