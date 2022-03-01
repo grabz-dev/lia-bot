@@ -1,5 +1,24 @@
-export const VERSION = 3;
+export const VERSION = 4;
+//Version 4 adds permanent last roll chance mechanic. (2022-03-01)
 const DEBUG = false;
+
+/**
+ * @typedef {object} FarkleAIData
+ * @property {number} pointsBanked
+ * @property {number} pointsCurrent
+ * @property {number} pointsGoal
+ * @property {number} secondToBestPointsBanked
+ * @property {{ pointsToBeat: number }=} lastTurn
+ */
+
+/**
+ * @typedef {object} FarkleAIInternal
+ * @property {boolean=} forceFinish
+ * @property {string=} str
+ * @property {boolean=} noCheckNext
+ * @property {boolean=} ignoreThreeTwos
+ * @property {boolean=} forceKeep
+ */
 
 export const matches = Object.freeze([
     { m: [1, 2, 3, 4, 5, 6],    p: 1500 },
@@ -148,19 +167,152 @@ const check = {
     }
 }
 
+const AIs = {
+    /**
+     * @param {number[]} rolls 
+     * @param {FarkleAIData} data
+     * @param {FarkleAIInternal&{str: string}} internal
+     * @param {boolean} _debug
+     * @returns {string}
+     */
+    normal(rolls, data, internal, _debug) {
+        const diceLeft = rolls.length;
+        const nextMinimumDiceLeft = nextMinimumDiceLeftThisRoll(rolls);
+        const bestPoints = bestPointsThisRoll(rolls);
+
+        if(_debug) console.info(`diceLeft: ${diceLeft}, nextMinimumDiceLeft: ${nextMinimumDiceLeft}, bestPoints: ${bestPoints}`);
+
+        if(rolls.length < 6 && data.pointsGoal - data.secondToBestPointsBanked <= 500 && data.pointsGoal - data.pointsBanked <= 500) {
+            const pointsToGoalAfterFinish = data.pointsGoal - data.pointsBanked - data.pointsCurrent - bestPoints;
+            if(pointsToGoalAfterFinish <= 100 && pointsToGoalAfterFinish > 0) {
+                internal.forceFinish = true;
+                if(_debug) console.info(`forceFinish = true, within 100 of goal with opponent closing near`);
+            }
+            else if(pointsToGoalAfterFinish < 0 && pointsToGoalAfterFinish > -300) {
+                internal.forceKeep = true;
+                if(_debug) console.info(`forceKeep = true, not far enough from goal with opponent closing near`);
+            }
+        }
+        //Finish on any dice if >=2000 points and we can't keep everything
+        else if(bestPoints + data.pointsCurrent >= 2000 && nextMinimumDiceLeft > 0) {
+            internal.forceFinish = true;
+            if(_debug) console.info(`forceFinish = true, >=2000 - too risky`);
+        }
+        //Finish on 5 dice if >=350 points and we can't keep everything
+        else if(rolls.length === 5 && bestPoints + data.pointsCurrent >= 350 && nextMinimumDiceLeft > 0) {
+            internal.forceFinish = true;
+            if(_debug) console.info(`forceFinish = true, >=500 on 5 roll`);
+        }
+        //Do not finish with 200 points or less
+        else if(bestPoints + data.pointsCurrent <= 250) {
+            internal.forceKeep = true;
+            if(_debug) console.info(`forceKeep = true, <=250 points`);
+        }
+
+        //Ignore 222 on first turn if there isn't another three of a kind
+        if(rolls.length === 6 && arrayOverlap(rolls, [2, 2, 2]) && nextMinimumDiceLeft > 0 && nextMinimumDiceLeft < 3) {
+            internal.ignoreThreeTwos = true;
+            if(_debug) console.info(`ignoreThreeTwos = true`);
+        }
+        
+
+        if(check.sixInARow(rolls))          internal.str += '123456';
+        if(check.fiveInARowHigher(rolls))   internal.str += '23456';
+        if(check.fiveInARowLower(rolls))    internal.str += '12345';
+        [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(6, v, rolls)) internal.str += `${v}${v}${v}${v}${v}${v}`; });
+        [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(5, v, rolls)) internal.str += `${v}${v}${v}${v}${v}`; });
+        [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(4, v, rolls)) internal.str += `${v}${v}${v}${v}`; });
+        (internal.ignoreThreeTwos ? [1, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6]).forEach(v => { if(check.ofAKind(3, v, rolls)) internal.str += `${v}${v}${v}`; });
+
+        
+        if((!internal.forceFinish && rolls.length >= 5) || internal.forceKeep) {
+            if(_debug) console.info(`...keeping one dice...`);
+            if(check.single(1, rolls)) internal.str += '1';
+            else if(check.single(5, rolls)) internal.str += '5';
+        }
+        else {
+            if(_debug) console.info(`...keeping everything...`);
+            if(check.single(1, rolls)) internal.str += '1';
+            if(check.single(1, rolls)) internal.str += '1';
+            if(check.single(5, rolls)) internal.str += '5';
+            if(check.single(5, rolls)) internal.str += '5';
+        }
+
+        //If rolls were found and assigned to internal.str
+        if(rolls.length - diceLeft > 1) {
+            return determineMove(rolls, data, internal);
+        }
+
+        if(!internal.noCheckNext) {
+            const nextRolls = rolls.slice();
+            determineMove(nextRolls, data, { str: '', noCheckNext: true });
+
+            if(internal.forceFinish) return `f${internal.str}`;
+            if(internal.forceKeep) return `k${internal.str}`;
+            if(rolls.length <= 3 && nextRolls.length !== 0) return `f${internal.str}`;
+            return `k${internal.str}`;
+        }
+
+        return internal.str;
+    },
+    /**
+     * @param {number[]} rolls 
+     * @param {FarkleAIData&{lastTurn: { pointsToBeat: number }}} data
+     * @param {FarkleAIInternal&{str: string}} internal
+     * @param {boolean} _debug
+     * @returns {string}
+     */
+    lastTurn(rolls, data, internal, _debug) {
+        const diceLeft = rolls.length;
+        const pointsToGoal = data.lastTurn.pointsToBeat - data.pointsCurrent - data.pointsBanked;
+        const bestPoints = bestPointsThisRoll(rolls);
+        const nextMinimumDiceLeft = nextMinimumDiceLeftThisRoll(rolls);
+
+        //Finish if we have enough points to win on this roll.
+        if(bestPoints >= pointsToGoal) {
+            internal.forceFinish = true;
+            if(_debug) console.info(`forceFinish = true, last turn, close enough to end`);
+        }
+
+        //Ignore 222 on first turn if there isn't another three of a kind
+        if(rolls.length === 6 && arrayOverlap(rolls, [2, 2, 2]) && nextMinimumDiceLeft > 0 && nextMinimumDiceLeft < 3) {
+            internal.ignoreThreeTwos = true;
+            if(_debug) console.info(`ignoreThreeTwos = true`);
+        }
+
+        if(bestPoints < 500 && nextMinimumDiceLeft > 0 && !internal.forceFinish) {
+            if(check.single(1, rolls)) internal.str += '1';
+            else if(check.single(5, rolls)) internal.str += '5';
+        }
+        else {
+            if(check.sixInARow(rolls))          internal.str += '123456';
+            if(check.fiveInARowHigher(rolls))   internal.str += '23456';
+            if(check.fiveInARowLower(rolls))    internal.str += '12345';
+            [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(6, v, rolls)) internal.str += `${v}${v}${v}${v}${v}${v}`; });
+            [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(5, v, rolls)) internal.str += `${v}${v}${v}${v}${v}`; });
+            [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(4, v, rolls)) internal.str += `${v}${v}${v}${v}`; });
+            (internal.ignoreThreeTwos ? [1, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6]).forEach(v => { if(check.ofAKind(3, v, rolls)) internal.str += `${v}${v}${v}`; });
+            if(check.single(1, rolls)) internal.str += '1';
+            if(check.single(1, rolls)) internal.str += '1';
+            if(check.single(5, rolls)) internal.str += '5';
+            if(check.single(5, rolls)) internal.str += '5';
+        }
+
+        //If rolls were found and assigned to internal.str
+        if(rolls.length - diceLeft > 1) {
+            return determineMove(rolls, data, internal);
+        }
+
+        if(internal.forceFinish) return `f${internal.str}`;
+        return `k${internal.str}`;
+    }
+}
+
 /**
  * 
  * @param {number[]} rolls 
- * @param {object} data
- * @param {number} data.pointsBanked
- * @param {number} data.pointsCurrent
- * @param {number} data.pointsGoal
- * @param {object} internal
- * @param {boolean=} internal.forceFinish 
- * @param {string=} internal.str
- * @param {boolean=} internal.noCheckNext
- * @param {boolean=} internal.ignoreThreeTwos
- * @param {boolean=} internal.forceKeep
+ * @param {FarkleAIData} data
+ * @param {FarkleAIInternal} internal
  * @returns {string}
  */
 export function determineMove(rolls, data, internal) {
@@ -174,74 +326,8 @@ export function determineMove(rolls, data, internal) {
 
     if(_debug) console.info(`---- ${rolls} ----`);
 
-    const diceLeft = rolls.length;
-    const pointsToGoal = data.pointsGoal - data.pointsCurrent - data.pointsBanked;
-    const nextMinimumDiceLeft = nextMinimumDiceLeftThisRoll(rolls);
-    const bestPoints = bestPointsThisRoll(rolls);
-
-    if(_debug) console.info(`diceLeft: ${diceLeft}, pointsToGoal: ${pointsToGoal}, nextMinimumDiceLeft: ${nextMinimumDiceLeft}, bestPoints: ${bestPoints}`);
-
-    //Finish if we have enough points to win on this roll.
-    if(bestPoints >= pointsToGoal) {
-        internal.forceFinish = true;
-        if(_debug) console.info(`forceFinish = true, close enough to end`);
-    }
-    //Finish on 5 dice if >=350 points and we can't keep everything
-    else if(rolls.length === 5 && bestPoints + data.pointsCurrent >= 350 && nextMinimumDiceLeft > 0) {
-        internal.forceFinish = true;
-        if(_debug) console.info(`forceFinish = true, >=350 on 5 roll`);
-    }
-    else if(rolls.length < 6 && bestPoints + data.pointsCurrent >= 1000 && nextMinimumDiceLeft > 0) {
-        internal.forceFinish = true;
-        if(_debug) console.info(`forceFinish = true, >=1000 on <5 dice - too risky`);
-    }
-    //Ignore 222 on first turn if there isn't another three of a kind
-    else if(rolls.length === 6 && arrayOverlap(rolls, [2, 2, 2]) && nextMinimumDiceLeft > 0 && nextMinimumDiceLeft < 3) {
-        internal.ignoreThreeTwos = true;
-        if(_debug) console.info(`ignoreThreeTwos = true`);
-    }
-    //Do not finish with 200 points or less
-    else if(bestPoints + data.pointsCurrent <= 250) {
-        internal.forceKeep = true;
-        if(_debug) console.info(`forceKeep = true, <=250 points`);
-    }
-
-    if(check.sixInARow(rolls))          internal.str += '123456';
-    if(check.fiveInARowHigher(rolls))   internal.str += '23456';
-    if(check.fiveInARowLower(rolls))    internal.str += '12345';
-    [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(6, v, rolls)) internal.str += `${v}${v}${v}${v}${v}${v}`; });
-    [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(5, v, rolls)) internal.str += `${v}${v}${v}${v}${v}`; });
-    [1, 2, 3, 4, 5, 6].forEach(v => { if(check.ofAKind(4, v, rolls)) internal.str += `${v}${v}${v}${v}`; });
-    (internal.ignoreThreeTwos ? [1, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6]).forEach(v => { if(check.ofAKind(3, v, rolls)) internal.str += `${v}${v}${v}`; });
-
-    if((!internal.forceFinish && rolls.length >= 5) || internal.forceKeep) {
-        if(_debug) console.info(`...keeping one dice...`);
-        if(check.single(1, rolls)) internal.str += '1';
-        else if(check.single(5, rolls)) internal.str += '5';
-    }
-    else {
-        if(_debug) console.info(`...keeping everything...`);
-        if(check.single(1, rolls)) internal.str += '1';
-        if(check.single(1, rolls)) internal.str += '1';
-        if(check.single(5, rolls)) internal.str += '5';
-        if(check.single(5, rolls)) internal.str += '5';
-    }
-
-    if(rolls.length - diceLeft > 1) {
-        return determineMove(rolls, data, internal);
-    }
-
-    if(!internal.noCheckNext) {
-        const nextRolls = rolls.slice();
-        determineMove(nextRolls, data, { str: '', noCheckNext: true });
-
-        if(internal.forceFinish) return `f${internal.str}`;
-        if(internal.forceKeep) return `k${internal.str}`;
-        if(rolls.length <= 3 && nextRolls.length !== 0) return `f${internal.str}`;
-        return `k${internal.str}`;
-    }
-
-    return internal.str;
+    if(data.lastTurn) return AIs.lastTurn(rolls, Object.assign({lastTurn: data.lastTurn}, data), Object.assign({str: internal.str}, internal), _debug);
+    return AIs.normal(rolls, data, Object.assign({str: internal.str}, internal), _debug);
 }
 
 /**
