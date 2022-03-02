@@ -1,4 +1,4 @@
-export const VERSION = 4;
+export const VERSION = 5;
 //Version 4 adds permanent last roll chance mechanic. (2022-03-01)
 const DEBUG = false;
 
@@ -269,7 +269,7 @@ const AIs = {
         const nextMinimumDiceLeft = nextMinimumDiceLeftThisRoll(rolls);
 
         //Finish if we have enough points to win on this roll.
-        if(bestPoints >= pointsToGoal) {
+        if(bestPoints > pointsToGoal) {
             internal.forceFinish = true;
             if(_debug) console.info(`forceFinish = true, last turn, close enough to end`);
         }
