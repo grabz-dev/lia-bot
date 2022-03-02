@@ -515,22 +515,22 @@ export default class Farkle extends Bot.Module {
 
         await this.bot.sql.transaction(async query => {
             /** @type {Db.farkle_current_players|undefined} */
-            var _docCP = (await query(`SELECT * FROM farkle_current_players WHERE user_id = ${user.id}${message.gameId != null ? ` AND id_current_games = ${message.gameId}` : ''}`)).results[0];
+            var _docCP = (await query(`SELECT * FROM farkle_current_players WHERE user_id = ${user.id}${message.gameId != null ? ` AND id_current_games = ${message.gameId}` : ''} FOR UPDATE`)).results[0];
             if(!_docCP) return;
 
             /** @type {Db.farkle_current_players[]} */
-            var docCPs = (await query(`SELECT * FROM farkle_current_players WHERE id_current_games = ${_docCP.id_current_games}`)).results;
+            var docCPs = (await query(`SELECT * FROM farkle_current_players WHERE id_current_games = ${_docCP.id_current_games} FOR UPDATE`)).results;
             var _docCP = docCPs.find(v => v.user_id === user.id);
             if(!_docCP) return;
 
             var docCP = _docCP;
 
             /** @type {Db.farkle_current_games} */
-            var docCG = (await query(`SELECT * FROM farkle_current_games WHERE id = ${docCP.id_current_games}`)).results[0];
+            var docCG = (await query(`SELECT * FROM farkle_current_games WHERE id = ${docCP.id_current_games} FOR UPDATE`)).results[0];
             if(!docCG) return;
 
             /** @type {Db.farkle_viewers[]} */
-            var docVs = (await query(`SELECT v.id, v.user_id_target, v.user_id, v.channel_dm_id FROM farkle_viewers v JOIN farkle_current_players cp ON v.user_id_target = cp.user_id WHERE cp.id_current_games = ${docCG.id}`)).results;
+            var docVs = (await query(`SELECT v.id, v.user_id_target, v.user_id, v.channel_dm_id FROM farkle_viewers v JOIN farkle_current_players cp ON v.user_id_target = cp.user_id WHERE cp.id_current_games = ${docCG.id} FOR UPDATE`)).results;
 
             /** @type {(Db.farkle_current_players|Db.farkle_viewers)[]} */
             var docCPVs = [];
@@ -579,15 +579,18 @@ export default class Farkle extends Bot.Module {
                             playerCurrent.highest_points_skipped = docCG.current_player_points;
                         
                         let player = docCG.current_player_user_id;
-                        await turn.call(this, message.client, docCG, docCPs, query, "hurry");
                         /** @type { { type: "ready"|"reject"|"keep"|"finish"|"help"|"hurry"|"concede", updateCurrentMatch: boolean, gameEnded: boolean } } */
                         let state = {
                             type: "hurry",
                             updateCurrentMatch: true,
                             gameEnded: false
                         }
-                        await roll.call(this, message.client, { type: "hurry", keep: [], points: docCG.current_player_points, player: player }, docCG, docCPs, docVs, docCPVs, query, state);
+
+                        if(!(await turn.call(this, message.client, docCG, docCPs, docVs, query, "hurry", state, {}))) {
+                            await roll.call(this, message.client, { type: "hurry", keep: [], points: docCG.current_player_points, player: player }, docCG, docCPs, docVs, docCPVs, query, state);
+                        }
                         await commit.call(this, state, docCG, docCP, docCPs, query, message.client);
+
                         this.cache.set("0", `hurry${docCG.id}`, undefined);
                     }).catch(logger.error);
                 }, 1000*90);
@@ -595,6 +598,7 @@ export default class Farkle extends Bot.Module {
                 this.cache.set("0", `hurry${docCG.id}`, {
                     timeout: timeout
                 });
+
                 return;
             }
             else if(type === "ready") {
@@ -639,7 +643,7 @@ export default class Farkle extends Bot.Module {
 
                 if(docCPs.length === 2) {
                     if(docCP.user_id === docCG.current_player_user_id) {
-                        await turn.call(this, message.client, docCG, docCPs, query, "concede");
+                        await turn.call(this, message.client, docCG, docCPs, docVs, query, "concede", state, null);
                     }
                     await end.call(this, message.client, { type: "concede", keep: [], points: 0, player: docCP.user_id }, docCG, docVs, docCPs, query, "concede");
                     state.gameEnded = true;
@@ -647,8 +651,9 @@ export default class Farkle extends Bot.Module {
                 else {
                     if(docCP.user_id === docCG.current_player_user_id) {
                         let player = docCG.current_player_user_id;
-                        await turn.call(this, message.client, docCG, docCPs, query, "concede");
-                        await roll.call(this, message.client, { type: "concede", keep: [], points: 0, player: player }, docCG, docCPs, docVs, docCPVs, query, state);
+                        if(!(await turn.call(this, message.client, docCG, docCPs, docVs, query, "concede", state, {}))) {
+                            await roll.call(this, message.client, { type: "concede", keep: [], points: 0, player: player }, docCG, docCPs, docVs, docCPVs, query, state);
+                        }
                         state.updateCurrentMatch = true;
                     }
                     
@@ -750,7 +755,7 @@ export default class Farkle extends Bot.Module {
                                 docCP.highest_points_welfare_lost = totalPoints;
 
                             if(leastPointsPlayer.total_points_banked >= docCG.points_goal) {
-                                while(leastPointsPlayer.user_id !== docCG.current_player_user_id) await turn.call(this, message.client, docCG, docCPs, query, "welfare");
+                                while(leastPointsPlayer.user_id !== docCG.current_player_user_id) await turn.call(this, message.client, docCG, docCPs, docVs, query, "welfare", state, null);
                                 await end.call(this, message.client, { type: "welfare", keep: keep, points: totalPoints, bank: leastPointsPlayer.total_points_banked, player: currentPlayer, targetPlayer: leastPointsPlayer.user_id }, docCG, docVs, docCPs, query, "no_concede");
                                 state.gameEnded = true;
                                 await commit.call(this, state, docCG, docCP, docCPs, query, message.client);
@@ -758,7 +763,7 @@ export default class Farkle extends Bot.Module {
                             }
                         }
                         
-                        await turn.call(this, message.client, docCG, docCPs, query, "welfare");
+                        await turn.call(this, message.client, docCG, docCPs, docVs, query, "welfare", state, null);
                         await roll.call(this, message.client, { type: "welfare", keep: keep, points: totalPoints, bank: leastPointsPlayer == null ? 0 : leastPointsPlayer.total_points_banked, player: currentPlayer, targetPlayer: leastPointsPlayer == null ? undefined: leastPointsPlayer.user_id }, docCG, docCPs, docVs, docCPVs, query, state);
                         await commit.call(this, state, docCG, docCP, docCPs, query, message.client);
                         return;
@@ -800,11 +805,8 @@ export default class Farkle extends Bot.Module {
                             state.gameEnded = true;
                         }
                         else {
-                            await turn.call(this, message.client, docCG, docCPs, query, "finish");
-
-                            if(docCG.last_turn_victory_user_id != null && docCG.last_turn_victory_user_id === docCG.current_player_user_id) {
-                                await end.call(this, message.client, { type: "lastturn", keep: keep, points: points, bank: bank, player: player }, docCG, docVs, docCPs, query, "no_concede");
-                                state.gameEnded = true;
+                            if(await turn.call(this, message.client, docCG, docCPs, docVs, query, "finish", state, { keep: keep, points: points, bank: bank, player: player })) {
+                                //do nothing
                             }
                             else if(docCG.high_stakes_variant)
                                 await highstakes.call(this, message.client, { type: "finish", keep: keep, points: points, bank: bank, player: player }, docCG, docCPs, docCPVs, query);
@@ -2430,11 +2432,9 @@ async function roll(client, action, docCG, docCPs, docVs, docCPVs, query, state)
                 playerCurrent.highest_points_lost = docCG.current_player_points;
             if(docCG.current_player_points_piggybacked > playerCurrent.highest_points_piggybacked_lost)
                 playerCurrent.highest_points_piggybacked_lost = docCG.current_player_points_piggybacked;
-            await turn.call(this, client, docCG, docCPs, query, "fold");
-
-            if(docCG.last_turn_victory_user_id != null && docCG.last_turn_victory_user_id === docCG.current_player_user_id) {
-                await end.call(this, client, { type: "lastturn" }, docCG, docVs, docCPs, query, "no_concede");
-                state.gameEnded = true;
+            
+            if(await turn.call(this, client, docCG, docCPs, docVs, query, "fold", state, {})) {
+                //game ended
                 break;
             }
         }
@@ -2451,10 +2451,14 @@ async function roll(client, action, docCG, docCPs, docVs, docCPVs, query, state)
  * @param {Discord.Client} client
  * @param {Db.farkle_current_games} docCG 
  * @param {Db.farkle_current_players[]} docCPs
+ * @param {Db.farkle_viewers[]} docVs
  * @param {(s: string) => Promise<{results: any, fields: any[] | undefined}>} query
  * @param {"finish"|"fold"|"concede"|"hurry"|"welfare"} type
+ * @param {{ type: ActionType; updateCurrentMatch: boolean; gameEnded: boolean;}} state
+ * @param {null|{ keep?: number[], points?: number, bank?: number, player?: Discord.Snowflake, targetPlayer?: Discord.Snowflake }} lastTurnAction
+ * @returns {Promise<boolean>}  true if game ended, false otherwise
  */
-async function turn(client, docCG, docCPs, query, type) {
+async function turn(client, docCG, docCPs, docVs, query, type, state, lastTurnAction) {
     docCG.current_player_rolls_count = 0;
     docCG.current_player_points_piggybacked = 0;
 
@@ -2466,13 +2470,13 @@ async function turn(client, docCG, docCPs, query, type) {
     }
 
     var player = docCPs.find(v => v.user_id === docCG.current_player_user_id);
-    if(!player) return;
+    if(!player) throw new Error('player not found')
     let playerCurrent = player;
 
     var player = docCPs.find(v => v.turn_order === playerCurrent.turn_order + 1);
     if(!player) {
         player = docCPs.find(v => v.turn_order === 1);
-        if(!player) return;
+        if(!player) throw new Error('player not found')
     }
     let playerNext = player;
 
@@ -2492,6 +2496,15 @@ async function turn(client, docCG, docCPs, query, type) {
     embed.description = str;
     
     await sendDM(client, playerNext.user_id, playerNext, embed);
+
+    if(lastTurnAction != null) {
+        if(docCG.last_turn_victory_user_id != null && docCG.last_turn_victory_user_id === docCG.current_player_user_id) {
+            await end.call(this, client, Object.assign({ type: /** @type {"lastturn"} */("lastturn") }, lastTurnAction), docCG, docVs, docCPs, query, "no_concede");
+            state.gameEnded = true;
+            return true;
+        }
+    }
+    return false;
 }
 
 /**

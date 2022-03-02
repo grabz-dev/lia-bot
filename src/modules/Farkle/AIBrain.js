@@ -1,4 +1,4 @@
-export const VERSION = 5;
+export const VERSION = 6;
 //Version 4 adds permanent last roll chance mechanic. (2022-03-01)
 const DEBUG = false;
 
@@ -280,11 +280,14 @@ const AIs = {
             if(_debug) console.info(`ignoreThreeTwos = true`);
         }
 
-        if(bestPoints < 500 && nextMinimumDiceLeft > 0 && !internal.forceFinish) {
+        //If we have >=5 dice, aim for good points on next roll, otherwise grab all
+        if(rolls.length >= 5 && bestPoints < 500 && nextMinimumDiceLeft > 0 && !internal.forceFinish) {
             if(check.single(1, rolls)) internal.str += '1';
             else if(check.single(5, rolls)) internal.str += '5';
         }
-        else {
+
+        //If no 1's and 5's could be kept, look for other combos
+        if(rolls.length - diceLeft === 0) {
             if(check.sixInARow(rolls))          internal.str += '123456';
             if(check.fiveInARowHigher(rolls))   internal.str += '23456';
             if(check.fiveInARowLower(rolls))    internal.str += '12345';
