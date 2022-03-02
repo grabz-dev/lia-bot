@@ -261,7 +261,7 @@
             "spectate": [
                 "!%name% <ping>",
                 "Spectate a user that's playing a Farkle match.",
-                "%space%<ping> - Ping the user you want to spectate."
+                "%space%<ping> - Ping the user you want to spectate. Omit the ping to unspectate."
             ],
             "rules": [
                 "!%name%",

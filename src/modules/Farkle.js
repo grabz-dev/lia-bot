@@ -2641,7 +2641,7 @@ async function postGameEndMessage(client, docCG, thisGameCHPs) {
     if(docCG.high_stakes_variant) embed.description += `  •  **High Stakes**`;
     if(docCG.welfare_variant) embed.description += `  •  **Welfare**`;
 
-    embed.description += `\n<@${docCG.user_id_winner}> won.`
+    embed.description += `\n${thisGameCHPs.reduce((a, v) => a += v.total_rolls, 0)} rolls were thrown • <@${docCG.user_id_winner}> won.`;
 
     var farkleChannel = this.cache.get(docCG.guild_id, "farkle_channel_id");
     if(farkleChannel != null) {
