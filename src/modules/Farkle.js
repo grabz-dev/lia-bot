@@ -340,8 +340,8 @@ export default class Farkle extends Bot.Module {
         }
 
         aobj.goal = Math.ceil(aobj.goal / 50) * 50;
-        if(aobj.goal < 1000 || aobj.goal > 10000) {
-            message.channel.send("Point goal must be between 1000 and 10000.").catch(logger.error);
+        if(aobj.goal < 1000 || aobj.goal > 50000) {
+            message.channel.send("Point goal must be between 1000 and 50000.").catch(logger.error);
             return;
         }
 
@@ -351,8 +351,8 @@ export default class Farkle extends Bot.Module {
         }
 
         aobj.threshold = Math.ceil(aobj.threshold / 50) * 50;
-        if(aobj.threshold !== 0 && aobj.threshold < 350 || aobj.threshold > 1000) {
-            message.channel.send("Opening turn point threshold must be between 350 and 1000.").catch(logger.error);
+        if(aobj.threshold !== 0 && aobj.threshold < 100 || aobj.threshold > 5000) {
+            message.channel.send("Opening turn point threshold must be between 100 and 5000.").catch(logger.error);
             return;
         }
 
@@ -1087,8 +1087,8 @@ export default class Farkle extends Bot.Module {
 
             let embed = getEmbedBlank();
 
-            embed.description = `Choose the __points goal__ between 1000 and 10000 (suggested 4000).
-Followed by a comma, optionally choose the __opening turn point threshold__ between 350 and 1000 (commonly 350, 400, 500, or 1000).
+            embed.description = `Choose the __points goal__ between 1000 and 50000 (suggested 4000).
+Followed by a comma, optionally choose the __opening turn point threshold__ between 100 and 5000 (commonly 350, 400, 500, or 1000).
 Optionally choose if you would like to play the __high-stakes variant__ by typing \`hs\` anywhere.
 Optionally choose if you would like to play the __welfare variant__ by typing \`wf\` anywhere.
 Optionally choose if you would like to play with an AI opponent by typing \`ai\` anywhere (does not support variants).
@@ -1103,7 +1103,7 @@ Examples:
 Type \`cancel\` to cancel the match.`;
 
             if(members.length === 1) {
-                embed.description = `You're playing a solo game.\nChoose the __points goal__ between 1000 and 10000 (suggested 4000).
+                embed.description = `You're playing a solo game.\nChoose the __points goal__ between 1000 and 50000 (suggested 4000).
     
 Examples:
 \`4000\` - 4000 goal.
