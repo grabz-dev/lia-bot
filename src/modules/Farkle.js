@@ -938,7 +938,8 @@ export default class Farkle extends Bot.Module {
                     const indexCurrent = docCPs.findIndex(v => v.user_id === docCP?.user_id);
                     if(indexCurrent < 0) return;
 
-                    let docCPsWithoutCurrent = docCPs.slice().splice(indexCurrent, 1);
+                    let docCPsWithoutCurrent = docCPs.slice();
+                    docCPsWithoutCurrent.splice(indexCurrent, 1);
 
                     let currentPlayerRolls = docCG.current_player_rolls;
                     let str = AIBrain.determineMove(JSON.parse(currentPlayerRolls), {
@@ -2120,7 +2121,7 @@ async function decide(client, docCG, docCP, docCPs, docCPVs) {
 
         for(let i = 0; i < docCPsTemp.length; i++) {
             let player = docCPsTemp[i];
-            str += `\`${obj.rolls[i]}\`: <@${player.user_id}>\n`
+            str += `🎲\`${obj.rolls[i]}\`: <@${player.user_id}>\n`
         }
         str += "\n";
 
@@ -2173,8 +2174,12 @@ function _decide(docCPs) {
     /** @type {number[]} */
     let rolls = [];
 
-    for(let player of docCPs) {
-        rolls.push(Bot.Util.getRandomInt(1, 7));
+    //skip rolls where the dice is the same
+    while(rolls.length === 0 || rolls.every(v => v === rolls[0])) {
+        rolls.splice(0, rolls.length);
+        for(let player of docCPs) {
+            rolls.push(Bot.Util.getRandomInt(1, 7));
+        }
     }
 
     let highest = 0;

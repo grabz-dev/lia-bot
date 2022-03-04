@@ -1,4 +1,4 @@
-export const VERSION = 6;
+export const VERSION = 7;
 //Version 4 adds permanent last roll chance mechanic. (2022-03-01)
 const DEBUG = false;
 
@@ -176,22 +176,36 @@ const AIs = {
      * @returns {string}
      */
     normal(rolls, data, internal, _debug) {
+        const THRESHOLD = 500;
         const diceLeft = rolls.length;
         const nextMinimumDiceLeft = nextMinimumDiceLeftThisRoll(rolls);
         const bestPoints = bestPointsThisRoll(rolls);
+        const pointsToGoal = data.pointsGoal - data.pointsCurrent - data.pointsBanked;
 
-        if(_debug) console.info(`diceLeft: ${diceLeft}, nextMinimumDiceLeft: ${nextMinimumDiceLeft}, bestPoints: ${bestPoints}`);
+        const pointDifferentialToNearestOpponent = data.pointsBanked - data.secondToBestPointsBanked;
+        const currentPotentialLeadOverNearestOpponent = pointDifferentialToNearestOpponent + data.pointsCurrent + bestPoints;
+        const pointsToGoalAfterFinish = data.pointsGoal - data.pointsBanked - data.pointsCurrent - bestPoints;
+        const closeEnoughToSweatyPalms = currentPotentialLeadOverNearestOpponent < THRESHOLD && pointsToGoalAfterFinish < THRESHOLD;
+        const canWin = bestPoints >= pointsToGoal;
 
-        if(rolls.length < 6 && data.pointsGoal - data.secondToBestPointsBanked <= 500 && data.pointsGoal - data.pointsBanked <= 500) {
-            const pointsToGoalAfterFinish = data.pointsGoal - data.pointsBanked - data.pointsCurrent - bestPoints;
-            if(pointsToGoalAfterFinish <= 100 && pointsToGoalAfterFinish > 0) {
-                internal.forceFinish = true;
-                if(_debug) console.info(`forceFinish = true, within 100 of goal with opponent closing near`);
-            }
-            else if(pointsToGoalAfterFinish < 0 && pointsToGoalAfterFinish > -300) {
-                internal.forceKeep = true;
-                if(_debug) console.info(`forceKeep = true, not far enough from goal with opponent closing near`);
-            }
+        if(_debug) console.info(JSON.stringify({diceLeft, nextMinimumDiceLeft, bestPoints, pointsToGoal, pointDifferentialToNearestOpponent, currentPotentialLeadOverNearestOpponent, pointsToGoalAfterFinish, closeEnoughToSweatyPalms, canWin}));
+        if(_debug) console.info(JSON.stringify(data));
+
+        //If we can win and our point differential is greater than 400, take it.
+        //If we're on 6 dice, make sure we can get at least 300 points, otherwise skip this until next time
+        if(nextMinimumDiceLeft > 0 && canWin && currentPotentialLeadOverNearestOpponent >= THRESHOLD && ((rolls.length >= 6 && bestPoints >= 300) || rolls.length < 6)) {
+            internal.forceFinish = true;
+            if(_debug) console.info(`forceFinish = true, can win and point differential to nearest opponent >= ${THRESHOLD}`);
+        }
+        //If we are in the close to goal threshold and we can finish with 100 or 50 points to goal, we should do so
+        else if(closeEnoughToSweatyPalms && data.pointsGoal - data.pointsBanked - data.pointsCurrent > 100) {
+            if(_debug) console.info(`GRANULAR val:${data.pointsGoal - data.pointsBanked - data.pointsCurrent - 50}`);
+            return granularChoiceNearGoal(rolls, data.pointsGoal - data.pointsBanked - data.pointsCurrent - 50);
+        }
+        //If we can win but our lead is not enough, try to go for more.
+        else if(canWin && currentPotentialLeadOverNearestOpponent < THRESHOLD) {
+            internal.forceKeep = true;
+            if(_debug) console.info(`forceKeep = true, can win but point differential to nearest opponent < ${THRESHOLD}`);
         }
         //Finish on any dice if >=2000 points and we can't keep everything
         else if(bestPoints + data.pointsCurrent >= 2000 && nextMinimumDiceLeft > 0) {
@@ -380,4 +394,72 @@ function arrayOverlap(rolls, combo) {
     }
 
     return rolls;
+}
+
+/** 
+ * @param {number[]} rolls 
+ * @param {number} toGoal
+ * @returns {string}
+ */
+function granularChoiceNearGoal(rolls, toGoal) {
+    let somethingFound;
+    
+    let rollsDescending = rolls.slice();
+    let strDescending = '';
+    let matchesSortedDescending = matches.slice();
+    matchesSortedDescending.sort((a, b) => b.p - a.p);
+    let toGoalResultDescending = toGoal;
+    somethingFound = true;
+    while(somethingFound) {
+        somethingFound = false;
+
+        for(const match of matchesSortedDescending) {
+            //If match is found and within our ideal points threshold
+            if(match.p <= toGoalResultDescending && arrayOverlap(rollsDescending, match.m)) {
+                for(let die of match.m) rollsDescending.splice(rollsDescending.indexOf(die), 1);
+                toGoalResultDescending -= match.p;
+                somethingFound = true;
+                strDescending += match.m.join('');
+                break;
+            }
+        }
+    }
+
+    let rollsAscending = rolls.slice();
+    let strAscending = '';
+    let matchesSortedAscending = matches.slice();
+    matchesSortedAscending.sort((a, b) => b.p - a.p);
+    let toGoalResultAscending = toGoal;
+    somethingFound = true;
+    while(somethingFound) {
+        somethingFound = false;
+
+        for(const match of matchesSortedAscending) {
+            //If match is found and within our ideal points threshold
+            if(match.p <= toGoalResultAscending && arrayOverlap(rollsAscending, match.m)) {
+                for(let die of match.m) rollsAscending.splice(rollsAscending.indexOf(die), 1);
+                toGoalResultAscending -= match.p;
+                somethingFound = true;
+                strAscending += match.m.join('');
+                break;
+            }
+        }
+    }
+
+    const pointsOffGoal = Math.min(toGoalResultDescending, toGoalResultAscending);
+    const pointsToScore = toGoal - pointsOffGoal;
+    //If we have 5 or 6 rolls, and there were 250 or less points on the board, try to go for single 1 or 5.
+    if(rolls.length >= 5 && pointsToScore < 300 && pointsOffGoal > 100) {
+        if(pointsOffGoal > 100) {
+            if(arrayOverlap(rolls, [1])) return `k1`;
+            if(arrayOverlap(rolls, [5])) return `k5`;
+        }
+        else if(pointsOffGoal > 50) {
+            if(arrayOverlap(rolls, [5])) return `k5`;
+        }
+    }
+
+    let isDescendingBetter = toGoalResultDescending < toGoalResultAscending;
+    if(isDescendingBetter) return `f${strDescending}`;
+    else return `f${strAscending}`;
 }

@@ -19,8 +19,12 @@ const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 800, height: 500, chart
     ChartJS.defaults.font.family = "Helvetica Neue, Helvetica, Arial, sans-serif"
 }});
 
+//hours from last action until all items lose 1 hp
 const DECAY_HOURS = 12;
+//for !hh list
 const ENTRIES_PER_LIST_PAGE = 10;
+//test mode lets you play solo
+const TEST_MODE = false;
 
 /**
  * @typedef {object} Db.hurtheal_setup
@@ -444,7 +448,8 @@ async function action(m, type, args, arg) {
             return;
         }*/
 
-        if(resultsActions.slice(0, this.lastActionsCounted).find((v => v.user_id === m.member.id))) {
+        
+        if(!TEST_MODE && resultsActions.slice(0, this.lastActionsCounted).find((v => v.user_id === m.member.id))) {
             await handleHHMessage.call(this, query, m.message, true, `You have already played within the last ${this.lastActionsCounted} actions. Please wait your turn.`, m.channel, true, true);
             return;
         }
@@ -587,6 +592,17 @@ async function action(m, type, args, arg) {
 
         //Sort things again for final message after changes
         sortThings(items);
+
+        //Delete user's message and post our own
+        /*if(type !== 'decay' && currentItem != null) {
+            m.message.delete().catch(() => {});
+            await m.channel.send({
+                content: `${m.member.nickname??m.member.user.username} ${this.dictionary[type]} **${currentItem.name}** ${reason.trim()}`,
+                allowedMentions: {
+                    parse: ["users"]
+                }
+            });
+        }*/
 
         //Send final message
         await sendNewGameMessage.call(this, m, query, type, await getGameStandingsEmbed.call(this, m, {mode, things: items, game: resultGames, allActions: resultsActions, action: type, gameOver: isGameOver}), isGameOver, isGameOver ? resultGames : undefined);
@@ -824,6 +840,7 @@ async function getGameStandingsEmbed(m, options) {
         let playersCount = Object.keys(users).length;
         let actionsCount = allActions.length;
         embed.description += `${playersCount} player${playersCount != 1 ? 's':''} performed ${actionsCount} action${actionsCount != 1 ? 's':''}.\n`;
+        if(TEST_MODE) embed.description += `__The game is running in test mode.__\n`
 
         if(gameOver) {
             /** @type {{user: Discord.Snowflake, actionCount: number}[]} */let usersArr = [];
