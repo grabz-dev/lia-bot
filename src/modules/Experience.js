@@ -679,6 +679,13 @@ function rename(m, game, id, userName) {
             return;
         }
 
+        /** @type {Db.experience_users} */
+        var resultUsersExists = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_name = ?`, [game, userName])).results[0];
+        if(resultUsersExists) {
+            m.message.reply(`Failed to change name. A user with the name \`${userName}\` is already registered for ${KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown'}.`).catch(logger.error);
+            return;
+        }
+
         await query(`UPDATE experience_users SET user_name = ? WHERE id = ?`, [userName, resultUsers.id]);
 
         m.channel.send(this.bot.locale.category('experience', 'rename_successful', resultUsers.user_name, userName, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
