@@ -130,7 +130,7 @@ export default class Experience extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'info'|'wipe'|'register'|'leaderboard'|'profile'|'new'|'ignore'|'unignore'|'ignorelist'|'message'} ext.action - Custom parameters provided to function call.
+     * @param {'info'|'rename'|'register'|'leaderboard'|'profile'|'new'|'ignore'|'unignore'|'ignorelist'|'message'} ext.action - Custom parameters provided to function call.
      * @param {KCGameMapManager} ext.kcgmm
      * @param {import('./Champion.js').default} ext.champion
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
@@ -140,7 +140,7 @@ export default class Experience extends Bot.Module {
         case 'register':
         case 'leaderboard':
         case 'new':
-        case 'wipe':
+        case 'rename':
         case 'ignore':
         case 'unignore':
         case 'ignorelist':
@@ -174,7 +174,7 @@ export default class Experience extends Bot.Module {
             case 'new':
                 newMaps.call(this, m, game, ext.kcgmm, (args[1]??'').toLowerCase().includes('dm'));
                 return;
-            case 'wipe':
+            case 'rename':
                 let argSnowflake = args[1];
                 if(argSnowflake == null)
                     return this.bot.locale.category('experience', 'err_user_mention_not_provided');
@@ -183,8 +183,10 @@ export default class Experience extends Bot.Module {
                 if(snowflake == null) {
                     return this.bot.locale.category('experience', 'err_user_mention_not_correct');
                 }
+
+                let userName = arg.substring(arg.indexOf(args[1]) + args[1].length + 1);
                 
-                wipe.call(this, m, game, snowflake);
+                rename.call(this, m, game, snowflake, userName);
                 return;
             case 'ignore':
             case 'unignore':
@@ -660,26 +662,26 @@ function newMaps(m, game, kcgmm, dm) {
 }
 
 /**
- * Wipe a user's experience data for a specific game.
+ * Rename a user's name in their registration entry
  * @this {Experience}
  * @param {Bot.Message} m - Message of the user executing the command.
  * @param {string} game
  * @param {string} id
+ * @param {string} userName
  */
-function wipe(m, game, id) {
+function rename(m, game, id, userName) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.experience_users} */
         var resultUsers = (await query(`SELECT * FROM experience_users WHERE game = ? AND user_id = ? FOR UPDATE`, [game, id])).results[0];
 
         if(!resultUsers) {
-            m.message.reply(this.bot.locale.category('experience', 'wipe_failed_not_registered')).catch(logger.error);
+            m.message.reply(this.bot.locale.category('experience', 'rename_failed_not_registered')).catch(logger.error);
             return;
         }
 
-        await query(`DELETE FROM experience_users WHERE game = ? AND user_id = ?`, [game, id]);
-        await query (`DELETE FROM experience_maps_custom WHERE id_experience_users = ?`, [resultUsers.id]);
-        await query (`DELETE FROM experience_maps_campaign WHERE id_experience_users = ?`, [resultUsers.id]);
-        m.channel.send(this.bot.locale.category('experience', 'wipe_successful')).catch(logger.error);
+        await query(`UPDATE experience_users SET user_name = ? WHERE id = ?`, [userName, resultUsers.id]);
+
+        m.channel.send(this.bot.locale.category('experience', 'rename_successful', resultUsers.user_name, userName, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
     }).catch(logger.error);
 }
 

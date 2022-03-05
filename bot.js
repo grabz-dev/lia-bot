@@ -261,8 +261,8 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['leaders', 'leaderboard', 'leaderboards'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'leaderboard', kcgmm: kcgmm, champion: champion });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'wipe', authorityLevel: null}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'wipe' });
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'rename', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
+                return experience.land(message, args, arg, { action: 'rename' });
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'ignore', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return experience.land(message, args, arg, { action: 'ignore', kcgmm: kcgmm });

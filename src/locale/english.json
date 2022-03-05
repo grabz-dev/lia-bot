@@ -58,7 +58,7 @@
             "embed_dm_value": "**Head back to <#457188713978527746> to execute commands.**",
 
             "map_processing_error": "Could not find map list data for %0. Try again later.",
-            "wipe_successful": "Profile removed.",
+            "rename_successful": "Successfully changed name of user `%0` to `%1` for %2.",
             "not_registered": "You have to register first to do this. The registered name has to be the name you use on the leaderboards.\n\nYou can register with `!exp register %0 <name>`",
             "already_registered_with_this_name": "You are already registered as `%0` for %1.",
             "already_registered_with_other_name": "You are already registered as `%0` for %1. If you want to change your name, contact moderation.",
@@ -356,11 +356,12 @@
                 "%space%<game> - cw4, pf, cw3, cw2.",
                 "%space%<name> - The name you use on the leaderboards."
             ],
-            "wipe": [
-                "!%name% <game> <id>",
-                "Full wipe a user's experience data for a specific game.",
+            "rename": [
+                "!%name% <game> <id> <new_username>",
+                "Change a user's registered leaderboard username.",
                 "%space%<game> - cw4, pf, cw3, cw2.",
-                "%space%<id> - The user mention/ping, or the user ID."
+                "%space%<id> - The user mention/ping, or the user ID.",
+                "%space%<new_username> - The new name the user wants to use in leaderboards."
             ],
             "ignore": [
                 "!%name% <game> <map_ids> rest",
