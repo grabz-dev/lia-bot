@@ -338,7 +338,7 @@ export default class Competition extends Bot.Module {
             if(channel == null || !(channel instanceof Discord.TextChannel))
                 return;
                 
-            const overtimeRemaining = (resultMain.time_end_offset??0) - (Date.now() - (resultMain.time_end??0));
+            const overtimeRemaining = (this.timeOffsetHours * 60 * 60 * 1000) - (Date.now() - (resultMain.time_end??0));
 
             /** @type {Discord.Collection<string, Discord.Message>} */
             const messages = new Discord.Collection();
