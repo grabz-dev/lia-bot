@@ -261,8 +261,8 @@ export default class Farkle extends Bot.Module {
                 /** @type {Db.farkle_current_games[]} */
                 let docCGs = (await query(`SELECT * FROM farkle_current_games WHERE current_player_user_id = ${guild.client.user.id}`)).results;
                 for(let docCG of docCGs) {
-                    this.cache.set('0', `bot_playing_${docCG.id}`, true);
-                    this.botPlayerLoop(/** @type {number} */(docCG.id));
+                    let docCPs = (await query(`SELECT * FROM farkle_current_players WHERE id_current_games = ${docCG.id}`)).results;
+                    this._onNewTurn(docCG, docCPs);
                 }
             }
         }).catch(logger.error);
@@ -914,7 +914,23 @@ export default class Farkle extends Bot.Module {
      * @param {number} gameId 
      */
     botPlayerLoop(gameId) {
-        setTimeout(() => this._botPlayerLoop(gameId), (Math.random() + 1) * 3500);
+        ((gameId) => {
+            setTimeout(() => this._botPlayerLoop(gameId), (Math.random() + 1) * 3500);
+        })(gameId);
+    }
+
+    /**
+     * 
+     * @param {Db.farkle_current_games} docCG 
+     * @param {Db.farkle_current_players[]} docCPs 
+     */
+    _onNewTurn(docCG, docCPs) {
+        for(let docCP of docCPs) {
+            if(docCP.user_id === docCG.current_player_user_id && docCP.channel_dm_id == null) {
+                this.botPlayerLoop(/** @type {number} */(docCG.id));
+                break;
+            }
+        }
     }
 
     /**
@@ -922,44 +938,58 @@ export default class Farkle extends Bot.Module {
      * @param {number} gameId 
      */
     async _botPlayerLoop(gameId) {
-        if(this.cache.get('0', `bot_playing_${gameId}`)) {
-            await this.bot.sql.transaction(async query => {
-                /** @type {Db.farkle_current_games} */
-                let docCG = (await query(`SELECT * FROM farkle_current_games WHERE id = ${gameId} AND current_player_user_id = ${this.bot.client.user?.id}`)).results[0];
-                if(docCG != null) {
-                    /** @type {Db.farkle_current_players|null} */
-                    let docCP = (await query(`SELECT * FROM farkle_current_players WHERE id_current_games = ${gameId} AND user_id = ${docCG.current_player_user_id}`)).results[0];
-                    if(docCP == null) return;
+        await this.bot.sql.transaction(async query => {
+            /** @type {Db.farkle_current_games} */
+            let docCG = (await query(`SELECT * FROM farkle_current_games WHERE id = ${gameId} AND current_player_user_id = ${this.bot.client.user?.id}`)).results[0];
+            if(docCG == null) {
+                console.warn('Farkle AI: Current game is null');
+                return;
+            }
 
-                    /** @type {Db.farkle_current_players[]} */
-                    let docCPs = (await query(`SELECT * FROM farkle_current_players WHERE id_current_games = ${gameId}`)).results;
-                    if(docCPs.length === 0) return;
+            /** @type {Db.farkle_current_players[]} */
+            let docCPs = (await query(`SELECT * FROM farkle_current_players WHERE id_current_games = ${gameId}`)).results;
+            if(docCPs.length === 0) {
+                console.warn('Farkle AI: Current game has no players');
+                return;
+            }
+            
+            /** @type {Db.farkle_current_players|null} */
+            let docCP = (await query(`SELECT * FROM farkle_current_players WHERE id_current_games = ${gameId} AND user_id = ${docCG.current_player_user_id}`)).results[0];
+            if(docCP == null) {
+                console.warn('Farkle AI: Current player is null');
+                return;
+            }
 
-                    const indexCurrent = docCPs.findIndex(v => v.user_id === docCP?.user_id);
-                    if(indexCurrent < 0) return;
+            const indexCurrent = docCPs.findIndex(v => v.user_id === docCP?.user_id);
+            if(indexCurrent < 0) {
+                console.warn('Farkle AI: Internal error');
+                return;
+            }
 
-                    let docCPsWithoutCurrent = docCPs.slice();
-                    docCPsWithoutCurrent.splice(indexCurrent, 1);
+            if(this.bot.client.user == null) {
+                console.warn('Farkle AI: User is null');
+                return;
+            }
 
-                    let currentPlayerRolls = docCG.current_player_rolls;
-                    let str = AIBrain.determineMove(JSON.parse(currentPlayerRolls), {
-                        pointsGoal: docCG.points_goal,
-                        pointsCurrent: docCG.current_player_points,
-                        pointsBanked: docCP.total_points_banked,
-                        secondToBestPointsBanked: docCPsWithoutCurrent.slice().sort((a, b) => b.total_points_banked - a.total_points_banked)[0]?.total_points_banked??0,
-                        lastTurn: docCG.last_turn_victory_user_id ? (() => {
-                            let players = docCPs.slice().sort((a, b) => b.total_points_banked - a.total_points_banked);
+            let docCPsWithoutCurrent = docCPs.slice();
+            docCPsWithoutCurrent.splice(indexCurrent, 1);
 
-                            return {
-                                pointsToBeat: players[0]?.total_points_banked ?? 0
-                            }
-                        })() : undefined
-                    }, {});
-                    if(this.bot.client.user) this.onMessageDM({ user: this.bot.client.user, msg: str, gameId });
-                }
-                else this.cache.set('0', `bot_playing_${gameId}`, false);
-            }).catch(logger.error);
-        }
+            let currentPlayerRolls = docCG.current_player_rolls;
+            let str = AIBrain.determineMove(JSON.parse(currentPlayerRolls), {
+                pointsGoal: docCG.points_goal,
+                pointsCurrent: docCG.current_player_points,
+                pointsBanked: docCP.total_points_banked,
+                secondToBestPointsBanked: docCPsWithoutCurrent.slice().sort((a, b) => b.total_points_banked - a.total_points_banked)[0]?.total_points_banked??0,
+                lastTurn: docCG.last_turn_victory_user_id ? (() => {
+                    let players = docCPs.slice().sort((a, b) => b.total_points_banked - a.total_points_banked);
+
+                    return {
+                        pointsToBeat: players[0]?.total_points_banked ?? 0
+                    }
+                })() : undefined
+            }, {});
+            this.onMessageDM({ user: this.bot.client.user, msg: str, gameId });
+        }).catch(logger.error);
     }
 
     /**
@@ -2413,19 +2443,6 @@ async function roll(client, action, docCG, docCPs, docVs, docCPVs, query, state)
 
             await sendDM(client, attendee.user_id, attendee, embed);
         }
-
-        const aiPlay = () => {
-            //AI action
-            for(let docCP of docCPs) {
-                if(docCP.user_id === docCG.current_player_user_id && docCP.channel_dm_id == null) {
-                    this.cache.set('0', `bot_playing_${docCG.id}`, true);
-                    this.botPlayerLoop(/** @type {number} */(docCG.id));
-                }
-                else {
-                    this.cache.set('0', `bot_playing_${docCG.id}`, false);
-                }
-            }
-        }
         
         if(fold) {
             action.type = "fold";
@@ -2444,7 +2461,7 @@ async function roll(client, action, docCG, docCPs, docVs, docCPVs, query, state)
             }
         }
         else {
-            aiPlay();
+            this._onNewTurn(docCG, docCPs);
             break;
         }
     }
