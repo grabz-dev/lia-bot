@@ -368,12 +368,14 @@ export default class Competition extends Bot.Module {
                 }
 
                 const mapData = map.id == null ? undefined : kcgmm.getMapById(map.game, map.id) ?? undefined;
-                const field = await getEmbedFieldFromMapData.call(this, guild, registeredMapLeaderboard, map, emote, mapData);
+                const field = await getEmbedFieldFromMapData.call(this, guild, registeredMapLeaderboard, map, emote, mapData, false);
 
                 if(hasMapStatusChanged.call(this, guild, map, registeredMapLeaderboard)) {
                     const embed = getEmbedScores(KCUtil.gameEmbedColors[map.game]);
-                    embed.title = ":trophy: Score update!";
+                    embed.title = ":trophy: First place score update!";
                     embed.fields = [];
+
+                    const field = await getEmbedFieldFromMapData.call(this, guild, registeredMapLeaderboard, map, emote, mapData, false, true);
                     embed.fields[0] = field;
                     channel.send({ embeds: [embed] }).catch(logger.error);
                 }
@@ -681,7 +683,6 @@ function update(m, kcgmm) {
         m.message.reply(this.bot.locale.category("competition", "score_update_failed")).catch(logger.error);
         logger.error(e);
     });
-    
 }
 
 /**
@@ -1161,9 +1162,10 @@ function getEmbedScores(color, timeRemaining, overtimeRemaining) {
  * @param {string} emoteStr
  * @param {KCGameMapManager.MapData=} mapData
  * @param {boolean=} isPoints
+ * @param {boolean=} onlyFirstPlace
  * @returns {Promise<{name: string, value: string, inline: boolean}>}
  */
-async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData, emoteStr, mapData, isPoints) {
+async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData, emoteStr, mapData, isPoints, onlyFirstPlace) {
     let name = `${emoteStr} ${KCLocaleManager.getDisplayNameFromAlias("map_mode_custom", `${mapScoreQueryData.game}_${mapScoreQueryData.type}`)}`;
     let value = "";
 
@@ -1206,6 +1208,7 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
     
     const entries = mapScoreQueryData.objective == null ? mapLeaderboard.entries[0] : mapLeaderboard.entries[mapScoreQueryData.objective];
     let leaderboardStr = '';
+    let maxScoresInTable = onlyFirstPlace ? Math.min(this.maxScoresInTable, 2) : this.maxScoresInTable;
     if(entries != null && entries.length > 0) {
         for(let i = 0; i < entries.length; i++) {
             let entry = entries[i];
@@ -1214,7 +1217,7 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
             const member = await guild.members.fetch(entry.user).catch(() => {});
             const name = (member ? member.nickname || member.user.username : entry.user).substring(0, 17);
 
-            if(i <= this.maxScoresInTable - 1) {
+            if(i <= maxScoresInTable - 1) {
                 if(isPoints) 
                     leaderboardStr += `${Bot.Util.String.fixedWidth(getPointsFromRank(entry.rank) + " pts", 6, "⠀", true)}`;
                 else
@@ -1222,11 +1225,12 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
                 
                 leaderboardStr += `${Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 8, "⠀", false)} ${name}\n`;
             }
-            else if(i === this.maxScoresInTable) {
-                leaderboardStr += (entries.length - i) + " more scores from: ";
+            else if(i === maxScoresInTable) {
+                if(!onlyFirstPlace) leaderboardStr += `${(entries.length - i)} more scores from: `;
+                else                leaderboardStr += `and ${(entries.length - i)} more scores.`;
             }
 
-            if(i >= this.maxScoresInTable) {
+            if(i >= maxScoresInTable && !onlyFirstPlace) {
                 leaderboardStr += `${name}${i < entries.length - 1 ? ', ' : ''}`;
             }
         }

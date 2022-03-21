@@ -26,8 +26,8 @@ const core = new Bot.Core({
         Discord.Intents.FLAGS.DIRECT_MESSAGE_TYPING,
     ],
     overrideMemberId: '371018033298276353',
-    errorGuildId: '192420539204239361',
-    errorChannelId: '399663134358372382',
+    //errorGuildId: '192420539204239361',
+    //errorChannelId: '399663134358372382',
 });
 
 core.on('ready', bot => {
