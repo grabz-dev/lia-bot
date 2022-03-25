@@ -71,7 +71,7 @@ export class CustomManager {
         /** @type {KCGameMapManager.MapData[]} */
         const selectedIds = [];
         const maxRank = 10;
-        const highRankMapsToSelect = 4;
+        const highRankMapsToSelect = 3;
         for(let i = 1; i <= maxRank; i++) {
             if(selectedIds.length >= highRankMapsToSelect) break;
             selectRandomMaps(selectedIds, kcgmm.getHighestRankedMonthlyMaps(resultUsers.game, Infinity, i, allMapsCompleted), allMapsCompleted, oldMapsParsedFromDb.ignored, highRankMapsToSelect);
