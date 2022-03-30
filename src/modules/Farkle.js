@@ -549,7 +549,7 @@ export default class Farkle extends Bot.Module {
 
                 embed.description += "\nType \`concede\` to drop out of the match.";
 
-                if(message instanceof Discord.Message) await message.channel.send({ embeds: [embed] });
+                await sendDM(user.client, docCP.user_id, docCP, embed);
                 return;
             }
             else if(type === "hurry") {
