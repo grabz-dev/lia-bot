@@ -185,6 +185,16 @@
                 "I wonder what game to play..."
             ]
         },
+        "blacklist": {
+            "add": [
+                "!%name% <id>",
+                "Add a user to the blacklist. Blacklisted users cannot interact with the bot."
+            ],
+            "remove": [
+                "!%name% <id>",
+                "Remove a user from the blacklist."
+            ]
+        },
         "hh": {
             "": [
                 "!%name%",

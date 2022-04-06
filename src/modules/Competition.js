@@ -221,7 +221,11 @@ export default class Competition extends Bot.Module {
                 arg = arg.substring(arg.indexOf(" ") + 1);
                 
                 if(arg.indexOf('[M] ') > -1) {
-                    return 'Your competition name cannot contain the Mverse [M] prefix.';
+                    return 'Your name cannot contain the Mverse [M] prefix.';
+                }
+
+                if(arg.indexOf('`') > -1 || arg.indexOf('&') > -1 || arg.indexOf('?') > -1 || arg.indexOf('=') > -1) {
+                    return 'One or more disallowed characters used in leaderboard name.';
                 }
 
                 let name = arg;
@@ -473,14 +477,14 @@ function register(m, game, name) {
 function unregister(m, snowflake) {
     this.bot.sql.transaction(async query => {
         /** @type {Db.competition_register[]} */
-        var resultsRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? FOR UPDATE`, [m.guild.id, m.member.id])).results;
+        var resultsRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? FOR UPDATE`, [m.guild.id, snowflake])).results;
 
         if(resultsRegister.length <= 0) {
             m.message.reply(this.bot.locale.category("competition", "unregister_not_registered")).catch(logger.error);
             return;
         }
 
-        await query(`DELETE FROM competition_register WHERE guild_id = ? AND user_id = ?`, [m.guild.id, m.member.id]);
+        await query(`DELETE FROM competition_register WHERE guild_id = ? AND user_id = ?`, [m.guild.id, snowflake]);
 
         m.message.reply(this.bot.locale.category("competition", "unregister_success", resultsRegister.length+"")).catch(logger.error);
     }).catch(logger.error);

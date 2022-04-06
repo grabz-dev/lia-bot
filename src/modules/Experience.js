@@ -163,7 +163,11 @@ export default class Experience extends Bot.Module {
                 arg = arg.substring(arg.indexOf(' ') + 1);
 
                 if(arg.indexOf('[M] ') > -1) {
-                    return 'Your competition name cannot contain the Mverse [M] prefix.';
+                    return 'Your name cannot contain the Mverse [M] prefix.';
+                }
+
+                if(arg.indexOf('`') > -1 || arg.indexOf('&') > -1 || arg.indexOf('?') > -1 || arg.indexOf('=') > -1) {
+                    return 'One or more disallowed characters used in leaderboard name.';
                 }
 
                 register.call(this, m, game, arg);
