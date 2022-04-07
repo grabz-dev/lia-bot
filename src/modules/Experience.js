@@ -108,25 +108,31 @@ export default class Experience extends Bot.Module {
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 id_experience_users INT UNSIGNED NOT NULL,
                 map_id MEDIUMINT UNSIGNED NOT NULL,
-                state TINYINT(2) NOT NULL
+                state TINYINT(2) NOT NULL,
+                timestamp_claimed BIGINT UNSIGNED NOT NULL
              )`);
             await query(`CREATE TABLE IF NOT EXISTS experience_maps_campaign (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 id_experience_users INT UNSIGNED NOT NULL,
                 game_uid VARCHAR(128) BINARY NOT NULL,
-                state TINYINT(2) NOT NULL
+                state TINYINT(2) NOT NULL,
+                timestamp_claimed BIGINT UNSIGNED NOT NULL
              )`);
             await query(`CREATE TABLE IF NOT EXISTS experience_maps_markv (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 id_experience_users INT UNSIGNED NOT NULL,
                 seed VARCHAR(128) BINARY NOT NULL,
-                state TINYINT(2) NOT NULL
+                state TINYINT(2) NOT NULL,
+                timestamp_claimed BIGINT UNSIGNED NOT NULL
              )`);
         }).catch(logger.error);
 
         this.bot.sql.transaction(async query => {
             await query('ALTER TABLE experience_users ADD COLUMN timestamp_profile BIGINT UNSIGNED NOT NULL').catch(() => {});
             await query('ALTER TABLE experience_users ADD COLUMN timestamp_new BIGINT UNSIGNED NOT NULL').catch(() => {});
+            await query('ALTER TABLE experience_maps_custom ADD COLUMN timestamp_claimed BIGINT UNSIGNED NOT NULL').catch(() => {});
+            await query('ALTER TABLE experience_maps_campaign ADD COLUMN timestamp_claimed BIGINT UNSIGNED NOT NULL').catch(() => {});
+            await query('ALTER TABLE experience_maps_markv ADD COLUMN timestamp_claimed BIGINT UNSIGNED NOT NULL').catch(() => {});
         }).catch(logger.error);
     }
 
@@ -573,9 +579,9 @@ function newMaps(m, game, kcgmm, dm) {
         }
 
 
-        const data_custom = await this.managers.custom.newMaps(query, kcgmm, resultUsers, mapListArray, mapListId);
-        const data_campaign = await this.managers.campaign.newMaps(query, kcgmm, resultUsers);
-        const data_markv = await this.managers.markv.newMaps(query, kcgmm, resultUsers);
+        const data_custom = await this.managers.custom.newMaps(query, kcgmm, resultUsers, now, mapListArray, mapListId);
+        const data_campaign = await this.managers.campaign.newMaps(query, kcgmm, resultUsers, now);
+        const data_markv = await this.managers.markv.newMaps(query, kcgmm, resultUsers, now);
 
         let totalCompletedOld = 0;
         totalCompletedOld += data_custom.countOldTotalCompleted;

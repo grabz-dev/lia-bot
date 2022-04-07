@@ -49,11 +49,12 @@ export class CustomManager {
      * @param {SQLWrapper.Query} query
      * @param {KCGameMapManager} kcgmm
      * @param {Db.experience_users} resultUsers 
+     * @param {number} timestamp
      * @param {KCGameMapManager.MapData[]} mapListArray
      * @param {Discord.Collection<number, KCGameMapManager.MapData>} mapListId
      * @returns {Promise<NewMapsData>}
      */
-    async newMaps(query, kcgmm, resultUsers, mapListArray, mapListId) {
+    async newMaps(query, kcgmm, resultUsers, timestamp, mapListArray, mapListId) {
         const mapListsForProcessing = {
             asArray: mapListArray, //mapListArrayModified
             byId: mapListId.clone() //mapListIdModified
@@ -83,12 +84,12 @@ export class CustomManager {
             WHERE id_experience_users = '${resultUsers.id}' AND state = '0'`);
 
         for(let mapData of oldSelectedMaps.finished) {
-            await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state)
-                VALUES ('${resultUsers.id}', '${mapData.id}', '1')`);
+            await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state, timestamp_claimed)
+                VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.id, 1, timestamp]);
         }
         for(let mapData of selectedIds) {
-            await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state)
-                VALUES ('${resultUsers.id}', '${mapData.id}', '0')`);
+            await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state, timestamp_claimed)
+                VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.id, 0, timestamp]);
         }
 
         const newSelectedMaps = await getMapsCompleted(selectedIds, resultUsers.user_name, kcgmm);

@@ -101,9 +101,10 @@ export class MarkVManager {
      * @param {SQLWrapper.Query} query
      * @param {KCGameMapManager} kcgmm
      * @param {Db.experience_users} resultUsers 
+     * @param {number} timestamp
      * @returns {Promise<NewMapsData>}
      */
-    async newMaps(query, kcgmm, resultUsers) {
+    async newMaps(query, kcgmm, resultUsers, timestamp) {
         //Get all campaign maps of current user
         /** @type {Db.experience_maps_markv[]} */
         const resultsMapsMarkV = (await query(`SELECT * FROM experience_maps_markv
@@ -122,13 +123,13 @@ export class MarkVManager {
             WHERE id_experience_users = '${resultUsers.id}' AND state = '0'`);
 
         for(let mapData of oldSelectedMaps.finished) {
-            await query(`INSERT INTO experience_maps_markv (id_experience_users, seed, state)
-                         VALUES ('${resultUsers.id}', '${mapData}', '1')`);
+            await query(`INSERT INTO experience_maps_markv (id_experience_users, seed, state, timestamp_claimed)
+                         VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData, 1, timestamp]);
         }
 
         for(let mapData of selectedMarkVMaps) {
-            await query(`INSERT INTO experience_maps_markv (id_experience_users, seed, state)
-                         VALUES ('${resultUsers.id}', '${mapData}', '0')`);
+            await query(`INSERT INTO experience_maps_markv (id_experience_users, seed, state, timestamp_claimed)
+                         VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData, 0, timestamp]);
         }
 
         const newSelectedMaps = await getMapsCompleted(selectedMarkVMaps, resultUsers.user_name, kcgmm);

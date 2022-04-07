@@ -252,9 +252,10 @@ export class CampaignManager {
      * @param {SQLWrapper.Query} query
      * @param {KCGameMapManager} kcgmm
      * @param {Db.experience_users} resultUsers 
+     * @param {number} timestamp
      * @returns {Promise<NewMapsData>}
      */
-    async newMaps(query, kcgmm, resultUsers) {
+    async newMaps(query, kcgmm, resultUsers, timestamp) {
         //Get all campaign maps of current user
         /** @type {Db.experience_maps_campaign[]} */
         const resultsMapsCampaign = (await query(`SELECT * FROM experience_maps_campaign
@@ -272,13 +273,13 @@ export class CampaignManager {
             WHERE id_experience_users = '${resultUsers.id}' AND state = '0'`);
 
         for(let mapData of oldSelectedMaps.finished) {
-            await query(`INSERT INTO experience_maps_campaign (id_experience_users, game_uid, state)
-                         VALUES ('${resultUsers.id}', '${mapData.gameUID}', '1')`);
+            await query(`INSERT INTO experience_maps_campaign (id_experience_users, game_uid, state, timestamp_claimed)
+                         VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.gameUID, 1, timestamp]);
         }
 
         for(let mapData of selectedCampaignMaps) {
-            await query(`INSERT INTO experience_maps_campaign (id_experience_users, game_uid, state)
-                         VALUES ('${resultUsers.id}', '${mapData.gameUID}', '0')`);
+            await query(`INSERT INTO experience_maps_campaign (id_experience_users, game_uid, state, timestamp_claimed)
+                         VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.gameUID, 0, timestamp]);
         }
 
         const newSelectedMaps = await getMapsCompleted(selectedCampaignMaps, resultUsers.user_name, kcgmm);
