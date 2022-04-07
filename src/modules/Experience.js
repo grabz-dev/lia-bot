@@ -790,8 +790,8 @@ function ignore(m, game, mapIds, ignore, opts) {
                         await query(`DELETE FROM experience_maps_custom
                             WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${mapId}' AND state = '0'`);
                     }
-                    await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state)
-                        VALUES ('${resultUsers.id}', '${mapId}', '2')`);
+                    await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state, timestamp_claimed)
+                        VALUES (?, ?, ?, ?)`, [resultUsers.id, mapId, 2, Date.now()]);
                 }
             }
 
