@@ -895,12 +895,10 @@ function intro(m, type) {
  * @param {import('./Champion.js').default} champion
  */
 async function buildScoreTally(guild, channel, query, champion) {
-    /** @type {Discord.Collection<Discord.Snowflake, number>} */
-    const championsWeeks = new Discord.Collection();
     /** @type {Discord.Collection<Discord.Snowflake, boolean>} */
     const champions = new Discord.Collection();
-    /** @type {Discord.Collection<Discord.Snowflake, number>} */
-    const userPointsTally = new Discord.Collection();
+    /** @type {Discord.Collection<Discord.Snowflake, { points: number, champion: boolean, weeks: number }>} */
+    const players = new Discord.Collection();
     /** @type {Discord.Collection<Discord.Snowflake, Promise<void | Discord.GuildMember>>} */
     const guildMembersPromise = new Discord.Collection();
     /** @type {Discord.Collection<Discord.Snowflake, Discord.GuildMember>} */
@@ -926,14 +924,16 @@ async function buildScoreTally(guild, channel, query, champion) {
                 WHERE id_competition_history_maps = '${resultMaps.id}'`)).results;
 
             for(let resultScores of resultsScores) {
-                let tally = userPointsTally.get(resultScores.user_id)??0;
-                tally += getPointsFromRank(resultScores.user_rank);
-                userPointsTally.set(resultScores.user_id, tally);
+                let player = players.get(resultScores.user_id);
+                const points = ((player?.points)??0) + getPointsFromRank(resultScores.user_rank);
                 guildMembersPromise.set(resultScores.user_id, guild.members.fetch(resultScores.user_id).catch(() => {}));
 
                 if(resultScores.user_rank === 1) {
-                    championsWeeks.set(resultScores.user_id, i);
+                    players.set(resultScores.user_id, { points: points, champion: true, weeks: i });
                     champions.set(resultScores.user_id, true);
+                }
+                else {
+                    players.set(resultScores.user_id, { points: points, champion: false, weeks: 0 });
                 }
             }
         }
@@ -946,23 +946,23 @@ async function buildScoreTally(guild, channel, query, champion) {
             guildMembers.set(keyval[0], member);
     }
 
-    championsWeeks.sort((a, b) => b - a);
-    userPointsTally.sort((a, b) => b - a);
+    players.sort((a, b) => b.points - a.points);
 
     (() => {
         let i = 0;
         let lastPoints = 0;
-        userPointsTally.each((value, key) => {
+        players.each((value, key) => {
             //if we're looking at the 6th player and they have the same score as the 5th player, bump them back down to being a 5th player
-            if(i === tallyChamps && value === lastPoints)
+            if(i === tallyChamps && value.points === lastPoints)
                 i--;
 
             //if this player is within the first five ranks
             if(i < tallyChamps) {
+                value.champion = true;
                 champions.set(key, true);
             }
 
-            lastPoints = value;
+            lastPoints = value.points;
             i++;
         });
     })();
@@ -978,8 +978,8 @@ async function buildScoreTally(guild, channel, query, champion) {
         }
         let i = 1;
         let lastPoints = 0;
-        for(let user of userPointsTally) {
-            let points = user[1];
+        for(let user of players) {
+            let points = user[1].points;
             let snowflake = user[0];
 
             if(i - 1 === tallyChamps && points === lastPoints)
@@ -1005,28 +1005,21 @@ async function buildScoreTally(guild, channel, query, champion) {
             value: "",
             inline: false
         }
-        for(let champion of championsWeeks) {
-            let weeks = champion[1];
-            let snowflake = champion[0];
+        for(let player of players) {
+            const snowflake = player[0];
+            const data = player[1];
             
+            if(!data.champion) continue;
+
             const championMember = guildMembers.get(snowflake);
             const name = championMember ? (championMember.nickname ?? championMember.user.username) : null;
-            if(name) field.value += `\`${weeks} weeks left\` ${name}\n`;
+            if(name) field.value += `\`${data.points} points${Bot.Util.String.fixedWidth('', data.weeks, '*')}\` ${name}\n`;
         }
-        let i = 0;
-        for(let user of userPointsTally) {
-            let points = user[1];
-            let snowflake = user[0];
-            if(championsWeeks.get(snowflake) == null) {
-                const championMember = guildMembers.get(snowflake);
-                const name = championMember ? (championMember.nickname ?? championMember.user.username) : null;
-                if(name) field.value += `\`${points} points\` ${name}\n`;
-            }
 
-            i++;
-            if(i >= tallyChamps) break;
-        }
         if(field.value.length === 0) field.value = "None";
+        else {
+            field.value += `\nEach * is the number of competitions this player is guaranteed to remain Champion for getting 1st place\n`;
+        }
         
         embed.fields = [];
         embed.fields.push(field);
