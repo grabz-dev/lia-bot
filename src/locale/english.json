@@ -352,7 +352,7 @@
             "profile": [
                 "!%name% <game> DM",
                 "Display information about your current profile.",
-                "%space%<game> (Optional) - cw4, pf, cw3, cw2",
+                "%space%<game> - cw4, pf, cw3, cw2",
                 "%space%dm - If DM is typed, a copy of the message is DM'd."
             ],
             "leaders": [

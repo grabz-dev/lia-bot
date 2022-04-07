@@ -27,6 +27,8 @@
  * @property {string} user_name
  * @property {string} game
  * @property {string} maps_current
+ * @property {number} timestamp_profile
+ * @property {number} timestamp_new
  */
 
 /**
@@ -65,6 +67,8 @@ import { CustomManager, getMapsCompleted } from './Experience/CustomManager.js';
 import { CampaignManager } from './Experience/CampaignManager.js';
 import { MarkVManager } from './Experience/MarkVManager.js';
 
+const COOLDOWN_TIME = 1000 * 60;
+
 export default class Experience extends Bot.Module {
     /**
      * @constructor
@@ -96,7 +100,9 @@ export default class Experience extends Bot.Module {
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 user_id VARCHAR(64) NOT NULL,
                 user_name VARCHAR(128) BINARY NOT NULL,
-                game VARCHAR(16) NOT NULL
+                game VARCHAR(16) NOT NULL,
+                timestamp_profile BIGINT UNSIGNED NOT NULL,
+                timestamp_new BIGINT UNSIGNED NOT NULL
              )`);
             await query(`CREATE TABLE IF NOT EXISTS experience_maps_custom (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -116,6 +122,11 @@ export default class Experience extends Bot.Module {
                 seed VARCHAR(128) BINARY NOT NULL,
                 state TINYINT(2) NOT NULL
              )`);
+        }).catch(logger.error);
+
+        this.bot.sql.transaction(async query => {
+            await query('ALTER TABLE experience_users ADD COLUMN timestamp_profile BIGINT UNSIGNED NOT NULL').catch(() => {});
+            await query('ALTER TABLE experience_users ADD COLUMN timestamp_new BIGINT UNSIGNED NOT NULL').catch(() => {});
         }).catch(logger.error);
     }
 
@@ -140,6 +151,7 @@ export default class Experience extends Bot.Module {
         case 'register':
         case 'leaderboard':
         case 'new':
+        case 'profile':
         case 'rename':
         case 'ignore':
         case 'unignore':
@@ -177,6 +189,9 @@ export default class Experience extends Bot.Module {
                 return;
             case 'new':
                 newMaps.call(this, m, game, ext.kcgmm, (args[1]??'').toLowerCase().includes('dm'));
+                return;
+            case 'profile':
+                profile.call(this, m, game, ext.kcgmm, (args[1]??'').toLowerCase().includes('dm'));
                 return;
             case 'rename':
                 let argSnowflake = args[1];
@@ -220,18 +235,6 @@ export default class Experience extends Bot.Module {
                 message.call(this, m, game, ext.kcgmm, ext.champion);
                 return;
             }
-        }
-        case 'profile': {
-            /** @type {string|undefined} */
-            let game = args[0];
-            if(game != null) {
-                game = KCLocaleManager.getPrimaryAliasFromAlias('game', game) ?? '';
-                if(game.length === 0 || !this.games.includes(game))
-                    game = undefined;
-            }
-
-            profile.call(this, m, game, ext.kcgmm, (args[0]??'').toLowerCase().includes('dm') || (args[1]??'').toLowerCase().includes('dm'));
-            return;
         }
         case 'info': {
             if(this.games.includes(KCLocaleManager.getPrimaryAliasFromAlias('game', arg)||'')) {
@@ -345,7 +348,7 @@ function register(m, game, name) {
         }
 
         if(this.cache.get(m.guild.id, 'pendingRegistration.' + m.guild.id) === name) {
-            await query(`INSERT INTO experience_users (user_id, user_name, game) VALUES (?, ?, ?)`, [m.member.id, name, game]);
+            await query(`INSERT INTO experience_users (user_id, user_name, game, timestamp_profile, timestamp_new) VALUES (?, ?, ?, ?, ?)`, [m.member.id, name, game, 0, 0]);
 
             m.message.reply(this.bot.locale.category('experience', 'register_success', name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown', game)).catch(logger.error);
         }
@@ -403,7 +406,7 @@ function message(m, game, kcgmm, champion) {
  * Show the user's experience breakdown for each game.
  * @this {Experience}
  * @param {Bot.Message} m - Message of the user executing the command.
- * @param {string|undefined} game
+ * @param {string} game
  * @param {KCGameMapManager} kcgmm
  * @param {boolean} dm
  */
@@ -422,91 +425,88 @@ function profile(m, game, kcgmm, dm) {
             emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
         }).catch(logger.error);
 
-        const games = game == null ? this.games : [game];
-        if(games.length === 1)
-            embed.color = KCUtil.gameEmbedColors[games[0]];
+        embed.color = KCUtil.gameEmbedColors[game];
 
-        for(let game of games) {
-            const mapListId = getMapListId.call(this, kcgmm, game);
-            if(mapListId == null) continue;
-
-            let field = {
-                name: '...',
-                value: '...',
-                inline: false,
-            }
-
-            /** @type {Db.experience_users} */
-            let resultUsers = (await query(`SELECT * FROM experience_users
-                                            WHERE user_id = '${m.member.id}' AND game = '${game}'`)).results[0];
-
-            if(resultUsers == null) {
-                let expData = getExpDataFromTotalExp(0);
-                field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
-
-                field.value = Bot.Util.getSpecialWhitespace(3);
-                field.value += this.bot.locale.category('experience', 'embed_not_registered_1', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown');
-                field.value = Bot.Util.getSpecialWhitespace(3);
-                field.value += this.bot.locale.category('experience', 'embed_not_registered_2', KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown');
-            }
-            else {
-                const data_custom = await this.managers.custom.profile(query, kcgmm, resultUsers, mapListId);
-                const data_campaign = await this.managers.campaign.profile(query, kcgmm, resultUsers);
-                const data_markv = await this.managers.markv.profile(query, kcgmm, resultUsers);
-
-                let totalCompleted = 0;
-                totalCompleted += data_custom.countTotalCompleted;
-                totalCompleted += data_campaign.countTotalCompleted;
-                totalCompleted += data_markv.countTotalCompleted;
-
-                let totalExp = 0;
-                totalExp += this.managers.custom.getExpFromMaps(data_custom.mapsTotalCompleted, kcgmm, totalCompleted);
-                totalExp += this.managers.campaign.getExpFromMaps(data_campaign.mapsTotalCompleted, totalCompleted);
-                totalExp += this.managers.markv.getExpFromMaps(data_markv.mapsTotalCompleted, totalCompleted);
-
-                if(games.length === 1)
-                    embed.description = await getProfileInfoString.call(this, totalCompleted, resultUsers, query, kcgmm, mapListId, m.guild, m.member, game);
-
-                let expData = getExpDataFromTotalExp(totalExp);
-
-                field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
-
-                let str = '';
-                str += this.bot.locale.category('experience', 'embed_maps_2');
-                str += ' ';
-                for(let j = 0; j < data_custom.selectedMaps.finished.length; j++)
-                    str += `\`#${data_custom.selectedMaps.finished[j].id}\` `;
-                for(let j = 0; j < data_campaign.selectedMaps.finished.length; j++)
-                    str += `\`${data_campaign.selectedMaps.finished[j].mapName}\` `;
-                for(let j = 0; j < data_markv.selectedMaps.finished.length; j++)
-                    str += `\`${data_markv.selectedMaps.finished[j]}\` `;
-                str += '\n';
-                str += this.bot.locale.category('experience', 'embed_maps_1');
-                if(games.length === 1) {
-                    str += '\n';
-                    for(let map of data_custom.selectedMaps.unfinished)
-                        str += this.managers.custom.getMapClaimString(map, kcgmm, totalCompleted) + '\n';
-                    for(let map of data_campaign.selectedMaps.unfinished)
-                        str += this.managers.campaign.getMapClaimString(map, totalCompleted) + '\n';
-                    for(let map of data_markv.selectedMaps.unfinished)
-                        str += this.managers.markv.getMapClaimString(map, totalCompleted) + '\n';
-                    str = str.substring(0, str.length - 1);
-                }
-                else {
-                    for(let j = 0; j < data_custom.selectedMaps.unfinished.length; j++)
-                        str += `\`#${data_custom.selectedMaps.unfinished[j].id}\` `;
-                    for(let j = 0; j < data_campaign.selectedMaps.unfinished.length; j++)
-                        str += `\`${data_campaign.selectedMaps.unfinished[j].mapName}\` `;
-                    for(let j = 0; j < data_markv.selectedMaps.unfinished.length; j++)
-                        str += `\`${data_markv.selectedMaps.unfinished[j]}\` `;
-                }
-                
-                field.value = str;
-                field.name += ' ' + resultUsers.user_name;
-            }
-
-            embed.fields.push(field);
+        const mapListId = getMapListId.call(this, kcgmm, game);
+        if(mapListId == null) {
+            m.channel.send("Failed to retrieve map list.").catch(logger.error);
+            return;
         }
+
+        let field = {
+            name: '...',
+            value: '...',
+            inline: false,
+        }
+
+        /** @type {Db.experience_users} */
+        let resultUsers = (await query(`SELECT * FROM experience_users
+                                        WHERE user_id = '${m.member.id}' AND game = '${game}'`)).results[0];
+
+        if(resultUsers == null) {
+            let expData = getExpDataFromTotalExp(0);
+            field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
+
+            field.value = Bot.Util.getSpecialWhitespace(3);
+            field.value += this.bot.locale.category('experience', 'embed_not_registered_1', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown');
+            field.value = Bot.Util.getSpecialWhitespace(3);
+            field.value += this.bot.locale.category('experience', 'embed_not_registered_2', KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown');
+        }
+        else {
+            const now = Date.now();
+            const remaining = now - resultUsers.timestamp_profile;
+            if(remaining < COOLDOWN_TIME) {
+                m.message.reply(`This command is on cooldown. You can use it again in ${Math.ceil((COOLDOWN_TIME - remaining) / 1000)} seconds.`).catch(logger.error);
+                return;
+            }
+            await query(`UPDATE experience_users SET timestamp_profile = ? WHERE id = ?`, [now, resultUsers.id]);
+
+            const data_custom = await this.managers.custom.profile(query, kcgmm, resultUsers, mapListId);
+            const data_campaign = await this.managers.campaign.profile(query, kcgmm, resultUsers);
+            const data_markv = await this.managers.markv.profile(query, kcgmm, resultUsers);
+
+            let totalCompleted = 0;
+            totalCompleted += data_custom.countTotalCompleted;
+            totalCompleted += data_campaign.countTotalCompleted;
+            totalCompleted += data_markv.countTotalCompleted;
+
+            let totalExp = 0;
+            totalExp += this.managers.custom.getExpFromMaps(data_custom.mapsTotalCompleted, kcgmm, totalCompleted);
+            totalExp += this.managers.campaign.getExpFromMaps(data_campaign.mapsTotalCompleted, totalCompleted);
+            totalExp += this.managers.markv.getExpFromMaps(data_markv.mapsTotalCompleted, totalCompleted);
+
+            embed.description = await getProfileInfoString.call(this, totalCompleted, resultUsers, query, kcgmm, mapListId, m.guild, m.member, game);
+
+            let expData = getExpDataFromTotalExp(totalExp);
+
+            field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
+
+            let str = '';
+            str += this.bot.locale.category('experience', 'embed_maps_2');
+            str += ' ';
+            for(let j = 0; j < data_custom.selectedMaps.finished.length; j++)
+                str += `\`#${data_custom.selectedMaps.finished[j].id}\` `;
+            for(let j = 0; j < data_campaign.selectedMaps.finished.length; j++)
+                str += `\`${data_campaign.selectedMaps.finished[j].mapName}\` `;
+            for(let j = 0; j < data_markv.selectedMaps.finished.length; j++)
+                str += `\`${data_markv.selectedMaps.finished[j]}\` `;
+            str += '\n';
+            str += this.bot.locale.category('experience', 'embed_maps_1');
+            str += '\n';
+            for(let map of data_custom.selectedMaps.unfinished)
+                str += this.managers.custom.getMapClaimString(map, kcgmm, totalCompleted) + '\n';
+            for(let map of data_campaign.selectedMaps.unfinished)
+                str += this.managers.campaign.getMapClaimString(map, totalCompleted) + '\n';
+            for(let map of data_markv.selectedMaps.unfinished)
+                str += this.managers.markv.getMapClaimString(map, totalCompleted) + '\n';
+            str = str.substring(0, str.length - 1);
+            
+            field.value = str;
+            field.name += ' ' + resultUsers.user_name;
+        }
+
+        embed.fields.push(field);
+        
 
         embed.fields[embed.fields.length - 1].value += '\n' + Bot.Util.getSpecialWhitespace(1);
 
@@ -556,6 +556,14 @@ function newMaps(m, game, kcgmm, dm) {
             m.message.reply(this.bot.locale.category('experience', 'not_registered', KCLocaleManager.getPrimaryAliasFromAlias('game', game) || 'unknown')).catch(logger.error);
             return;
         }
+
+        const now = Date.now();
+        const remaining = now - resultUsers.timestamp_new;
+        if(remaining < COOLDOWN_TIME) {
+            m.message.reply(`This command is on cooldown. You can use it again in ${Math.ceil((COOLDOWN_TIME - remaining) / 1000)} seconds.`).catch(logger.error);
+            return;
+        }
+        await query(`UPDATE experience_users SET timestamp_new = ? WHERE id = ?`, [now, resultUsers.id]);
 
         const mapListArray = getMapListArray.call(this, kcgmm, game);
         const mapListId = getMapListId.call(this, kcgmm, game);
