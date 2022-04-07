@@ -107,8 +107,7 @@ export class MarkVManager {
     async newMaps(query, kcgmm, resultUsers, timestamp) {
         //Get all campaign maps of current user
         /** @type {Db.experience_maps_markv[]} */
-        const resultsMapsMarkV = (await query(`SELECT * FROM experience_maps_markv
-            WHERE id_experience_users = '${resultUsers.id}'`)).results;
+        const resultsMapsMarkV = (await query(`SELECT * FROM experience_maps_markv WHERE id_experience_users = ? FOR UPDATE`, [resultUsers.id])).results;
 
         const oldMapsParsedFromDb = getMapsParsedFromDatabase.call(this, resultsMapsMarkV, resultUsers);
         const oldSelectedMaps = await getMapsCompleted(oldMapsParsedFromDb.selected, resultUsers.user_name, kcgmm);
@@ -118,18 +117,31 @@ export class MarkVManager {
         let selectedMarkVMaps = [];
         //selectMarkVMaps.call(this, selectedMarkVMaps, resultUsers, allMapsCompleted, oldMapsParsedFromDb.ignored);
         //selectMarkVMaps.call(this, selectedMarkVMaps, resultUsers, allMapsCompleted, oldMapsParsedFromDb.ignored);
-        
-        await query(`DELETE FROM experience_maps_markv
-            WHERE id_experience_users = '${resultUsers.id}' AND state = '0'`);
 
+        await query(`UPDATE experience_maps_markv SET state = 3 WHERE state = 0 AND id_experience_users = ?`, [resultUsers.id]);
         for(let mapData of oldSelectedMaps.finished) {
-            await query(`INSERT INTO experience_maps_markv (id_experience_users, seed, state, timestamp_claimed)
-                         VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData, 1, timestamp]);
-        }
+            /** @type {Db.experience_maps_markv|null} */
+            let existing = (await query(`SELECT * FROM experience_maps_markv WHERE id_experience_users = ? AND seed = ?`, [resultUsers.id, mapData])).results[0];
 
+            if(existing) {
+                await query(`UPDATE experience_maps_markv SET state = ?, timestamp_claimed = ? WHERE id = ?`, [1, timestamp, existing.id]);
+            }
+            else {
+                await query(`INSERT INTO experience_maps_markv (id_experience_users, seed, state, timestamp_claimed)
+                             VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData, 1, timestamp]);
+            }
+        }
         for(let mapData of selectedMarkVMaps) {
-            await query(`INSERT INTO experience_maps_markv (id_experience_users, seed, state, timestamp_claimed)
-                         VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData, 0, timestamp]);
+            /** @type {Db.experience_maps_markv|null} */
+            let existing = (await query(`SELECT * FROM experience_maps_markv WHERE id_experience_users = ? AND seed = ?`, [resultUsers.id, mapData])).results[0];
+
+            if(existing) {
+                await query(`UPDATE experience_maps_markv SET state = ?, timestamp_claimed = ? WHERE id = ?`, [0, timestamp, existing.id]);
+            }
+            else {
+                await query(`INSERT INTO experience_maps_markv (id_experience_users, seed, state, timestamp_claimed)
+                             VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData, 0, timestamp]);
+            }
         }
 
         const newSelectedMaps = await getMapsCompleted(selectedMarkVMaps, resultUsers.user_name, kcgmm);

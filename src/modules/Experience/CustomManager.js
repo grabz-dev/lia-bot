@@ -61,8 +61,7 @@ export class CustomManager {
         }
         //Get all custom maps of current user
         /** @type {Db.experience_maps_custom[]} */
-        const resultsMapsCustom = (await query(`SELECT * FROM experience_maps_custom
-            WHERE id_experience_users = '${resultUsers.id}'`)).results;
+        const resultsMapsCustom = (await query(`SELECT * FROM experience_maps_custom WHERE id_experience_users = ? FOR UPDATE`, [resultUsers.id])).results;
 
         const oldMapsParsedFromDb = getMapsParsedFromDatabase(mapListId, resultsMapsCustom);
         const oldSelectedMaps = await getMapsCompleted(oldMapsParsedFromDb.selected, resultUsers.user_name, kcgmm);
@@ -80,16 +79,30 @@ export class CustomManager {
         selectRandomMaps(selectedIds, mapListsForProcessing.asArray, allMapsCompleted, oldMapsParsedFromDb.ignored, 6);
         selectedIds.sort((a, b) => this.getExpFromMap(b, kcgmm, countNewTotalCompleted) - this.getExpFromMap(a, kcgmm, countNewTotalCompleted));
 
-        await query(`DELETE FROM experience_maps_custom
-            WHERE id_experience_users = '${resultUsers.id}' AND state = '0'`);
-
+        await query(`UPDATE experience_maps_custom SET state = 3 WHERE state = 0 AND id_experience_users = ?`, [resultUsers.id]);
         for(let mapData of oldSelectedMaps.finished) {
-            await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state, timestamp_claimed)
-                VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.id, 1, timestamp]);
+            /** @type {Db.experience_maps_custom|null} */
+            let existing = (await query(`SELECT * FROM experience_maps_custom WHERE id_experience_users = ? AND map_id = ?`, [resultUsers.id, mapData.id])).results[0];
+
+            if(existing) {
+                await query(`UPDATE experience_maps_custom SET state = ?, timestamp_claimed = ? WHERE id = ?`, [1, timestamp, existing.id]);
+            }
+            else {
+                await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state, timestamp_claimed)
+                    VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.id, 1, timestamp]);
+            }
         }
         for(let mapData of selectedIds) {
-            await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state, timestamp_claimed)
-                VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.id, 0, timestamp]);
+            /** @type {Db.experience_maps_custom|null} */
+            let existing = (await query(`SELECT * FROM experience_maps_custom WHERE id_experience_users = ? AND map_id = ?`, [resultUsers.id, mapData.id])).results[0];
+
+            if(existing) {
+                await query(`UPDATE experience_maps_custom SET state = ?, timestamp_claimed = ? WHERE id = ?`, [0, timestamp, existing.id]);
+            }
+            else {
+                await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state, timestamp_claimed)
+                    VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.id, 0, timestamp]);
+            }
         }
 
         const newSelectedMaps = await getMapsCompleted(selectedIds, resultUsers.user_name, kcgmm);

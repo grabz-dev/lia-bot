@@ -36,7 +36,7 @@
  * @property {number} id - Primary key
  * @property {number} id_experience_users - Db.experience_users key
  * @property {number} map_id
- * @property {number} state - 0 (selected, incomplete), 1 (complete), 2 (ignored)
+ * @property {number} state - 0 (selected, incomplete), 1 (complete), 2 (ignored), 3 (none)
  */
 
 /**
@@ -44,7 +44,7 @@
  * @property {number} id - Primary key
  * @property {number} id_experience_users - Db.experience_users key
  * @property {string} game_uid - GUID of the map
- * @property {number} state - 0 (selected, incomplete), 1 (complete), 2 (ignored)
+ * @property {number} state - 0 (selected, incomplete), 1 (complete), 2 (ignored), 3 (none)
  */
 
 /**
@@ -52,7 +52,7 @@
  * @property {number} id - Primary key
  * @property {number} id_experience_users - Db.experience_users key
  * @property {string} seed - seed of the Mark V map
- * @property {number} state - 0 (selected, incomplete), 1 (complete), 2 (ignored)
+ * @property {number} state - 0 (selected, incomplete), 1 (complete), 2 (ignored), 3 (none)
  */
 
 
@@ -68,6 +68,7 @@ import { CampaignManager } from './Experience/CampaignManager.js';
 import { MarkVManager } from './Experience/MarkVManager.js';
 
 const COOLDOWN_TIME = 1000 * 60;
+const DEBUG_NO_COOLDOWN = false;
 
 export default class Experience extends Bot.Module {
     /**
@@ -461,7 +462,7 @@ function profile(m, game, kcgmm, dm) {
         else {
             const now = Date.now();
             const remaining = now - resultUsers.timestamp_profile;
-            if(remaining < COOLDOWN_TIME) {
+            if(!DEBUG_NO_COOLDOWN && remaining < COOLDOWN_TIME) {
                 m.message.reply(`This command is on cooldown. You can use it again in ${Math.ceil((COOLDOWN_TIME - remaining) / 1000)} seconds.`).catch(logger.error);
                 return;
             }
@@ -565,7 +566,7 @@ function newMaps(m, game, kcgmm, dm) {
 
         const now = Date.now();
         const remaining = now - resultUsers.timestamp_new;
-        if(remaining < COOLDOWN_TIME) {
+        if(!DEBUG_NO_COOLDOWN && remaining < COOLDOWN_TIME) {
             m.message.reply(`This command is on cooldown. You can use it again in ${Math.ceil((COOLDOWN_TIME - remaining) / 1000)} seconds.`).catch(logger.error);
             return;
         }
@@ -770,28 +771,30 @@ function ignore(m, game, mapIds, ignore, opts) {
             //0 - selected
             //1 - finished
             //2 - ignored
+            //3 - none
             /** @type {string[][]} */
-            const mapsDb = [[], [], []];
+            const mapsDb = [[], [], [], []];
             /** @type {string[]} */
             const mapsNewIgnored = [];
             for(let mapId of mapIds) {
                 /** @type {Db.experience_maps_custom|undefined} */
                 var resultMapsCustom = (await query(`SELECT * FROM experience_maps_custom
-                WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${mapId}'`)).results[0];
+                WHERE id_experience_users = ? AND map_id = ? FOR UPDATE`, [resultUsers.id, mapId])).results[0];
 
                 if(resultMapsCustom) {
                     mapsDb[resultMapsCustom.state].push(`#${mapId}`);
                 }
 
-                if(!resultMapsCustom || (resultMapsCustom && resultMapsCustom.state === 0)) {
+                if(!resultMapsCustom || (resultMapsCustom && (resultMapsCustom.state === 0 || resultMapsCustom.state === 3))) {
                     mapsNewIgnored.push(`#${mapId}`);
 
                     if(resultMapsCustom) {
-                        await query(`DELETE FROM experience_maps_custom
-                            WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${mapId}' AND state = '0'`);
+                        await query(`UPDATE experience_maps_custom SET state = ?, timestamp_claimed = ? WHERE id = ?`, [2, Date.now(), resultMapsCustom.id]);
                     }
-                    await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state, timestamp_claimed)
-                        VALUES (?, ?, ?, ?)`, [resultUsers.id, mapId, 2, Date.now()]);
+                    else {
+                        await query(`INSERT INTO experience_maps_custom (id_experience_users, map_id, state, timestamp_claimed)
+                            VALUES (?, ?, ?, ?)`, [resultUsers.id, mapId, 2, Date.now()]);
+                    }
                 }
             }
 
@@ -809,7 +812,7 @@ function ignore(m, game, mapIds, ignore, opts) {
             for(let mapId of mapIds) {
                 /** @type {Db.experience_maps_custom|undefined} */
                 var resultMapsCustom = (await query(`SELECT * FROM experience_maps_custom
-                WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${mapId}' AND state = '2'`)).results[0];
+                WHERE id_experience_users = ? AND map_id = ? AND state = ? FOR UPDATE`, [resultUsers.id, mapId, 2])).results[0];
 
                 if(resultMapsCustom == null) {
                     mapsNotIgnoring.push(`#${mapId}`);
@@ -817,8 +820,7 @@ function ignore(m, game, mapIds, ignore, opts) {
                 }
 
                 mapsUnignored.push(`#${mapId}`);
-                await query(`DELETE FROM experience_maps_custom
-                    WHERE id_experience_users = '${resultUsers.id}' AND map_id = '${mapId}' AND state = '2'`);
+                await query(`UPDATE experience_maps_custom SET state = ?, timestamp_claimed = ? WHERE id = ?`, [3, Date.now(), resultMapsCustom.id]);
             }
 
             if(mapsNotIgnoring.length > 0) str += `${this.bot.locale.category('experience', 'not_ignoring_map', mapsNotIgnoring.join(', '))}\n`;

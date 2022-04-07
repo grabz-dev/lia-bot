@@ -258,8 +258,7 @@ export class CampaignManager {
     async newMaps(query, kcgmm, resultUsers, timestamp) {
         //Get all campaign maps of current user
         /** @type {Db.experience_maps_campaign[]} */
-        const resultsMapsCampaign = (await query(`SELECT * FROM experience_maps_campaign
-            WHERE id_experience_users = '${resultUsers.id}'`)).results;
+        const resultsMapsCampaign = (await query(`SELECT * FROM experience_maps_campaign WHERE id_experience_users = ? FOR UPDATE`, [resultUsers.id])).results;
 
         const oldMapsParsedFromDb = getMapsParsedFromDatabase.call(this, resultsMapsCampaign, resultUsers);
         const oldSelectedMaps = await getMapsCompleted(oldMapsParsedFromDb.selected, resultUsers.user_name, kcgmm);
@@ -268,18 +267,31 @@ export class CampaignManager {
         /** @type {CampaignMapData[]} */
         let selectedCampaignMaps = [];
         selectCampaignMaps.call(this, selectedCampaignMaps, resultUsers, allMapsCompleted, oldMapsParsedFromDb.ignored);
-        
-        await query(`DELETE FROM experience_maps_campaign
-            WHERE id_experience_users = '${resultUsers.id}' AND state = '0'`);
 
+        await query(`UPDATE experience_maps_campaign SET state = 3 WHERE state = 0 AND id_experience_users = ?`, [resultUsers.id]);
         for(let mapData of oldSelectedMaps.finished) {
-            await query(`INSERT INTO experience_maps_campaign (id_experience_users, game_uid, state, timestamp_claimed)
-                         VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.gameUID, 1, timestamp]);
-        }
+            /** @type {Db.experience_maps_campaign|null} */
+            let existing = (await query(`SELECT * FROM experience_maps_campaign WHERE id_experience_users = ? AND game_uid = ?`, [resultUsers.id, mapData.gameUID])).results[0];
 
+            if(existing) {
+                await query(`UPDATE experience_maps_campaign SET state = ?, timestamp_claimed = ? WHERE id = ?`, [1, timestamp, existing.id]);
+            }
+            else {
+                await query(`INSERT INTO experience_maps_campaign (id_experience_users, game_uid, state, timestamp_claimed)
+                             VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.gameUID, 1, timestamp]);
+            }
+        }
         for(let mapData of selectedCampaignMaps) {
-            await query(`INSERT INTO experience_maps_campaign (id_experience_users, game_uid, state, timestamp_claimed)
-                         VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.gameUID, 0, timestamp]);
+            /** @type {Db.experience_maps_campaign|null} */
+            let existing = (await query(`SELECT * FROM experience_maps_campaign WHERE id_experience_users = ? AND game_uid = ?`, [resultUsers.id, mapData.gameUID])).results[0];
+
+            if(existing) {
+                await query(`UPDATE experience_maps_campaign SET state = ?, timestamp_claimed = ? WHERE id = ?`, [0, timestamp, existing.id]);
+            }
+            else {
+                await query(`INSERT INTO experience_maps_campaign (id_experience_users, game_uid, state, timestamp_claimed)
+                             VALUES (?, ?, ?, ?)`, [resultUsers.id, mapData.gameUID, 0, timestamp]);
+            }
         }
 
         const newSelectedMaps = await getMapsCompleted(selectedCampaignMaps, resultUsers.user_name, kcgmm);
