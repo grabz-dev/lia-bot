@@ -978,6 +978,7 @@ async function buildScoreTally(guild, channel, query, champion) {
         }
         let i = 1;
         let lastPoints = 0;
+        let maxShown = 10;
         for(let user of players) {
             let points = user[1].points;
             let snowflake = user[0];
@@ -989,7 +990,15 @@ async function buildScoreTally(guild, channel, query, champion) {
             
             const championMember = guildMembers.get(snowflake);
             const name = championMember ? (championMember.nickname ?? championMember.user.username) : null;
-            if(name) field.value += `${bold}\`#${i}\` ${points} points: ${name}${bold}\n`;
+            if(name) {
+                if(i > maxShown) {
+                    field.value += `...and ${players.size - i + 1} more players.\n`;
+                    break;
+                }
+                else {
+                    field.value += `${bold}\`#${i}\` ${points} points: ${name}${bold}\n`;
+                }
+            }
             lastPoints = points;
             i++;
         }
@@ -1216,7 +1225,7 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
 
             if(i <= maxScoresInTable - 1) {
                 if(isPoints) 
-                    leaderboardStr += `${Bot.Util.String.fixedWidth(getPointsFromRank(entry.rank) + " pts", 6, "⠀", true)}`;
+                    leaderboardStr += `${Bot.Util.String.fixedWidth(getPointsFromRank(entry.rank) + " pts", 7, "⠀", true)}`;
                 else
                     leaderboardStr += `#${Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true)}`;
                 
