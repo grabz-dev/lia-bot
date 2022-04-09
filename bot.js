@@ -36,6 +36,9 @@ core.on('ready', bot => {
             cacheTimeCW2: 1000 * 60 * 60 * 24
         }, bot.locale);
 
+        /** @type {import('./src/modules/CW2UploadDateFetch').default} */
+        const cw2UploadDateFetch = await core.getModule((await import('./src/modules/CW2UploadDateFetch.js')).default);
+
         kcgmm.fetch('cw4').then(() => {
             /*const json = JSON.parse('');
             let maps = Object.entries(json.maps);
@@ -80,6 +83,7 @@ core.on('ready', bot => {
         }).catch(logger.error);
         kcgmm.fetch('pf').catch(logger.error);
         kcgmm.fetch('cw3').catch(logger.error);
+        await cw2UploadDateFetch.updateCW2UploadDates(kcgmm);
         kcgmm.readCacheCW2().catch(e => {
             logger.error(e);
             kcgmm.fetch('cw2').catch(logger.error);
@@ -93,8 +97,9 @@ core.on('ready', bot => {
         }, 1000 * 60 * 60 * 6);
         setInterval(() => {
             kcgmm.fetch('cw2').catch(logger.error);
-        }, 1000 * 60 * 60 * 24);
+        }, 1000 * 60 * 60 * 48);
 
+        setTimeout(() => cw2UploadDateFetch.start(kcgmm), 1000 * 60 * 60);
         /** @type {import('./src/modules/Map.js').default} */
         const map = await core.getModule((await import('./src/modules/Map.js')).default);
         map.manualInit(kcgmm);

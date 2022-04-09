@@ -37,7 +37,7 @@
  * @property {number=} downvotes - CW2 only. The amount of times this map was rated down.
  * @property {string[]=} tags - CW4 only. The tags on this map.
  * @property {number=} objectives - CW4 only. Objectives available on this map, as a byte.
- * @property {number=} timestamp - CW3, PF, CW4 only. Map upload unix timestamp.
+ * @property {number=} timestamp - CW3, PF, CW4 only. Map upload unix timestamp. CW2 check for undefined.
  * @property {number=} version - CW4 only
  */
 
@@ -93,9 +93,19 @@ export function KCGameMapManager(options, locale) {
         /** @type {Discord.Collection<string, Object.<number, MapData[]>>} */
         month: new Discord.Collection(),
     });
+    /** @type {{[id: string]: number}} */
+    this._cw2uploadDates = {};
 
     const minFetchInterval = 1000 * 60;
     let lastFetchTimestamp = 0;
+
+    /**
+     * 
+     * @param {{[id: string]: number}} dates 
+     */
+    this.setCW2UploadDates = function(dates) {
+        this._cw2uploadDates = dates;
+    }
 
     /**
      * Get leaderboards for a map
@@ -475,6 +485,57 @@ export function KCGameMapManager(options, locale) {
         arr[1] = (b >> 1 & 1) != 0;
         arr[0] = (b >> 0 & 1) != 0;
         return arr;
+    }
+
+    /**
+     * @this {KCGameMapManager}
+     * @param {string} game
+     * @param {MapData[]} arr 
+     * @returns {Object.<number, MapData[]>}
+     */
+    this.getMonthObjFromMapData = function(game, arr) {
+        /** @type {Object.<number, MapData[]>} */
+        const month = {};
+
+        for(let j = 0; j < arr.length; j++) {
+            let map = arr[j];
+
+            if(map.timestamp == null) continue;
+
+            //Get month the map was uploaded in
+            const date = this.getDateFlooredToMonth(new Date(map.timestamp));
+            const time = date.getTime();
+            if(month[time] == null) month[time] = [];
+            month[time].push(map);
+        }
+
+        //Delete current month only
+        delete month[+Object.keys(month).reduce((a, b) => +b > +a ? +b : +a, 0)];
+
+        //Delete months with less than 10 maps
+        for(let key of Object.keys(month)) {
+            if(month[+key].length < 10) delete month[+key];
+        }
+
+        //Build map month
+        for(let key of Object.keys(month)) {
+            let maps = month[+key];
+
+            switch(game) {
+            case 'cw2':
+                maps.sort((a, b) => (((b.upvotes??0) - (b.downvotes??0))||0) - (((a.upvotes??0) - (a.downvotes??0))||0));
+                break;
+            case 'cw3':
+            case 'pf':
+                maps.sort((a, b) => (b.rating||0) - (a.rating||0));
+                break;
+            case 'cw4':
+                maps.sort((a, b) => (b.upvotes||0) - (a.upvotes||0));
+                break;
+            }
+        }
+
+        return month;
     }
 
     /**

@@ -13,6 +13,8 @@ import { KCLocaleManager } from '../../kc/KCLocaleManager.js';
 import { KCUtil } from '../../kc/KCUtil.js';
 import Experience from '../Experience.js';
 
+const SUPERSCRIPT_DIGITS = ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹']
+
 /**
  * @typedef {object} NewMapsData
  * @property {number} countNewTotalCompleted
@@ -198,23 +200,32 @@ export class CustomManager {
      * @param {KCGameMapManager.MapData} map 
      * @param {KCGameMapManager} kcgmm 
      * @param {number} total - Total maps completed
+     * @param {number} rankMapCount
      * @param {boolean=} crossedOut - Whether the map should be crossed out
-     * @returns {string}
+     * @returns {{str: string, rankMapCount: number, rankStr?: string, sup: string}}
      */
-    getMapClaimString(map, kcgmm, total, crossedOut) {
+    getMapClaimString(map, kcgmm, total, rankMapCount, crossedOut) {
         let cross = crossedOut ? '~~' : '';
-        let str = `\`ID #${map.id}\`: ${this.exp.prettify(this.getExpFromMap(map, kcgmm, total))} XP - ${cross}${map.title} __by ${map.author}__${cross}`;
+        let sup = '';
+        let str = () => `\`ID #${map.id}\`: ${this.exp.prettify(this.getExpFromMap(map, kcgmm, total))} XP${sup} - ${cross}${map.title} __by ${map.author}__${cross}`;
 
-        if(map.timestamp == null) return str;
+        if(map.timestamp == null) return {str: str(), rankMapCount, sup};
         let date = kcgmm.getDateFlooredToMonth(new Date(map.timestamp));
         let month = KCUtil.getMonthFromDate(date, true);
         const rank = kcgmm.getMapMonthlyRank(map);
-        if(rank == null) return str;
+        if(rank == null) return {str: str(), rankMapCount, sup};
 
-        if(rank <= 10) return `${str} (#${rank} ${month} ${date.getFullYear()})`;
-        if(map.upvotes != null) return `${str} (${map.upvotes}\\👍)`;
-        if(map.rating != null) return `${str} (${map.rating} rating)`;
-        return str;
+        /** @type {string=} */
+        let rankStr = undefined;
+        if(rank <= 10) {
+            sup = SUPERSCRIPT_DIGITS[rankMapCount];
+            rankStr = `#${rank} ${month} ${date.getFullYear()}`;
+            rankMapCount++;
+        }
+        if(map.upvotes != null && map.downvotes != null) return {str: `${str()} (${map.upvotes}\\👍${map.downvotes}\\👎)`, rankMapCount, rankStr, sup};
+        if(map.upvotes != null) return {str: `${str()} (${map.upvotes}\\👍)`, rankMapCount, rankStr, sup};
+        if(map.rating != null) return {str: `${str()} (${map.rating})`, rankMapCount, rankStr, sup};
+        return {str: `${str()}`, rankMapCount, rankStr, sup};
     }
 }
 

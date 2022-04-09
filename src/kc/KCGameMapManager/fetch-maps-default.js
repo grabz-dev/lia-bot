@@ -39,8 +39,6 @@ export async function fetchMapsDefault(game) {
     const temp = {
         /** @type {Discord.Collection<number, Readonly<MapData>>} */
         id: new Discord.Collection(),
-        /** @type {Object.<number, MapData[]>} */
-        month: {}
     }
 
     for(let j = 0; j < data.maps.m.length; j++) {
@@ -83,37 +81,20 @@ export async function fetchMapsDefault(game) {
         //Get month the map was uploaded in
         const date = this.getDateFlooredToMonth(new Date(obj.timestamp));
         const time = date.getTime();
-        if(temp.month[time] == null) temp.month[time] = [];
 
         //Freeze
         obj = Object.freeze(obj);
 
         //Set all temp objects
         temp.id.set(+map.i[0], obj);
-        temp.month[time].push(obj);
     }
 
-    //Delete current month only
-    delete temp.month[+Object.keys(temp.month).reduce((a, b) => +b > +a ? +b : +a, 0)];
     //Build map array
     /** @type {Readonly<MapData>[]} */
     let arr = [];
     for(let obj of Array.from(temp.id.values())) arr.push(Object.freeze(obj));
 
-    //Build map month
-    for(let key of Object.keys(temp.month)) {
-        let maps = temp.month[+key];
-
-        switch(game) {
-        case 'cw3':
-        case 'pf':
-            maps.sort((a, b) => (b.rating||0) - (a.rating||0));
-        case 'cw4':
-            maps.sort((a, b) => (b.upvotes||0) - (a.upvotes||0));
-        }
-    }
-
     this._maps.id.set(game, temp.id);
     this._maps.array.set(game, Object.freeze(arr));
-    this._maps.month.set(game, temp.month);
+    this._maps.month.set(game, this.getMonthObjFromMapData.call(this, game, arr));
 }

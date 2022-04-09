@@ -431,6 +431,7 @@ function profile(m, game, kcgmm, dm) {
                                        WHERE guild_id = '${m.guild.id}'`)).results;
             emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
         }).catch(logger.error);
+        const emote = emotes[game]||':game_die:';
 
         embed.color = KCUtil.gameEmbedColors[game];
 
@@ -446,13 +447,22 @@ function profile(m, game, kcgmm, dm) {
             inline: false,
         }
 
+        let fieldReferences = {
+            name: emote + ' References',
+            value: '',
+            inline: false
+        }
+        /** @type {string[]} */
+        let fieldReferencesValueArr = [];
+        let rankMapCount = 1;
+
         /** @type {Db.experience_users} */
         let resultUsers = (await query(`SELECT * FROM experience_users
                                         WHERE user_id = '${m.member.id}' AND game = '${game}'`)).results[0];
 
         if(resultUsers == null) {
             let expData = getExpDataFromTotalExp(0);
-            field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
+            field.name = getFormattedXPBarString.call(this, emote, expData, this.expBarLength);
 
             field.value = Bot.Util.getSpecialWhitespace(3);
             field.value += this.bot.locale.category('experience', 'embed_not_registered_1', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown');
@@ -486,7 +496,7 @@ function profile(m, game, kcgmm, dm) {
 
             let expData = getExpDataFromTotalExp(totalExp);
 
-            field.name = getFormattedXPBarString.call(this, emotes[game]||':game_die:', expData, this.expBarLength);
+            field.name = getFormattedXPBarString.call(this, emote, expData, this.expBarLength);
 
             let str = '';
             str += this.bot.locale.category('experience', 'embed_maps_2');
@@ -500,8 +510,14 @@ function profile(m, game, kcgmm, dm) {
             str += '\n';
             str += this.bot.locale.category('experience', 'embed_maps_1');
             str += '\n';
-            for(let map of data_custom.selectedMaps.unfinished)
-                str += this.managers.custom.getMapClaimString(map, kcgmm, totalCompleted) + '\n';
+            {
+                for(let map of data_custom.selectedMaps.unfinished) {
+                    let data = this.managers.custom.getMapClaimString(map, kcgmm, totalCompleted, rankMapCount);
+                    str += `${data.str} \n`;
+                    if(data.rankStr != null) fieldReferencesValueArr.push(`${data.sup} ${data.rankStr}`);
+                    rankMapCount = data.rankMapCount;
+                }
+            }
             for(let map of data_campaign.selectedMaps.unfinished)
                 str += this.managers.campaign.getMapClaimString(map, totalCompleted) + '\n';
             for(let map of data_markv.selectedMaps.unfinished)
@@ -513,10 +529,11 @@ function profile(m, game, kcgmm, dm) {
         }
 
         embed.fields.push(field);
+        if(fieldReferencesValueArr.length > 0) {
+            fieldReferences.value = fieldReferencesValueArr.join(' | ');
+            embed.fields.push(fieldReferences);
+        }
         
-
-        embed.fields[embed.fields.length - 1].value += '\n' + Bot.Util.getSpecialWhitespace(1);
-
         let fieldInstructions = {
             name: ':information_source: ' + this.bot.locale.category('experience', 'embed_instructions_title'),
             value: this.bot.locale.category('experience', 'embed_instructions_value', game == null ? '[game]' : game),
@@ -625,6 +642,15 @@ function newMaps(m, game, kcgmm, dm) {
             value: '',
             inline: false
         }
+
+        let fieldReferences = {
+            name: emote + ' References',
+            value: '',
+            inline: false
+        }
+        /** @type {string[]} */
+        let fieldReferencesValueArr = [];
+        let rankMapCount = 1;
         
         if(expDataOld.currentLevel !== expDataNew.currentLevel || expDataOld.currentXP !== expDataNew.currentXP) {
             fieldXp.name += this.bot.locale.category('experience', 'embed_results_title_1_1');
@@ -638,8 +664,14 @@ function newMaps(m, game, kcgmm, dm) {
             value: '',
             inline: false
         };
-        for(let map of data_custom.newSelectedMaps.unfinished)
-            fieldNewMaps.value += this.managers.custom.getMapClaimString(map, kcgmm, totalCompletedNew) + '\n';
+        {
+            for(let map of data_custom.newSelectedMaps.unfinished) {
+                let data = this.managers.custom.getMapClaimString(map, kcgmm, totalCompletedNew, rankMapCount);
+                fieldNewMaps.value += `${data.str} \n`;
+                if(data.rankStr != null) fieldReferencesValueArr.push(`${data.sup} ${data.rankStr}`);
+                rankMapCount = data.rankMapCount;
+            }
+        }
         for(let map of data_campaign.newSelectedMaps.unfinished)
             fieldNewMaps.value += this.managers.campaign.getMapClaimString(map, totalCompletedNew) + '\n';
         for(let map of data_markv.newSelectedMaps.unfinished)
@@ -652,8 +684,15 @@ function newMaps(m, game, kcgmm, dm) {
             value: '',
             inline: false,
         }
-        for(let map of data_custom.newSelectedMaps.finished)
-            fieldBeatenMaps.value += this.managers.custom.getMapClaimString(map, kcgmm, totalCompletedNew, true) + '\n';
+
+        {
+            for(let map of data_custom.newSelectedMaps.finished) {
+                let data = this.managers.custom.getMapClaimString(map, kcgmm, totalCompletedNew, rankMapCount, true);
+                fieldBeatenMaps.value += `${data.str} \n`;
+                if(data.rankStr != null) fieldReferencesValueArr.push(`${data.sup} ${data.rankStr}`);
+                rankMapCount = data.rankMapCount;
+            }
+        }
         for(let map of data_campaign.newSelectedMaps.finished)
             fieldBeatenMaps.value += this.managers.campaign.getMapClaimString(map, totalCompletedNew, true) + '\n';
         for(let map of data_markv.newSelectedMaps.finished)
@@ -668,6 +707,10 @@ function newMaps(m, game, kcgmm, dm) {
         embed.fields.push(fieldNewMaps);
         if(fieldBeatenMaps.value.length > 0)
             embed.fields.push(fieldBeatenMaps);
+        if(fieldReferencesValueArr.length > 0) {
+            fieldReferences.value = fieldReferencesValueArr.join(' | ');
+            embed.fields.push(fieldReferences);
+        }
         embed.fields.push(fieldInstructions);
 
         m.channel.send({ embeds:[embed] }).catch(logger.error);

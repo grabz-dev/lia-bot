@@ -8,6 +8,8 @@ import * as Bot from 'discord-bot-core';
 import fs from 'fs';
 import util from 'util';
 const logger = Bot.logger;
+// @ts-ignore
+import he from 'he';
 
 const mkdir = util.promisify(fs.mkdir);
 const writeFile = util.promisify(fs.writeFile);
@@ -49,6 +51,8 @@ export async function readCacheCW2(options) {
     const arr = mapListArrFromEntries(cache);
     this._maps.id.set("cw2", cache);
     this._maps.array.set("cw2", Object.freeze(arr));
+    this._maps.month.set("cw2", this.getMonthObjFromMapData.call(this, 'cw2', arr));
+
     logger.info(`[KCGameMapManager.readCacheCW2] Cache loaded`)
 }
 
@@ -119,7 +123,7 @@ async function fetcher(options, page, mapListTemp) {
 
     let i = 0;
     do {
-        let obj = getCW2MapDataFromMapBrowser(data);
+        let obj = getCW2MapDataFromMapBrowser.call(this, data);
         var mapData = obj.mapData;
         data = obj.data;
 
@@ -140,6 +144,7 @@ async function fetcher(options, page, mapListTemp) {
 
         this._maps.id.set("cw2", mapListTemp);
         this._maps.array.set("cw2", Object.freeze(arr));
+        this._maps.month.set("cw2", this.getMonthObjFromMapData.call(this, 'cw2', arr));
 
         logger.info("[KCGameMapManager.fetchMapsCW2] End reached. Page " + page + " contains no entries.");
 
@@ -167,7 +172,7 @@ function mapListArrFromEntries(mapListTemp) {
 /**
  * Provided with the website source for the CW2 map browser, searches for the first instance of a map entry
  * and pulls all the information from it.
- * 
+ * @this {KCGameMapManager}
  * @param {string} data - The website source of the CW2 map browser.
  * @returns {import("../KCGameMapManager").MapBrowserDataCW2}
  */
@@ -230,8 +235,12 @@ function getCW2MapDataFromMapBrowser(data) {
         data = data.substring(data.indexOf(">"));
 
         let desc = data.substring(1, data.indexOf("<"));
-        desc = Bot.Util.String.replaceAll(desc, "&quot;", '"');
-        desc = Bot.Util.String.replaceAll(desc, "&iexcl;", '!');
+
+        desc = he.decode(desc);
+        title = he.decode(title);
+        author = he.decode(author);
+
+        const timestamp = this._cw2uploadDates[id];
 
         return {
             data: data,
@@ -247,7 +256,8 @@ function getCW2MapDataFromMapBrowser(data) {
                 width: 32,
                 downloads: +downloads,
                 desc: desc,
-                forumId: +forumId
+                forumId: +forumId,
+                timestamp: timestamp
             })
         }
     }
