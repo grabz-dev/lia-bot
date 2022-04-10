@@ -19,13 +19,14 @@ export default class Map extends Bot.Module {
     constructor(bot) {
         super(bot);
 
-        this.games = ['cw2', 'cw3', 'pf', 'cw4'];
+        this.games = ['cw1', 'cw2', 'cw3', 'pf', 'cw4'];
         /** @type {Object.<string, string>} */
         this.autoMap = {
             'creeperworld4': 'cw4',
             'particlefleet': 'pf',
             'creeperworld3': 'cw3',
-            'creeperworld2': 'cw2'
+            'creeperworld2': 'cw2',
+            'creeperworld': 'cw1'
         }
 
         /** @type {KCGameMapManager|null} */
