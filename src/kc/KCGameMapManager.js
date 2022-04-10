@@ -25,9 +25,9 @@
  * @property {string} game - cw2, cw3, pf, cw4
  * @property {string} author - The name of the author.
  * @property {string} title - The title of the map.
- * @property {number} width - The width of the map.
- * @property {number} height - The height of the map.
- * @property {number} forumId - Forum thread ID.
+ * @property {number=} width - The width of the map.
+ * @property {number=} height - The height of the map.
+ * @property {number=} forumId - Forum thread ID.
  * @property {string=} desc - CW2, CW3 and PF only. The map description. 
  * @property {number=} downloads - CW2, CW3 and PF only. The amount of times the map was downloaded. 
  * @property {number=} scores - CW2, CW3 and PF only. The amount of scores submitted.
@@ -42,8 +42,9 @@
  */
 
 /**
- * @typedef {object} MapBrowserDataCW2
+ * @typedef {object} MapBrowserData
  * @property {string} data - The original website source data string, cut off after the map that was last found.
+ * @property {"cw1"|"cw2"} game
  * @property {MapData | null} mapData - The scraped map data, or null if no map was found. If null, should move to next page.
  */
 
@@ -74,7 +75,7 @@ import { HttpRequest } from '../utils/HttpRequest.js';
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 
 import { fetchMapsDefault } from './KCGameMapManager/fetch-maps-default.js';
-import { fetchMapsCW2, readCacheCW2 } from './KCGameMapManager/fetch-maps-cw2.js';
+import { fetchMaps, readCache } from './KCGameMapManager/fetch-maps-cw2.js';
 
 const chronom_months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
 "JULY", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -93,18 +94,28 @@ export function KCGameMapManager(options, locale) {
         /** @type {Discord.Collection<string, Object.<number, MapData[]>>} */
         month: new Discord.Collection(),
     });
-    /** @type {{[id: string]: number}} */
-    this._cw2uploadDates = {};
+    /** @type {{[id: string]: { timestamp: number }}} */
+    this._cw2Maps = {};
+    /** @type {{[id: string]: { title: string, rating: number, ratings: number, desc: string, forumId: number, timestamp: number }}} */
+    this._cw1Maps = {};
 
     const minFetchInterval = 1000 * 60;
-    let lastFetchTimestamp = 0;
+    /** @type {{[game: string]: number}} */
+    let lastFetchTimestamp = {}
 
     /**
      * 
-     * @param {{[id: string]: number}} dates 
+     * @param {{[id: string]: { timestamp: number }}} maps 
      */
-    this.setCW2UploadDates = function(dates) {
-        this._cw2uploadDates = dates;
+    this.setCW2Maps = function(maps) {
+        this._cw2Maps = maps;
+    }
+    /**
+     * 
+     * @param {{[id: string]: { title: string, rating: number, ratings: number, desc: string, timestamp: number }}} maps 
+     */
+    this.setCW1Maps = function(maps) {
+        this._cw1Maps = maps;
     }
 
     /**
@@ -339,14 +350,15 @@ export function KCGameMapManager(options, locale) {
      */
     this.fetch = async function(game) {
         const now = Date.now();
-        if(now - lastFetchTimestamp < minFetchInterval) {
-            throw `[KCGameMapManager.fetch] Must wait another ${(lastFetchTimestamp + minFetchInterval - now) / 1000}s to fetch.`;
+        if(lastFetchTimestamp[game] == null) lastFetchTimestamp[game] = 0;
+        if(now - lastFetchTimestamp[game] < minFetchInterval) {
+            throw `[KCGameMapManager.fetch] Must wait another ${(lastFetchTimestamp[game] + minFetchInterval - now) / 1000}s to fetch.`;
         }
 
         try {
             await fetchMapData.call(this, game);
             logger.info(`[KCGameMapManager.fetch] Fetched map data for ${game}.`);
-            lastFetchTimestamp = Date.now();
+            lastFetchTimestamp[game] = Date.now();
         }
         catch(err) {
             //@ts-ignore
@@ -358,7 +370,13 @@ export function KCGameMapManager(options, locale) {
      * @returns {Promise<void>}
      */
     this.readCacheCW2 = async function() {
-        await readCacheCW2.call(this, options);
+        await readCache.call(this, options, 'cw2');
+    }
+    /**
+     * @returns {Promise<void>}
+     */
+     this.readCacheCW1 = async function() {
+        await readCache.call(this, options, 'cw1');
     }
 
     /**
@@ -541,11 +559,13 @@ export function KCGameMapManager(options, locale) {
     /**
      * Fetch map data.
      * @this {KCGameMapManager}
-     * @param {string} game //cw2 cw3 pf cw4
+     * @param {string} game //cw1 cw2 cw3 pf cw4
      */
     async function fetchMapData(game) {
-        if(game === "cw2")
-            await fetchMapsCW2.call(this, options);
+        if(game === 'cw1')
+            await fetchMaps.call(this, options, 'cw1');
+        else if(game === 'cw2')
+            await fetchMaps.call(this, options, 'cw2');
         else
             await fetchMapsDefault.call(this, game);
     }

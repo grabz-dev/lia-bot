@@ -370,7 +370,9 @@ async function getMultipleMapsMessageEmbed(maps, emoteStr, guild, game, kcgmm) {
     embed.description = '';
 
     for(const map of maps) {
-        embed.description += `**Map #${map.id}** - [${map.title}](https://knucklecracker.com/forums/index.php?topic=${map.forumId}) __by ${map.author}__\n`;
+        let title = map.title;
+        if(map.forumId != null) title = `[${title}](https://knucklecracker.com/forums/index.php?topic=${map.forumId})`;
+        embed.description += `**Map #${map.id}** - ${title} __by ${map.author}__\n`;
     }
 
     return embed;
@@ -402,7 +404,9 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
 
     let thumbnailURL = '';
     if(mapData.id && mapData.id > 0) {
-        if(game === 'cw2')
+        if(game === 'cw1')
+            thumbnailURL = `https://knucklecracker.com/creeperworld/thumb.php?id=${mapData.id}`;
+        else if(game === 'cw2')
             thumbnailURL = `https://knucklecracker.com/creeperworld2/thumb.php?id=${mapData.id}`;
         else
             thumbnailURL = `https://knucklecracker.com/${KCLocaleManager.getUrlStringFromPrimaryAlias(game)}/queryMaps.php?query=thumbnail&guid=${mapData.guid}`;
@@ -420,15 +424,17 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
 
     //Width/Height
     if(game === 'cw2')
-        str += `Height: ${mapData.height}`;
-    else
+        str += `Height: ${mapData.height}\n`;
+    else if(mapData.width != null && mapData.height != null) {
         str += `Size: ${mapData.width}x${mapData.height}`;
 
-    //CW4 version
-    if(mapData.version != null) {
-        str += `, Ver: ${mapData.version}`;
+        //CW4 version
+        if(mapData.version != null) {
+            str += `, Ver: ${mapData.version}`;
+        }
+
+        str += '\n';
     }
-    str += '\n';
 
     //Scores/Downloads
     if(mapData.scores != null && mapData.downloads != null) {
@@ -449,6 +455,8 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
         str += `Rating: **${mapData.upvotes}**👍  **${mapData.downvotes}**👎`;
     else if(game === 'cw4')
         str += `Rating: **${mapData.upvotes}**👍`;
+    else if(game === 'cw1')
+        str += `Rating: **${mapData.rating}/5** (${mapData.ratings} ratings)`;
     else
         str += `Rating: **${mapData.rating}** (${mapData.ratings} ratings)`;
     str += '\n';
@@ -459,7 +467,9 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
     }
     
     //Forum link
-    str += `[Forum Thread ${forumMessagesCount != null ? `(${forumMessagesCount} comment${forumMessagesCount != 1 ? 's':''})` : ''}](https://knucklecracker.com/forums/index.php?topic=${mapData.forumId})\n`;
+    if(mapData.forumId != null) {
+        str += `[Forum Thread ${forumMessagesCount != null ? `(${forumMessagesCount} comment${forumMessagesCount != 1 ? 's':''})` : ''}](https://knucklecracker.com/forums/index.php?topic=${mapData.forumId})\n`;
+    }
 
     //ID/Title
     embed.fields = [{
@@ -475,6 +485,12 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
             value: mapData.desc,
             inline: false
         });
+    }
+
+    if(mapData.timestamp != null) {
+        embed.footer = {
+            text: `Map uploaded ${Bot.Util.getFormattedDate(mapData.timestamp, false)}`
+        }
     }
 
     return embed;

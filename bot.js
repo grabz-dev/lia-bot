@@ -36,70 +36,56 @@ core.on('ready', bot => {
             cacheTimeCW2: 1000 * 60 * 60 * 24
         }, bot.locale);
 
-        /** @type {import('./src/modules/CW2UploadDateFetch').default} */
-        const cw2UploadDateFetch = await core.getModule((await import('./src/modules/CW2UploadDateFetch.js')).default);
+        /** @type {import('./src/modules/CWMaps').default} */
+        const cwMaps = await core.getModule((await import('./src/modules/CWMaps.js')).default);
 
-        kcgmm.fetch('cw4').then(() => {
-            /*const json = JSON.parse('');
-            let maps = Object.entries(json.maps);
-            maps.sort((a, b) => a[1] - b[1]);
+        await kcgmm.fetch('cw4').catch(logger.error);
+        await Bot.Util.Promise.sleep(1000);
+        await kcgmm.fetch('pf').catch(logger.error);
+        await Bot.Util.Promise.sleep(1000);
+        await kcgmm.fetch('cw3').catch(logger.error);
+        await cwMaps.updateCW1Maps(kcgmm);
+        await cwMaps.updateCW2Maps(kcgmm);
+        (async () => {
+            await Bot.Util.Promise.sleep(1000);
+            await kcgmm.readCacheCW2().catch(async e => {
+                logger.error(e);
+                await Bot.Util.Promise.sleep(1000);
+                await kcgmm.fetch('cw2').catch(logger.error);
+            });
+            await Bot.Util.Promise.sleep(1000);
+            await cwMaps.start(kcgmm, 'cw2').catch(logger.error);
 
-            var str = '';
-            for(let i = 0; i < maps.length; i++) {
-                const map = kcgmm.getMapById("cw4", +maps[i][0]);
-                if(map == null) continue;
+            await Bot.Util.Promise.sleep(1000);
+            await kcgmm.readCacheCW1().catch(async e => {
+                logger.error(e);
+                await Bot.Util.Promise.sleep(1000);
+                await kcgmm.fetch('cw1').catch(logger.error);
+            });
+            await Bot.Util.Promise.sleep(1000);
+            await cwMaps.start(kcgmm, 'cw1').catch(logger.error);
+            
 
-                str += `${i+1}) #${maps[i][0]}: ${map.title} by ${map.author} (${maps[i][1]} scores)\n`;
-            }
+            logger.info("Initializing map lists finished.");
+            setInterval(async () => {
+                await kcgmm.fetch('cw4').catch(logger.error);
+                await Bot.Util.Promise.sleep(1000);
+                await kcgmm.fetch('pf').catch(logger.error);
+                await Bot.Util.Promise.sleep(1000);
+                await kcgmm.fetch('cw3').catch(logger.error);
+            }, 1000 * 60 * 60 * 6);
+            setInterval(async () => {
+                await Bot.Util.Promise.sleep(1000);
+                await kcgmm.fetch('cw2').catch(logger.error);
+                await Bot.Util.Promise.sleep(1000);
+                await cwMaps.start(kcgmm, 'cw2').catch(logger.error);
+                await Bot.Util.Promise.sleep(1000);
+                await kcgmm.fetch('cw1').catch(logger.error);
+                await Bot.Util.Promise.sleep(1000);
+                await cwMaps.start(kcgmm, 'cw1').catch(logger.error);
+            }, 1000 * 60 * 60 * 96);
+        })();
 
-            fs.writeFile("Top_500_least_beaten_maps.txt", str, () => {logger.info("Done")});
-
-            let objectives = Object.entries(json.objectives);
-            objectives.sort((a, b) => a[1] - b[1]);*/
-
-            /** @type {Object.<string, string>} */
-            /*var OBJS = {
-                't0': 'Nullify',
-                't1': 'Totems',
-                't2': 'Reclaim',
-                't3': 'Hold',
-                't4': 'Collect',
-                't5': 'Custom'
-            }
-
-            var str = '';
-            for(let i = 0; i < objectives.length; i++) {
-                const split = objectives[i][0].split("_");
-
-                const map = kcgmm.getMapById("cw4", +split[0]);
-                if(map == null) continue;
-
-
-
-                str += `${i+1}) #${split[0]}: ${map.title} by ${map.author} [${OBJS[split[1]]}] (${objectives[i][1]} scores)\n`;
-            }
-
-            fs.writeFile("Top_2000_least_beaten_objectives.txt", str, () => {logger.info("Done")});*/
-        }).catch(logger.error);
-        kcgmm.fetch('pf').catch(logger.error);
-        kcgmm.fetch('cw3').catch(logger.error);
-        await cw2UploadDateFetch.updateCW2UploadDates(kcgmm);
-        kcgmm.readCacheCW2().catch(e => {
-            logger.error(e);
-            kcgmm.fetch('cw2').catch(logger.error);
-        });
-        
-        
-        setInterval(() => {
-            kcgmm.fetch('cw4').catch(logger.error);
-            kcgmm.fetch('pf').catch(logger.error);
-            kcgmm.fetch('cw3').catch(logger.error);
-        }, 1000 * 60 * 60 * 6);
-        setInterval(() => {
-            kcgmm.fetch('cw2').catch(logger.error);
-        }, 1000 * 60 * 60 * 48);
-
-        setTimeout(() => cw2UploadDateFetch.start(kcgmm), 1000 * 60 * 60);
         /** @type {import('./src/modules/Map.js').default} */
         const map = await core.getModule((await import('./src/modules/Map.js')).default);
         map.manualInit(kcgmm);

@@ -11,6 +11,7 @@ const months_short = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
 export const KCUtil = Object.freeze({
     /** @type {Object.<string, number>} */
     gameEmbedColors: Object.freeze({
+        cw1: 2929196,
         cw2: 4942335,
         cw3: 5852364,
         pf: 11284267,

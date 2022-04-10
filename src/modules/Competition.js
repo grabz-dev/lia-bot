@@ -1207,7 +1207,8 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
                 value += `Objective: **${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapScoreQueryData.objective+'')}**`;
             else
                 value += `${getDifficultyStringFromMapData(mapData)}`;
-            value += `, ${mapData.width}x${mapData.height}`;
+            if(mapData.width != null && mapData.height != null)
+                value += `, ${mapData.width}x${mapData.height}`;
             break;
     }
 

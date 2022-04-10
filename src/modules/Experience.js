@@ -530,7 +530,7 @@ function profile(m, game, kcgmm, dm) {
 
         embed.fields.push(field);
         if(fieldReferencesValueArr.length > 0) {
-            fieldReferences.value = fieldReferencesValueArr.join(' | ');
+            fieldReferences.value = `Bonus XP for being highest rated from maps uploaded in the same month:\n${fieldReferencesValueArr.join(' | ')}`;
             embed.fields.push(fieldReferences);
         }
         
@@ -708,7 +708,7 @@ function newMaps(m, game, kcgmm, dm) {
         if(fieldBeatenMaps.value.length > 0)
             embed.fields.push(fieldBeatenMaps);
         if(fieldReferencesValueArr.length > 0) {
-            fieldReferences.value = fieldReferencesValueArr.join(' | ');
+            fieldReferences.value = `Bonus XP for being highest rated from maps uploaded in the same month:\n${fieldReferencesValueArr.join(' | ')}`;
             embed.fields.push(fieldReferences);
         }
         embed.fields.push(fieldInstructions);
