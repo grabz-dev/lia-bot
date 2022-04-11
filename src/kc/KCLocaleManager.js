@@ -79,6 +79,7 @@ const config = {
             "5": { "display": "Custom", "aliases": ["custom", "c", "5"] }
         },
         "map_mode_custom" : {
+            "cw1_custom" : { "display": "Custom" },
             "cw2_custom" : { "display": "Custom" },
             "cw2_code": { "display": "Code" },
             "cw3_custom" : { "display": "Colonial Space" },

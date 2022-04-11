@@ -52,7 +52,7 @@
  * @typedef {object} MapLeaderboardEntry
  * @property {number} rank - The user's place on the leaderboard.
  * @property {string} user - The name of the user.
- * @property {number} time - The time it took to finish the level, in frames.
+ * @property {number=} time - The time it took to finish the level, in frames.
  * @property {number=} score - CW2 and CW3 only. The user's score.
  * @property {number=} plays - CW2, CW3, PF only. The amount of times the user submitted a score.
  * @property {number=} eco - CW4 only. The eco value.
@@ -128,39 +128,45 @@ export function KCGameMapManager(options, locale) {
      * @returns {Promise<MapLeaderboard>} 
      */
     this.getMapScores = async function(mapScoreQueryData, userName, groupName, options) {
-        const url = getScoreQueryURL(mapScoreQueryData, userName, groupName);
-        if(url == null)
-            throw "Invalid score query data " + JSON.stringify(mapScoreQueryData);
-
-        const game = mapScoreQueryData.game;
-        const xml = await HttpRequest.get(url);
-        
-        let data = await xml2js.parseStringPromise(xml);
-
-        if(game === 'cw4') {
-            /** @type {Array<MapLeaderboardEntry[]>} */
-            let entries = [];
-            for(let t in data.records) { //T0 T1 T2 T3 T4 T5
-                let i = +t.substring(1);
-                if(!(data.records[t][0].record instanceof Array))
-                    continue;
-                entries[i] = getMapLeaderboardEntryFromRecord(game, data.records[t][0].record, options);
-                entries[i].sort((a, b) => {
-                    return a.rank - b.rank;
-                });
-            }
-            return { entries: entries }
+        if(mapScoreQueryData.game === 'cw1') {
+            let entries = await getCW1Leaderboard(mapScoreQueryData, userName, groupName);
+            return { entries: [entries] };
         }
         else {
-            /** @type {MapLeaderboardEntry[]} */
-            let entries = [];
-            if(!(data.records.record instanceof Array))
+            const url = getScoreQueryURL(mapScoreQueryData, userName, groupName);
+            if(url == null)
+                throw "Invalid score query data " + JSON.stringify(mapScoreQueryData);
+
+            const game = mapScoreQueryData.game;
+            const xml = await HttpRequest.get(url);
+            
+            let data = await xml2js.parseStringPromise(xml);
+
+            if(game === 'cw4') {
+                /** @type {Array<MapLeaderboardEntry[]>} */
+                let entries = [];
+                for(let t in data.records) { //T0 T1 T2 T3 T4 T5
+                    let i = +t.substring(1);
+                    if(!(data.records[t][0].record instanceof Array))
+                        continue;
+                    entries[i] = getMapLeaderboardEntryFromRecord(game, data.records[t][0].record, options);
+                    entries[i].sort((a, b) => {
+                        return a.rank - b.rank;
+                    });
+                }
+                return { entries: entries }
+            }
+            else {
+                /** @type {MapLeaderboardEntry[]} */
+                let entries = [];
+                if(!(data.records.record instanceof Array))
+                    return { entries: [entries] };
+                entries = getMapLeaderboardEntryFromRecord(game, data.records.record, options);
+                entries.sort((a, b) => {
+                    return a.rank - b.rank;
+                });
                 return { entries: [entries] };
-            entries = getMapLeaderboardEntryFromRecord(game, data.records.record, options);
-            entries.sort((a, b) => {
-                return a.rank - b.rank;
-            });
-            return { entries: [entries] };
+            }
         }
     }
 
@@ -543,6 +549,7 @@ export function KCGameMapManager(options, locale) {
             case 'cw2':
                 maps.sort((a, b) => (((b.upvotes??0) - (b.downvotes??0))||0) - (((a.upvotes??0) - (a.downvotes??0))||0));
                 break;
+            case 'cw1':
             case 'cw3':
             case 'pf':
                 maps.sort((a, b) => (b.rating||0) - (a.rating||0));
@@ -598,19 +605,22 @@ export function KCGameMapManager(options, locale) {
             uniqueUsers[user] = true;
 
             let rank = +entry.rank[0];
-            let time = +entry.time[0];
+            let time = entry.time == null ? undefined : +entry.time[0];
             let score = entry.score == null ? undefined : +entry.score[0];
             let plays = entry.plays == null ? undefined : +entry.plays[0];
             let eco = entry.eco == null ? undefined : +entry.eco[0];
             let unitsBuilt = entry.unitsBuilt == null ? undefined : +entry.unitsBuilt[0];
             let unitsLost = entry.unitsLost == null ? undefined : +entry.unitsLost[0];
 
-            //Handle ties
-            if(lastTime != null && time === lastTime) {
-                rankOffset++;
+            let timeorscore = time??score;
+            if(timeorscore != null) { 
+                //Handle ties
+                if(lastTime != null && timeorscore === lastTime) {
+                    rankOffset++;
+                }
+                rank -= rankOffset;
+                lastTime = timeorscore;
             }
-            rank -= rankOffset;
-            lastTime = time;
 
             if(game === 'cw4' && options?.removeMverseTag) {
                 user = user.replace('[M] ', '');
@@ -685,5 +695,102 @@ export function KCGameMapManager(options, locale) {
             default:
                 return null;
         }
+    }
+
+    /**
+     * Get a ready to go URL for a map search query.
+     * @param {MapScoreQueryData} msqd
+     * @param {string=} userName
+     * @param {string=} groupName
+     */
+    async function getCW1Leaderboard(msqd, userName, groupName) {
+        let isCampaign;
+        let url;
+
+        if(msqd.id != null) {
+            isCampaign = false;
+            url = `https://knucklecracker.com/creeperworld/mapcomments.php?id=${msqd.id}&userfilter=${userName??''}&groupfilter=${groupName??''}`;
+        }
+        else if(msqd.gameUID != null) {
+            isCampaign = true;
+            let split = msqd.gameUID.split('_')
+            url = `https://knucklecracker.com/creeperworld/viewscores.php?mission=${split[1]}&missionGroup=${split[0]}&userfilter=${userName??''}&groupfilter=${groupName??''}`;
+        }
+        else {
+            throw "Invalid score query data " + JSON.stringify(msqd);
+        }
+
+        let data = await HttpRequest.get(url);
+
+        /** @type {{player: string, score: number, frames?: number, plays: number}[]} */
+        let arrOfRaw = [];
+
+        if(isCampaign) {
+            data = data.substring(data.indexOf('All Time Score Leaderboard'), data.indexOf('Recent Score Leaderboard'));
+        }
+
+        while(true) {
+            let search = `<tr class='scorerow`;
+            let index = data.indexOf(search);
+            if(index < 0) break;
+            data = data.substring(index + search.length + 3);
+
+            index = data.indexOf('nowrap>');
+            if(index < 0) break;
+            data = data.substring(index + 7);
+            const player = data.substring(0, data.indexOf('<'));
+
+            data = data.substring(data.indexOf('<td>') + 4);
+            const score = +(data.substring(0, data.indexOf('<')));
+
+            let frames;
+            if(!isCampaign) {
+                data = data.substring(data.indexOf('nowrap>') + 7);
+                const time = data.substring(0, data.indexOf('<'));
+                if(typeof time !== 'string') continue;
+                let split = time.split('min');
+                const min = +(split[0].trim())
+                if(!Number.isFinite(min)) break;
+                const sec = +(split[1].split('sec')[0].trim())
+                if(!Number.isFinite(sec)) break;
+                frames = (sec * 30) + (min * 60 * 30);
+            }
+
+            data = data.substring(data.indexOf('<td>') + 4);
+            const plays = +(data.substring(0, data.indexOf('<')));
+
+            if(typeof player !== 'string' || !Number.isFinite(score) || !Number.isFinite(plays)) continue;
+
+            arrOfRaw.push({
+                player, score, frames, plays
+            })
+        }
+
+        arrOfRaw.sort((a, b) => (a.frames??a.score) - (b.frames??a.score));
+
+        /** @type {MapLeaderboardEntry[]} */
+        let arr = [];
+
+        let rank = 0;
+        /** @type {number|null} */
+        let lastFrames = null;
+        for(const score of arrOfRaw) {
+            //handle ties
+            if(lastFrames == null || (score.frames??score.score) !== lastFrames) {
+                rank++;
+                lastFrames = (score.frames??score.score);
+            }
+
+            /** @type {MapLeaderboardEntry} */
+            arr.push({
+                rank: rank,
+                user: score.player,
+                time: score.frames,
+                score: score.score,
+                plays: score.plays
+            });
+        }
+
+        return arr;
     }
 }

@@ -100,7 +100,7 @@ export default class Competition extends Bot.Module {
     constructor(bot) {
         super(bot);
 
-        this.games = ["cw4", "pf", "cw3", "cw2"];
+        this.games = ["cw4", "pf", "cw3", "cw2", "cw1"];
         this.maxScoresInTable = 8;
         this.timeOffsetHours = 24;
 
@@ -238,6 +238,10 @@ export default class Competition extends Bot.Module {
                 if(_data.err) return _data.err;
 
                 const mapQueryData = _data.data;
+
+                if(mapQueryData.game === 'cw1' && mapQueryData.gameUID != null) {
+                    return 'Not supported';
+                }
 
                 addMap.call(this, m, ext.action, game, mapQueryData, ext.kcgmm);
                 return;
@@ -1230,7 +1234,7 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
                 else
                     leaderboardStr += `#${Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true)}`;
                 
-                leaderboardStr += `${Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 8, "⠀", false)} ${name}\n`;
+                leaderboardStr += `${Bot.Util.String.fixedWidth(entry.time != null ? KCUtil.getFormattedTimeFromFrames(entry.time) : (entry.score+'')??'', 8, "⠀", false)} ${name}\n`;
             }
             else if(i === maxScoresInTable) {
                 if(!onlyFirstPlace) leaderboardStr += `${(entries.length - i)} more scores from: `;
@@ -1334,11 +1338,16 @@ async function getMapLeaderboardWithOnlyRegisteredUsers(query, guild, game, mapL
 
             let newEntry = { ...entry };
             newEntry.user = member.id;
-            //Handle ties
-            if(lastTime == null || newEntry.time !== lastTime) {
-                rank++;
+
+            let scoretime = newEntry.time??newEntry.score;
+
+            if(scoretime != null) {
+                //Handle ties
+                if(lastTime == null || scoretime !== lastTime) {
+                    rank++;
+                }
+                lastTime = scoretime;
             }
-            lastTime = newEntry.time;
 
             newEntry.rank = rank;
 
@@ -1405,7 +1414,7 @@ function hasMapStatusChanged(guild, msqd, leaderboard) {
         let len = leaderboardOld.length;
         //let len = Math.min(this.maxScoresInTable, Math.min(leaderboardNew.length, leaderboardOld.length));
         for(let i = 0; i < len; i++) {
-            if(leaderboardOld[i].user !== leaderboardNew[i].user || leaderboardOld[i].time !== leaderboardNew[i].time)
+            if(leaderboardOld[i].user !== leaderboardNew[i].user || leaderboardOld[i].time !== leaderboardNew[i].time || leaderboardOld[i].score !== leaderboardNew[i].score)
                 return true;
         }
     }

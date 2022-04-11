@@ -78,7 +78,7 @@ export default class Experience extends Bot.Module {
     constructor(bot) {
         super(bot);
 
-        this.games = ['cw4', 'pf', 'cw3', 'cw2'];
+        this.games = ['cw4', 'pf', 'cw3', 'cw2', 'cw1'];
         this.expBarLength = 40;
         this.expBarLeadersLength = 26;
         this.dots = ['⣀', '⣄', '⣤', '⣦', '⣶', '⣷', '⣿'];
@@ -399,7 +399,7 @@ function leaderboard(m, game, kcgmm, champion) {
  */
 function message(m, game, kcgmm, champion) {
     this.bot.sql.transaction(async query => {
-        let message = await m.channel.send('...');
+        let message = await m.channel.send({embeds: [{description: "..."}]});
 
         await query(`DELETE FROM experience_messages WHERE guild_id = '${m.guild.id}' AND game = '${game}'`);
         await query(`INSERT INTO experience_messages (guild_id, game, channel_id, message_id)

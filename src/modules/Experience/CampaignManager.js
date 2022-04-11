@@ -228,6 +228,77 @@ export class CampaignManager {
                     { name: 'Cubic',            gameUID: 'b8',              exp: 340 },
                     { name: 'Abyss',            gameUID: 'b9',              exp: 350 },
                 ]
+            }],
+            cw1: [{
+                name: 'Story',
+                /** @type {CampaignMapDefinition[]} */
+                maps: [
+                    { name: 'Hope',        gameUID: "story_0",              exp: 125 },
+                    { name: 'Taurus',      gameUID: "story_1",              exp: 150 },
+                    { name: 'Fitch',       gameUID: "story_2",              exp: 175 },
+                    { name: 'Orion',       gameUID: "story_3",              exp: 200 },
+                    { name: 'Cetus',       gameUID: "story_4",              exp: 225 },
+                    { name: 'Ara',         gameUID: "story_5",              exp: 250 },
+                    { name: 'Corvus',      gameUID: "story_6",              exp: 275 },
+                    { name: 'Draco',       gameUID: "story_7",              exp: 300 },
+                    { name: 'Crux',        gameUID: "story_8",              exp: 325 },
+                    { name: 'Octan',       gameUID: "story_9",              exp: 350 },
+                    { name: 'Tucana',      gameUID: "story_10",              exp: 375 },
+                    { name: 'Vela',        gameUID: "story_11",              exp: 400 },
+                    { name: 'Pavo',        gameUID: "story_12",              exp: 425 },
+                    { name: 'Ursa',        gameUID: "story_13",              exp: 450 },
+                    { name: 'Canis',       gameUID: "story_14",              exp: 475 },
+                    { name: 'Ix',          gameUID: "story_15",              exp: 500 },
+                    { name: 'Scluptor',    gameUID: "story_16",              exp: 525 },
+                    { name: 'Volan',       gameUID: "story_17",              exp: 550 },
+                    { name: 'Pyxis',       gameUID: "story_18",              exp: 575 },
+                    { name: 'Loki',        gameUID: "story_19",              exp: 600 },
+                ]
+            }, {
+                name: 'Conquest',
+                /** @type {CampaignMapDefinition[]} */
+                maps: [
+                    { name: 'Grim 1',        gameUID: "conquest_0",              exp: 120 },
+                    { name: 'Grim 2',        gameUID: "conquest_1",              exp: 140 },
+                    { name: 'Grim 3',        gameUID: "conquest_2",              exp: 160 },
+                    { name: 'Grim 4',        gameUID: "conquest_3",              exp: 180 },
+                    { name: 'Grim 5',        gameUID: "conquest_4",              exp: 200 },
+                    { name: 'Skuld 1',        gameUID: "conquest_5",              exp: 220 },
+                    { name: 'Skuld 2',        gameUID: "conquest_6",              exp: 240 },
+                    { name: 'Skuld 3',        gameUID: "conquest_7",              exp: 260 },
+                    { name: 'Skuld 4',        gameUID: "conquest_8",              exp: 280 },
+                    { name: 'Skuld 5',        gameUID: "conquest_9",              exp: 300 },
+                    { name: 'Frigg 1',        gameUID: "conquest_10",              exp: 320 },
+                    { name: 'Frigg 2',        gameUID: "conquest_11",              exp: 340 },
+                    { name: 'Frigg 3',        gameUID: "conquest_12",              exp: 360 },
+                    { name: 'Frigg 4',        gameUID: "conquest_13",              exp: 380 },
+                    { name: 'Frigg 5',        gameUID: "conquest_14",              exp: 400 },
+                    { name: 'Vidar 1',        gameUID: "conquest_15",              exp: 420 },
+                    { name: 'Vidar 2',        gameUID: "conquest_16",              exp: 440 },
+                    { name: 'Vidar 3',        gameUID: "conquest_17",              exp: 460 },
+                    { name: 'Vidar 4',        gameUID: "conquest_18",              exp: 480 },
+                    { name: 'Vidar 5',        gameUID: "conquest_19",              exp: 500 },
+                    { name: 'Gudrun 1',        gameUID: "conquest_20",              exp: 520 },
+                    { name: 'Gudrun 2',        gameUID: "conquest_21",              exp: 540 },
+                    { name: 'Gudrun 3',        gameUID: "conquest_22",              exp: 560 },
+                    { name: 'Gudrun 4',        gameUID: "conquest_23",              exp: 580 },
+                    { name: 'Gudrun 5',        gameUID: "conquest_24",              exp: 600 },
+                ]
+            }, {
+                name: 'Special Ops',
+                /** @type {CampaignMapDefinition[]} */
+                maps: [
+                    { name: 'Classic Earth',        gameUID: "special_0",              exp: 260 },
+                    { name: 'Super Tax-Man',        gameUID: "special_1",              exp: 270 },
+                    { name: 'Gump',                 gameUID: "special_2",              exp: 280 },
+                    { name: 'Mouse Shadow',         gameUID: "special_3",              exp: 290 },
+                    { name: 'Chess',                gameUID: "special_4",              exp: 300 },
+                    { name: 'DTD',                  gameUID: "special_5",              exp: 310 },
+                    { name: 'Poison',               gameUID: "special_6",              exp: 320 },
+                    { name: 'ChopRaider',           gameUID: "special_7",              exp: 330 },
+                    { name: 'Air',                  gameUID: "special_8",              exp: 340 },
+                    { name: 'KC',                   gameUID: "special_9",              exp: 350 },
+                ]
             }]
         }
 
@@ -460,7 +531,8 @@ function selectCampaignMaps(arr, user, allMapsCompleted, allMapsIgnored) {
     case 'cw4':
     case 'pf':
     case 'cw3':
-    case 'cw2': {
+    case 'cw2':
+    case 'cw1': {
         //Select campaign(s) for each game
         switch(user.game) {
         case 'cw4':
@@ -477,6 +549,11 @@ function selectCampaignMaps(arr, user, allMapsCompleted, allMapsIgnored) {
         case 'cw2':
             campaigns.ordered.push(0);
             campaigns.ordered.push(1);
+            break;
+        case 'cw1':
+            campaigns.ordered.push(0);
+            campaigns.ordered.push(1);
+            campaigns.ordered.push(2);
             break;
         }
 

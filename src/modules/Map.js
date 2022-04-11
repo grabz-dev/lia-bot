@@ -267,7 +267,9 @@ async function score(m, mapQueryData, kcgmm) {
         const entry = entries[i];
         if(i > 0) field.value += '\n';
         field.value += Bot.Util.String.fixedWidth(`#${entry.rank}`, 3, ' ') + ' ';
-        field.value += Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 9, ' ') + ' ';
+        if(entry.time != null) field.value += Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 9, ' ') + ' ';
+        else if(entry.score != null) field.value += Bot.Util.String.fixedWidth(entry.score+'', 9, ' ') + ' ';
+        else field.value += Bot.Util.String.fixedWidth('', 9, ' ') + ' ';
         field.value += Bot.Util.String.fixedWidth(entry.user, longest, ' ', true);
     }
     field.value = '```\n' + field.value;
@@ -285,7 +287,7 @@ async function score(m, mapQueryData, kcgmm) {
     if(mapQueryData.id) {
         const map = kcgmm.getMapById(mapQueryData.game, mapQueryData.id);
         if(map != null) {
-            field.value = `${map.title} __by ${map.author}__\n\n` + field.value;
+            field.value = `${map.title} __by ${map.author}__\n` + field.value;
         }
     }
 
