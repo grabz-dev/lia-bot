@@ -354,15 +354,46 @@ function register(m, game, name) {
             return;
         }
 
-        if(this.cache.get(m.guild.id, 'pendingRegistration.' + m.guild.id) === name) {
-            await query(`INSERT INTO experience_users (user_id, user_name, game, timestamp_profile, timestamp_new) VALUES (?, ?, ?, ?, ?)`, [m.member.id, name, game, 0, 0]);
+        /** @type {{[userId: Discord.Snowflake]: {m: Bot.Message}}} */
+        let pendingRegistrations = this.cache.get(m.guild.id, 'pendingRegistrations');
 
-            m.message.reply(this.bot.locale.category('experience', 'register_success', name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown', game)).catch(logger.error);
+        if(pendingRegistrations == null) {
+            pendingRegistrations = {};
+            this.cache.set(m.guild.id, 'pendingRegistrations', pendingRegistrations);
         }
-        else {
-            this.cache.set(m.guild.id, 'pendingRegistration.' + m.guild.id, name);
-            m.message.reply(this.bot.locale.category('experience', 'register_confirm', name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown')).catch(logger.error);
+        
+        let currentUserRegistration = pendingRegistrations[m.member.id];
+        if(currentUserRegistration != null) {
+            currentUserRegistration.m.message.delete().catch(logger.error);
         }
+        pendingRegistrations[m.member.id] = { m };
+
+        const message = await m.message.reply(this.bot.locale.category('experience', 'register_confirm', name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown'));
+        const collector = message.createReactionCollector({
+            time: 1000 * 60 * 10,
+        })
+
+        collector.on('collect', async (reaction, user) => {
+            //do not remove if bot
+            if(message.member && user.id === message.member.id) return;
+            await reaction.users.remove(user);
+            if(user.id !== m.member.id) return;
+            if(reaction.emoji.name !== '✅') return;
+
+            delete pendingRegistrations[m.member.id];
+            await this.bot.sql.transaction(async query => {
+                await query(`INSERT INTO experience_users (user_id, user_name, game, timestamp_profile, timestamp_new) VALUES (?, ?, ?, ?, ?)`, [m.member.id, name, game, 0, 0]);
+                await message.reactions.removeAll();
+                await message.edit(this.bot.locale.category('experience', 'register_success', name, KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown', game));
+            }).catch(logger.error)
+        });
+
+        collector.on('end', async () => {
+            delete pendingRegistrations[m.member.id];
+            await message.delete();
+        });
+
+        await message.react('✅');
     }).catch(logger.error);
 }
 

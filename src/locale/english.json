@@ -63,7 +63,7 @@
             "already_registered_with_this_name": "You are already registered as `%0` for %1.",
             "already_registered_with_other_name": "You are already registered as `%0` for %1. If you want to change your name, contact moderation.",
             "name_taken": "The name `%0` is already taken for %1. If you feel this is a mistake, please contact moderation.",
-            "register_confirm": "Are you sure you want to register with the name `%0` for %1? This has to be the name you use for the leaderboards. To change this name later you'll have to contact moderation.\n\nType the command again with your name to confirm, or use a different name to try again.",
+            "register_confirm": "Are you sure you want to register with the name `%0` for %1? This has to be the name you use in the in-game leaderboards.\n\nClick the ✅ reaction below to confirm, or use a different name to try again.",
             "register_success": "You are now registered as `%0` for %1. Have fun!\n\nTo get your first set of maps to complete, type `!exp new %2`",
             "leaderboard_empty": "Nothing to show.",
             "leaderboard_title": "%0 leaderboards:",
