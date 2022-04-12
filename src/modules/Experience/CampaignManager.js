@@ -65,6 +65,7 @@ export class CampaignManager {
         this.campaign = {
             cw4: [{
                 name: 'Farsite Expedition',
+                atOnce: 1,
                 /** @type {CampaignMapDefinition[]} */
                 maps: [
                     { name: '09 Leo, 266',              gameUID: 'c3Rvcnkw',            exp: 125 }, 
@@ -91,6 +92,7 @@ export class CampaignManager {
                 ]
             }, {
                 name: 'Span Experiments',
+                atOnce: 1,
                 /** @type {CampaignMapDefinition[]} */
                 maps: [
                     { name: 'Special',                          gameUID: 'a251Y3JhY2tlcjEy',                exp: 250 },
@@ -124,6 +126,7 @@ export class CampaignManager {
             }],
             pf: [{
                 name: 'Story',
+                atOnce: 1,
                 /** @type {CampaignMapDefinition[]} */
                 maps: [
                     { name: 'Naivety',          gameUID: '1Story',                 exp: 250 },
@@ -144,6 +147,7 @@ export class CampaignManager {
                 ]
             }, {
                 name: 'Inception',
+                atOnce: 1,
                 /** @type {CampaignMapDefinition[]} */
                 maps: [
                     { name: 'The Melt',                 gameUID: '1Inception',                 exp: 260 },
@@ -159,6 +163,7 @@ export class CampaignManager {
             }],
             cw3: [{
                 name: 'Arc Eternal',
+                atOnce: 1,
                 /** @type {CampaignMapDefinition[]} */
                 maps: [
                     { name: 'Inceptus : Tempus',        gameUID: 'Tempus',              exp: 125 },
@@ -189,6 +194,7 @@ export class CampaignManager {
             }],
             cw2: [{
                 name: 'Story',
+                atOnce: 1,
                 /** @type {CampaignMapDefinition[]} */
                 maps: [
                     { name: 'Day 1: Novus Orsa',        gameUID: 's0',              exp: 125 },
@@ -215,6 +221,7 @@ export class CampaignManager {
                 ]
             }, {
                 name: 'Bonus',
+                atOnce: 1,
                 /** @type {CampaignMapDefinition[]} */
                 maps: [
                     { name: 'Positronic',       gameUID: 'b0',              exp: 260 },
@@ -231,6 +238,7 @@ export class CampaignManager {
             }],
             cw1: [{
                 name: 'Story',
+                atOnce: 1,
                 /** @type {CampaignMapDefinition[]} */
                 maps: [
                     { name: 'Hope',        gameUID: "story_0",              exp: 125 },
@@ -256,6 +264,7 @@ export class CampaignManager {
                 ]
             }, {
                 name: 'Conquest',
+                atOnce: 2,
                 /** @type {CampaignMapDefinition[]} */
                 maps: [
                     { name: 'Grim 1',        gameUID: "conquest_0",              exp: 120 },
@@ -263,41 +272,36 @@ export class CampaignManager {
                     { name: 'Grim 3',        gameUID: "conquest_2",              exp: 160 },
                     { name: 'Grim 4',        gameUID: "conquest_3",              exp: 180 },
                     { name: 'Grim 5',        gameUID: "conquest_4",              exp: 200 },
+                    { name: 'Classic Earth',        gameUID: "special_0",              exp: 210, categoryOverride: 'Special Ops' },
+                    { name: 'Super Tax-Man',        gameUID: "special_1",              exp: 210, categoryOverride: 'Special Ops' },
                     { name: 'Skuld 1',        gameUID: "conquest_5",              exp: 220 },
                     { name: 'Skuld 2',        gameUID: "conquest_6",              exp: 240 },
                     { name: 'Skuld 3',        gameUID: "conquest_7",              exp: 260 },
                     { name: 'Skuld 4',        gameUID: "conquest_8",              exp: 280 },
                     { name: 'Skuld 5',        gameUID: "conquest_9",              exp: 300 },
+                    { name: 'Gump',                 gameUID: "special_2",              exp: 310, categoryOverride: 'Special Ops' },
+                    { name: 'Mouse Shadow',         gameUID: "special_3",              exp: 310, categoryOverride: 'Special Ops' },
                     { name: 'Frigg 1',        gameUID: "conquest_10",              exp: 320 },
                     { name: 'Frigg 2',        gameUID: "conquest_11",              exp: 340 },
                     { name: 'Frigg 3',        gameUID: "conquest_12",              exp: 360 },
                     { name: 'Frigg 4',        gameUID: "conquest_13",              exp: 380 },
                     { name: 'Frigg 5',        gameUID: "conquest_14",              exp: 400 },
+                    { name: 'Chess',                gameUID: "special_4",              exp: 410, categoryOverride: 'Special Ops' },
+                    { name: 'DTD',                  gameUID: "special_5",              exp: 410, categoryOverride: 'Special Ops' },
                     { name: 'Vidar 1',        gameUID: "conquest_15",              exp: 420 },
                     { name: 'Vidar 2',        gameUID: "conquest_16",              exp: 440 },
                     { name: 'Vidar 3',        gameUID: "conquest_17",              exp: 460 },
                     { name: 'Vidar 4',        gameUID: "conquest_18",              exp: 480 },
                     { name: 'Vidar 5',        gameUID: "conquest_19",              exp: 500 },
+                    { name: 'Poison',               gameUID: "special_6",              exp: 510, categoryOverride: 'Special Ops' },
+                    { name: 'ChopRaider',           gameUID: "special_7",              exp: 510, categoryOverride: 'Special Ops' },
                     { name: 'Gudrun 1',        gameUID: "conquest_20",              exp: 520 },
                     { name: 'Gudrun 2',        gameUID: "conquest_21",              exp: 540 },
                     { name: 'Gudrun 3',        gameUID: "conquest_22",              exp: 560 },
                     { name: 'Gudrun 4',        gameUID: "conquest_23",              exp: 580 },
                     { name: 'Gudrun 5',        gameUID: "conquest_24",              exp: 600 },
-                ]
-            }, {
-                name: 'Special Ops',
-                /** @type {CampaignMapDefinition[]} */
-                maps: [
-                    { name: 'Classic Earth',        gameUID: "special_0",              exp: 260 },
-                    { name: 'Super Tax-Man',        gameUID: "special_1",              exp: 270 },
-                    { name: 'Gump',                 gameUID: "special_2",              exp: 280 },
-                    { name: 'Mouse Shadow',         gameUID: "special_3",              exp: 290 },
-                    { name: 'Chess',                gameUID: "special_4",              exp: 300 },
-                    { name: 'DTD',                  gameUID: "special_5",              exp: 310 },
-                    { name: 'Poison',               gameUID: "special_6",              exp: 320 },
-                    { name: 'ChopRaider',           gameUID: "special_7",              exp: 330 },
-                    { name: 'Air',                  gameUID: "special_8",              exp: 340 },
-                    { name: 'KC',                   gameUID: "special_9",              exp: 350 },
+                    { name: 'Air',                  gameUID: "special_8",              exp: 610, categoryOverride: 'Special Ops' },
+                    { name: 'KC',                   gameUID: "special_9",              exp: 610, categoryOverride: 'Special Ops' },
                 ]
             }]
         }
@@ -553,13 +557,13 @@ function selectCampaignMaps(arr, user, allMapsCompleted, allMapsIgnored) {
         case 'cw1':
             campaigns.ordered.push(0);
             campaigns.ordered.push(1);
-            campaigns.ordered.push(2);
             break;
         }
 
         //Process ordered campaign(s)
         for(let index of campaigns.ordered) {
             let category = this.campaign[user.game][index];
+            let i = 0;
             for(let cmap of category.maps) {
                 if(!isMapGoodToAdd(cmap, arr, user, allMapsCompleted, allMapsIgnored))
                     continue;
@@ -570,7 +574,8 @@ function selectCampaignMaps(arr, user, allMapsCompleted, allMapsIgnored) {
                     campaignName: cmap.categoryOverride != null ? cmap.categoryOverride : category.name,
                     mapName: this.maps[user.game][cmap.gameUID].mapName
                 });
-                break;
+                i++;
+                if(i >= category.atOnce) break;
             }
         }
 
