@@ -627,10 +627,12 @@ function newMaps(m, game, kcgmm, dm) {
             return;
         }
 
-
-        const data_custom = await this.managers.custom.newMaps(query, kcgmm, resultUsers, now, mapListArray, mapListId);
+        let _selected = 0;
         const data_campaign = await this.managers.campaign.newMaps(query, kcgmm, resultUsers, now);
+        _selected += data_campaign.newSelectedMaps.finished.length + data_campaign.newSelectedMaps.unfinished.length;
         const data_markv = await this.managers.markv.newMaps(query, kcgmm, resultUsers, now);
+        _selected += data_markv.newSelectedMaps.finished.length + data_markv.newSelectedMaps.unfinished.length;
+        const data_custom = await this.managers.custom.newMaps(query, kcgmm, resultUsers, now, mapListArray, mapListId, _selected);
 
         let totalCompletedOld = 0;
         totalCompletedOld += data_custom.countOldTotalCompleted;
