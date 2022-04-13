@@ -25,6 +25,8 @@ import Discord from 'discord.js';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { HttpRequest } from '../utils/HttpRequest.js';
+import jsdom from 'jsdom';
+const { JSDOM } = jsdom;
 
 const URLs = {
     cw2: "https://knucklecracker.com/forums/index.php?topic=",
@@ -174,88 +176,69 @@ export default class CWMaps extends Bot.Module {
      * @param {SQLWrapper.Query} query
      */
     async work(game, maps, count, query) {
-        if(game === 'cw2') {
-            let htmlBegin = `<div class="time_posted"><strong> on:</strong> `;
-            while(count > 0 && maps.length > 0) {
-                const map = maps[0];
-                maps.splice(0, 1);
-                if(map.forumId == null) continue;
-                const url = `${URLs[game]}${map.forumId}`;
-                var data = await HttpRequest.get(url);
-                let index = data.indexOf(htmlBegin);
-                if(index === -1) {
-                    log(`Failed to find date in HTML page in ${url}`)
-                    await Bot.Util.Promise.sleep(10000);
-                    continue;
-                }
-                data = data.substring(index + htmlBegin.length);
-                data = data.substring(0, data.indexOf(`</div>`));
-                const date = new Date(data);
-                await query(`INSERT INTO cw2_maps (id, timestamp) VALUES (?, ?)`, [map.id, date.getTime()]);
-                log(`New CW2 map upload date inserted. ID: ${map.id}, date: ${date}`);
+        while(count > 0 && maps.length > 0) {
+            const map = maps[0];
+            maps.splice(0, 1);
+            if(game === 'cw2' && map.forumId == null) continue;
+            let url;
+            if(game === 'cw2') url = `${URLs[game]}${map.forumId}`;
+            else url = `${URLs[game]}${map.id}`;
+
+            const data = await HttpRequest.get(url);
+            const dom = new JSDOM(data);
+            const window = dom.window;
+            const document = window.document;
+
+            /** @param {string=} str - Log a string */
+            async function exit(str) {
+                if(str) log(str);
                 count--;
+                window.close();
                 await Bot.Util.Promise.sleep(INTERVAL);
             }
-        }
-        else if(game === 'cw1') {
-            while(count > 0 && maps.length > 0) {
-                const map = maps[0];
-                maps.splice(0, 1);
-                const url = `${URLs[game]}${map.id}`;
-                var data = await HttpRequest.get(url);
 
-                var search = 'class="out5Class">';
-                var index = data.indexOf(search);
-                if(index === -1) {
-                    log(`Failed to find rating in HTML page in ${url}`)
-                    await Bot.Util.Promise.sleep(10000);
-                    continue;
-                }
-                data = data.substring(index + search.length);
-                const rating = +(data.substring(0, data.indexOf('<')).trim());
+            if(game === 'cw2') {
+                const dateStr = document.querySelector('.time_posted')?.childNodes[1]?.textContent?.trim();
+                if(dateStr == null) { await exit(`Failed to find date in page at ${url}`); continue; }
+                const date = new Date(dateStr);
+                await query(`INSERT INTO cw2_maps (id, timestamp) VALUES (?, ?)`, [map.id, date.getTime()]);
+                log(`New CW2 map upload date inserted. ID: ${map.id}, date: ${date}`);
+            }
+            else if(game === 'cw1') {
+                const rating = +(document.getElementById(`outOfFive_${map.id}`)?.textContent?.trim()??NaN);
+                if(!Number.isFinite(rating)) { await exit(`Failed to find rating in page at ${url}`); continue; }
 
-                var search = 'class="votesClass">';
-                var index = data.indexOf(search);
-                if(index === -1) {
-                    log(`Failed to find ratings in HTML page in ${url}`)
-                    await Bot.Util.Promise.sleep(10000);
-                    continue;
-                }
-                data = data.substring(index + search.length);
-                const ratings = +(data.substring(0, data.indexOf(' ')).trim());
-                
-                data = data.substring(data.indexOf('Title:') + 6);
-                data = data.substring(data.indexOf('</td>') + 5);
-                data = data.substring(data.indexOf('>') + 1);
-                const title = data.substring(0, data.indexOf('<')).trim();
+                const ratings = +(document.getElementById(`showvotes_${map.id}`)?.textContent?.trim()?.split(' ')[0]??NaN);
+                if(!Number.isFinite(ratings)) { await exit(`Failed to find ratings in page at ${url}`); continue; }
 
-                data = data.substring(data.indexOf('Post Date:') + 10);
-                data = data.substring(data.indexOf('</td>') + 5);
-                data = data.substring(data.indexOf('>') + 1);
-                const date = new Date(data.substring(0, data.indexOf('<')).trim());
+                const tables = document.querySelectorAll('table');
+                if(tables.length !== 3) { await exit(`Invalid number of tables (${tables.length}) in page at ${url}`); continue; }
 
-                data = data.substring(data.indexOf('Desc:') + 5);
-                data = data.substring(data.indexOf('</td>') + 5);
-                data = data.substring(data.indexOf('>') + 1);
-                data = data.substring(data.indexOf('>') + 1);
-                const desc = data.substring(0, data.indexOf('<')).trim();
+                const table = tables[1];
+                const entries = table.querySelectorAll('tr');
+                if(entries.length !== 6) { await exit(`Invalid number of entries (${entries.length}) in map table at ${url}`); continue; }
 
-                var search = "href='/forums/index.php?topic=";
-                var index = data.indexOf(search);
-                if(index === -1) {
-                    log(`Failed to find forum ID in HTML page in ${url}`)
-                    await Bot.Util.Promise.sleep(10000);
-                    continue;
-                }
-                data = data.substring(index + search.length);
-                const forumId = +(data.substring(0, data.indexOf("'>")).trim());
+                const title = entries[0].querySelectorAll('td')[1]?.textContent?.trim();
+                if(title == null) { await exit(`Failed to find title in page at ${url}`); continue; }
+
+                const postDate = entries[3].querySelectorAll('td')[1]?.textContent?.trim();
+                if(postDate == null) { await exit(`Failed to find date in page at ${url}`); continue; }
+                const date = new Date(postDate);
+
+                const desc = entries[5].querySelectorAll('td')[1]?.textContent?.trim();
+                if(desc == null) { await exit(`Failed to find desc in page at ${url}`); continue; }
+
+                const forumId = +(document.querySelector('[href^="/forums/index.php?topic="]')?.getAttribute('href')?.split('=')[1]??NaN);
+                if(forumId == null) { await exit(`Failed to find forumId in page at ${url}`); continue; }
 
                 await query(`INSERT INTO cw1_maps (id, title, rating, ratings, description, forum_id, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)`, [map.id, title, rating, ratings, desc, forumId, date.getTime()]);
                 log(`New CW1 map upload date inserted. ID: ${map.id}, title: ${title}, rating: ${rating}, ratings: ${ratings}, desc: ${desc}, forumId: ${forumId}, date: ${date}`);
-                count--;
-                await Bot.Util.Promise.sleep(INTERVAL);
             }
+
+
+            await exit(); continue;
         }
+
         if(maps.length === 0) return 2;
         return 1;
     }
