@@ -21,6 +21,12 @@ import mysql from 'mysql';
  * @property {number|null} time_start - Start timestamp.
  * @property {number|null} time_end - End timestamp.
  * @property {number|null} time_end_offset
+ * @property {string|null} previous_competition_message_ids
+ * @property {Discord.Snowflake|null} previous_competition_title_message_id
+ * @property {Discord.Snowflake|null} score_tally_message_id
+ * @property {Discord.Snowflake|null} current_champions_message_id
+ * @property {Discord.Snowflake|null} chronom_intro_message_id
+ * @property {Discord.Snowflake|null} champion_intro_message_id
  */
 
 /**
@@ -103,6 +109,7 @@ export default class Competition extends Bot.Module {
         this.games = ["cw4", "pf", "cw3", "cw2", "cw1"];
         this.maxScoresInTable = 8;
         this.timeOffsetHours = 24;
+        this.pinMania = false;
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS competition_main (
@@ -111,7 +118,13 @@ export default class Competition extends Bot.Module {
                 channel_id VARCHAR(64),
                 time_start BIGINT,
                 time_end BIGINT,
-                time_end_offset BIGINT
+                time_end_offset BIGINT,
+                previous_competition_message_ids VARCHAR(1024),
+                previous_competition_title_message_id VARCHAR(64),
+                score_tally_message_id VARCHAR(64),
+                current_champions_message_id VARCHAR(64),
+                chronom_intro_message_id VARCHAR(64),
+                champion_intro_message_id VARCHAR(64)
              )`);
 
             await query(`CREATE TABLE IF NOT EXISTS competition_messages (
@@ -175,6 +188,12 @@ export default class Competition extends Bot.Module {
              )`);
 
             await query(`ALTER TABLE competition_main ADD COLUMN time_end_offset BIGINT`).catch(() => {});
+            await query(`ALTER TABLE competition_main ADD COLUMN previous_competition_message_ids VARCHAR(1024)`).catch(() => {});
+            await query(`ALTER TABLE competition_main ADD COLUMN previous_competition_title_message_id VARCHAR(64)`).catch(() => {});
+            await query(`ALTER TABLE competition_main ADD COLUMN score_tally_message_id VARCHAR(64)`).catch(() => {});
+            await query(`ALTER TABLE competition_main ADD COLUMN current_champions_message_id VARCHAR(64)`).catch(() => {});
+            await query(`ALTER TABLE competition_main ADD COLUMN chronom_intro_message_id VARCHAR(64)`).catch(() => {});
+            await query(`ALTER TABLE competition_main ADD COLUMN champion_intro_message_id VARCHAR(64)`).catch(() => {});
         }).catch(logger.error);
     }
 
@@ -191,7 +210,7 @@ export default class Competition extends Bot.Module {
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
-     * @param {'register'|'unregister'|'set-channel'|'info'|'status'|'start'|'destroy'|'add-map'|'remove-map'|'update'|'build-tally'|'end'|'map'|'intro'} ext.action - Custom parameters provided to function call.
+     * @param {'register'|'unregister'|'set-channel'|'info'|'status'|'start'|'destroy'|'add-map'|'remove-map'|'update'|'build-tally'|'end'|'map'|'intro'|'pinmania'} ext.action - Custom parameters provided to function call.
      * @param {KCGameMapManager} ext.kcgmm
      * @param {import('./Map.js').default} ext.map
      * @param {import('./Champion.js').default} ext.champion
@@ -308,6 +327,9 @@ export default class Competition extends Bot.Module {
                 intro.call(this, m, arg);
                 return;
             }
+            return;
+        case 'pinmania':
+            pinMania.call(this, m);
             return;
         }
     }
@@ -764,6 +786,8 @@ function end(m, guild, kcgmm, champion, noRefresh) {
 
         //Ensure proper order of messages.
         resultsMaps.sort((a, b) => this.games.indexOf(a.game) - this.games.indexOf(b.game));
+        
+        let _messages = [];
         for(let resultMaps of resultsMaps) {
             let map = getMapScoreQueryDataFromDatabase(resultMaps);
 
@@ -782,8 +806,10 @@ function end(m, guild, kcgmm, champion, noRefresh) {
                 text: Bot.Util.getFormattedDate(resultMain.time_start || 0, true) + " - " + Bot.Util.getFormattedDate(now, true),
             }
             
-            await channel.send({embeds: [embed]});
+            _messages.push((await channel.send({embeds: [embed]})).id);
         }
+
+        await query(`UPDATE competition_main SET previous_competition_message_ids = ? WHERE guild_id = ?`, [_messages.join(','), guild.id]);
 
         let insertComps = (await query(`INSERT INTO competition_history_competitions (guild_id, time_end)
             VALUES ('${guild.id}', '${now}')`)).results;
@@ -887,6 +913,78 @@ function intro(m, type) {
 
     m.channel.send({embeds: [embed]}).catch(logger.error);
 }
+
+/**
+ * Repin all comp messages
+ * @this {Competition}
+ * @param {Bot.Message} m
+ */
+function pinMania(m) {
+    if(this.pinMania) return;
+    this.pinMania = true;
+    this.bot.sql.transaction(async query => {
+        /** @type {Db.competition_messages[]} */
+        let compMessages = (await query(`SELECT * FROM competition_messages WHERE guild_id = ?`, [m.guild.id])).results;
+        /** @type {Db.competition_main} */
+        let main = (await query(`SELECT * FROM competition_main WHERE guild_id = ?`, [m.guild.id])).results[0];
+        if(main == null || main.channel_id == null) {
+            m.message.reply('Competition channel is not set.').catch(logger.error);
+            return;
+        }
+        if(m.channel.id !== main.channel_id) {
+            m.message.reply('You can only do this in the Competition channel.').catch(logger.error);
+            return;
+        }
+        const pinned = await m.channel.messages.fetchPinned();
+        for(const msg of pinned) {
+            await msg[1].unpin();
+            await Bot.Util.Promise.sleep(1000);
+        }
+        if(main.previous_competition_message_ids != null) {
+            for(const channelId of main.previous_competition_message_ids.split(',').reverse()) {
+                let message = await m.channel.messages.fetch(channelId).catch(() => {});
+                if(message) {
+                    await message.pin();
+                    await Bot.Util.Promise.sleep(1000);
+                }
+            }
+        }
+        if(main.previous_competition_title_message_id != null) {
+            let message = await m.channel.messages.fetch(main.previous_competition_title_message_id).catch(() => {});
+            if(message) {
+                await message.pin();
+                await Bot.Util.Promise.sleep(1000);
+            }
+        }
+        if(main.chronom_intro_message_id != null) {
+            let message = await m.channel.messages.fetch(main.chronom_intro_message_id).catch(() => {});
+            if(message) {
+                await message.pin();
+                await Bot.Util.Promise.sleep(1000);
+            }
+        }
+        if(main.champion_intro_message_id != null) {
+            let message = await m.channel.messages.fetch(main.champion_intro_message_id).catch(() => {});
+            if(message) {
+                await message.pin();
+                await Bot.Util.Promise.sleep(1000);
+            }
+        }
+        compMessages.sort((a, b) => this.games.indexOf(a.game) - this.games.indexOf(b.game));
+        for(const msg of compMessages) {
+            let message = await m.channel.messages.fetch(msg.message_id).catch(() => {});
+            if(message) {
+                await message.pin();
+                await Bot.Util.Promise.sleep(1000);
+            }
+        }
+
+        this.pinMania = false;
+    }).catch(logger.error);
+}
+
+
+
 
 
 
@@ -1010,7 +1108,7 @@ async function buildScoreTally(guild, channel, query, champion) {
         embed.fields = [];
         embed.fields.push(field);
 
-        await channel.send({embeds: [embed]});
+        await query(`UPDATE competition_main SET score_tally_message_id = ? WHERE guild_id = ?`, [(await channel.send({embeds: [embed]})).id, guild.id]);
     })().then(async () => {
         const embed = new Discord.MessageEmbed({ color: 1482885 });
         const field = {
@@ -1036,8 +1134,8 @@ async function buildScoreTally(guild, channel, query, champion) {
         
         embed.fields = [];
         embed.fields.push(field);
-    
-        await channel.send({embeds: [embed]});
+        
+        await query(`UPDATE competition_main SET current_champions_message_id = ? WHERE guild_id = ?`, [(await channel.send({embeds: [embed]})).id, guild.id]);
     }).catch(logger.error);
 }
 

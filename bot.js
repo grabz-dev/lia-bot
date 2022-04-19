@@ -333,6 +333,9 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'intro', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'intro' });
             });
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'pinmania', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
+                return competition.land(message, args, arg, { action: 'pinmania' });
+            });
         }).catch(logger.error);
 
         (() => {

@@ -482,6 +482,10 @@
             "chronom": [
                 "!%name%",
                 "Update and show your current Creeper World 4 Chronom standings."
+            ],
+            "pinmania": [
+                "!%name%",
+                "Re-pin competition messages in the Competition channel."
             ]
         }
     }
