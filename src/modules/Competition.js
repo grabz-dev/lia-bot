@@ -806,7 +806,7 @@ function end(m, guild, kcgmm, champion, noRefresh) {
                 text: Bot.Util.getFormattedDate(resultMain.time_start || 0, true) + " - " + Bot.Util.getFormattedDate(now, true),
             }
             
-            _messages.push((await channel.send({embeds: [embed]})).id);
+            _messages.push((await channel.send({content: "Previous competition standings:", embeds: [embed]})).id);
         }
 
         await query(`UPDATE competition_main SET previous_competition_message_ids = ? WHERE guild_id = ?`, [_messages.join(','), guild.id]);
