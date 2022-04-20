@@ -956,6 +956,20 @@ function pinMania(m) {
                 await Bot.Util.Promise.sleep(1000);
             }
         }
+        if(main.current_champions_message_id != null) {
+            let message = await m.channel.messages.fetch(main.current_champions_message_id).catch(() => {});
+            if(message) {
+                await message.pin();
+                await Bot.Util.Promise.sleep(1000);
+            }
+        }
+        if(main.score_tally_message_id != null) {
+            let message = await m.channel.messages.fetch(main.score_tally_message_id).catch(() => {});
+            if(message) {
+                await message.pin();
+                await Bot.Util.Promise.sleep(1000);
+            }
+        }
         if(main.chronom_intro_message_id != null) {
             let message = await m.channel.messages.fetch(main.chronom_intro_message_id).catch(() => {});
             if(message) {
@@ -970,7 +984,7 @@ function pinMania(m) {
                 await Bot.Util.Promise.sleep(1000);
             }
         }
-        compMessages.sort((a, b) => this.games.indexOf(a.game) - this.games.indexOf(b.game));
+        compMessages.sort((a, b) => this.games.indexOf(b.game) - this.games.indexOf(a.game));
         for(const msg of compMessages) {
             let message = await m.channel.messages.fetch(msg.message_id).catch(() => {});
             if(message) {
