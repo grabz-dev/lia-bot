@@ -1031,11 +1031,11 @@ async function buildScoreTally(guild, channel, query, champion) {
                 guildMembersPromise.set(resultScores.user_id, guild.members.fetch(resultScores.user_id).catch(() => {}));
 
                 if(resultScores.user_rank === 1) {
-                    players.set(resultScores.user_id, { points: points, champion: true, weeks: i });
+                    players.set(resultScores.user_id, { points: points, champion: true, weeks: Math.max(i, player?.weeks??0) });
                     champions.set(resultScores.user_id, true);
                 }
                 else {
-                    players.set(resultScores.user_id, { points: points, champion: false, weeks: 0 });
+                    players.set(resultScores.user_id, { points: points, champion: false, weeks: Math.max(0, player?.weeks??0) });
                 }
             }
         }
