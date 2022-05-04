@@ -534,7 +534,7 @@ function userDeletionHandler(m, message, embed) {
         if(message.member && user.id === message.member.id) return;
         await reaction.users.remove(user);
 
-        if(user.id === m.member.id || Bot.Util.isMemberModerator(m.member) || Bot.Util.isMemberAdmin(m.member)) {
+        if(user.id === m.member.id) {
             switch(reaction.emoji.name) {
             case '❌':
                 message.delete().catch(logger.error);
