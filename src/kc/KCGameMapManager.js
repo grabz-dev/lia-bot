@@ -72,7 +72,9 @@ import crypto from 'crypto';
 import xml2js from 'xml2js';
 import { logger, Util } from 'discord-bot-core';
 import { HttpRequest } from '../utils/HttpRequest.js';
+import { gunzip } from '../utils/Zlib.js';
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
+import { CW4NBTReader, TagCompound } from './CW4NBTReader.js';
 
 import { fetchMapsDefault } from './KCGameMapManager/fetch-maps-default.js';
 import { fetchMaps, readCache } from './KCGameMapManager/fetch-maps-cw2.js';
@@ -168,6 +170,23 @@ export function KCGameMapManager(options, locale) {
                 return { entries: [entries] };
             }
         }
+    }
+
+    /**
+     * 
+     * @param {string} guid 
+     * @returns 
+     */
+    this.getCW4MapDescriptionFromCW4MapDownload = async function(guid) {
+        let buffer = await (await HttpRequest.fetch(`https://knucklecracker.com/creeperworld4/queryMaps.php?query=map&guid=${guid}`)).arrayBuffer();
+        let compressed = Array.from(new Uint8Array(buffer));
+        compressed = compressed.slice(4);
+        let data = await gunzip(new Uint8Array(compressed));
+        let reader = new CW4NBTReader(data.buffer);
+        let key = reader.readUint8();
+        let val = reader.readString();
+        let c = new TagCompound(reader);
+        return ((c.dict.get("desc").value)+'').trim();
     }
 
     /**

@@ -19,6 +19,14 @@ export default class Map extends Bot.Module {
     constructor(bot) {
         super(bot);
 
+        this.bot.sql.transaction(async query => {
+            await query(`CREATE TABLE IF NOT EXISTS map_cw4_descriptions (
+                id INT UNSIGNED PRIMARY KEY,
+                description VARCHAR(1024) NOT NULL
+             )`);
+        }).catch(logger.error)
+
+
         this.games = ['cw1', 'cw2', 'cw3', 'pf', 'cw4'];
         /** @type {Object.<string, string>} */
         this.autoMap = {
@@ -178,6 +186,23 @@ async function map(m, game, id, kcgmm, suppressError, allowTemporaryDelete) {
 
     let mapData = typeof id === 'number' ? kcgmm.getMapById(game, id) : kcgmm.getMapByTitle(game, id);
     if(mapData != null) {
+        for(const map of (mapData instanceof Array ? mapData : [mapData])) {
+            if(map.game === 'cw4') {
+                await this.bot.sql.transaction(async query => {
+                    let result = (await query(`SELECT * FROM map_cw4_descriptions WHERE id = ?`, map.id)).results[0];
+                    if(result != null) {
+                        map.desc = result.description;
+                        return;
+                    }
+                    if(map.guid == null) return;
+                    logger.info(`Downloading description from CW4 map ${map.id}`);
+                    let desc = await kcgmm.getCW4MapDescriptionFromCW4MapDownload(map.guid);
+                    await query(`INSERT INTO map_cw4_descriptions (id, description) VALUES (?, ?)`, [map.id, desc]);
+                    map.desc = desc;
+                }).catch(logger.error);
+            }
+        }
+
         const embed = mapData instanceof Array ?
             await getMultipleMapsMessageEmbed.call(this, mapData, emote, m.guild, game, kcgmm)
             :
