@@ -186,22 +186,9 @@ async function map(m, game, id, kcgmm, suppressError, allowTemporaryDelete) {
 
     let mapData = typeof id === 'number' ? kcgmm.getMapById(game, id) : kcgmm.getMapByTitle(game, id);
     if(mapData != null) {
-        for(const map of (mapData instanceof Array ? mapData : [mapData])) {
-            if(map.game === 'cw4') {
-                await this.bot.sql.transaction(async query => {
-                    let result = (await query(`SELECT * FROM map_cw4_descriptions WHERE id = ?`, map.id)).results[0];
-                    if(result != null) {
-                        map.desc = result.description;
-                        return;
-                    }
-                    if(map.guid == null) return;
-                    logger.info(`Downloading description from CW4 map ${map.id}`);
-                    let desc = await kcgmm.getCW4MapDescriptionFromCW4MapDownload(map.guid);
-                    await query(`INSERT INTO map_cw4_descriptions (id, description) VALUES (?, ?)`, [map.id, desc]);
-                    map.desc = desc;
-                }).catch(logger.error);
-            }
-        }
+        const singleMap = !(mapData instanceof Array) ? mapData : mapData.length === 1 ? mapData[0] : null;
+        if(singleMap != null)
+            await fetchMapDescriptionForCW4.call(this, singleMap, kcgmm);
 
         const embed = mapData instanceof Array ?
             await getMultipleMapsMessageEmbed.call(this, mapData, emote, m.guild, game, kcgmm)
@@ -231,6 +218,7 @@ async function map(m, game, id, kcgmm, suppressError, allowTemporaryDelete) {
                 if(suppressError) message.delete();
             }
             else {
+                await fetchMapDescriptionForCW4.call(this, mapData, kcgmm);
                 message.delete().catch(logger.error);
                 const embed = await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm);
                 m.channel.send({ embeds:[embed] }).then(message => {
@@ -574,4 +562,26 @@ function userDeletionHandler(m, message, embed) {
     });
 
     message.react('❌').catch(logger.error);
+}
+
+/**
+ * @this {Map}
+ * @param {KCGameMapManager.MapData} map 
+ * @param {KCGameMapManager} kcgmm
+ */
+async function fetchMapDescriptionForCW4(map, kcgmm) {
+    if(map.game !== 'cw4') return;
+
+    await this.bot.sql.transaction(async query => {
+        let result = (await query(`SELECT * FROM map_cw4_descriptions WHERE id = ?`, map.id)).results[0];
+        if(result != null) {
+            map.desc = result.description;
+            return;
+        }
+        if(map.guid == null) return;
+        logger.info(`Downloading description from CW4 map ${map.id}`);
+        let desc = await kcgmm.getCW4MapDescriptionFromCW4MapDownload(map.guid);
+        await query(`INSERT INTO map_cw4_descriptions (id, description) VALUES (?, ?)`, [map.id, desc]);
+        map.desc = desc;
+    }).catch(logger.error);
 }
