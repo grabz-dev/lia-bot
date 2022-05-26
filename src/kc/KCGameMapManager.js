@@ -178,6 +178,9 @@ export function KCGameMapManager(options, locale) {
      * @returns 
      */
     this.getCW4MapDescriptionFromCW4MapDownload = async function(guid) {
+        if (global.gc) {
+            global.gc();
+        }
         let buffer = await (await HttpRequest.fetch(`https://knucklecracker.com/creeperworld4/queryMaps.php?query=map&guid=${guid}`)).arrayBuffer();
         let compressed = Array.from(new Uint8Array(buffer));
         compressed = compressed.slice(4);

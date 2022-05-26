@@ -364,7 +364,9 @@ export class TagCompound {
             }
             var key = reader.readString();
             var val = readTag(reader, id);
+            if(key !== 'desc') continue;
             this.dict.set(key, val);
+            if(key === 'desc') return;
         }
     }
     /**

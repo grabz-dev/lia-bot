@@ -1719,7 +1719,7 @@ Type \`cancel\` to cancel the match.`;
         this.bot.sql.transaction(async query => {
             /** @type {Db.farkle_users|null} */
             let docU = (await query(`SELECT * FROM farkle_users WHERE user_id = ${m.member.id}`)).results[0];
-            let skin = F.skins[docU ? docU.skin : "braille"];
+            let skin = F.skins[docU ? docU.skin : "digits"];
 
             var str = `https://en.wikipedia.org/wiki/Farkle
             
@@ -2398,7 +2398,7 @@ async function roll(client, action, docCG, docCPs, docVs, docCPVs, query, state)
             let docU = (await query(`SELECT * FROM farkle_users WHERE user_id = ${attendee.user_id}`)).results[0];
 
             let g = grid;
-            let s = (docU ? docU.skin : "braille");
+            let s = (docU ? docU.skin : "digits");
             g = g.replace(/%1%/g, ` ${F.skins[s][1]} `);
             g = g.replace(/%2%/g, ` ${F.skins[s][2]} `);
             g = g.replace(/%3%/g, ` ${F.skins[s][3]} `);
