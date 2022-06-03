@@ -27,6 +27,7 @@ import mysql from 'mysql';
  * @property {Discord.Snowflake|null} current_champions_message_id
  * @property {Discord.Snowflake|null} chronom_intro_message_id
  * @property {Discord.Snowflake|null} champion_intro_message_id
+ * @property {Discord.Snowflake|null} chronom_leaders_message_id
  */
 
 /**
@@ -194,6 +195,7 @@ export default class Competition extends Bot.Module {
             await query(`ALTER TABLE competition_main ADD COLUMN current_champions_message_id VARCHAR(64)`).catch(() => {});
             await query(`ALTER TABLE competition_main ADD COLUMN chronom_intro_message_id VARCHAR(64)`).catch(() => {});
             await query(`ALTER TABLE competition_main ADD COLUMN champion_intro_message_id VARCHAR(64)`).catch(() => {});
+            await query(`ALTER TABLE competition_main ADD COLUMN chronom_leaders_message_id VARCHAR(64)`).catch(() => {});
         }).catch(logger.error);
     }
 
@@ -898,20 +900,29 @@ function intro(m, type) {
         let roleId = this.bot.getRoleId(m.guild.id, 'CHAMPION_OF_KC');
         embed.color = 4482815;
 
-        embed.description = `:fire: **Introduction to Champions**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nReach top 5 in the score tally or place #1 at the end of a competition in any of the maps listed in the pinned messages below to become Champion.`;
+        embed.description = `:fire: **Introduction to Champions**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nReach top 5 in the score tally or place #1 at the end of a competition in any of the maps listed in the pinned messages in the pins above this one to become Champion.`;
     }
     else if(type === 'chronom') {
         let roleId = this.bot.getRoleId(m.guild.id, 'MASTER_OF_CHRONOM');
         embed.color = 12141774;
 
-        embed.description = `:fire: **Introduction to Chronom**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nComplete all of the latest Creeper World 4 Chronom maps to become Master of Chronom. Track your status with the \`!c chronom\` command in <#457188713978527746>.`;
+        embed.description = `:fire: **Introduction to Chronom**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nComplete all of the latest Creeper World 4 Chronom maps to become Master of Chronom. Track your status with the \`!c chronom\` command in <#457188713978527746>.\nYou can also get this role by reaching a high score in one or more recent Chronom maps. See standings in the message above this pin.`;
     }
 
     embed.image = {
         url: 'https://media.discordapp.net/attachments/376817338990985246/783860176292806697/specialevent.png'
     }
 
-    m.channel.send({embeds: [embed]}).catch(logger.error);
+    m.channel.send({embeds: [embed]}).then(message => {
+        this.bot.sql.transaction(async query => {
+            if(type === 'champion') {
+                await query(`UPDATE competition_main SET champion_intro_message_id = ? WHERE guild_id = ?`, [message.id, m.guild.id]);
+            }
+            else if(type === 'chronom') {
+                await query(`UPDATE competition_main SET chronom_intro_message_id = ? WHERE guild_id = ?`, [message.id, m.guild.id]);
+            }
+        }).catch(logger.error)
+    }).catch(logger.error);
 }
 
 /**
@@ -972,6 +983,13 @@ function pinMania(m) {
         }
         if(main.chronom_intro_message_id != null) {
             let message = await m.channel.messages.fetch(main.chronom_intro_message_id).catch(() => {});
+            if(message) {
+                await message.pin();
+                await Bot.Util.Promise.sleep(1000);
+            }
+        }
+        if(main.chronom_leaders_message_id != null) {
+            let message = await m.channel.messages.fetch(main.chronom_leaders_message_id).catch(() => {});
             if(message) {
                 await message.pin();
                 await Bot.Util.Promise.sleep(1000);

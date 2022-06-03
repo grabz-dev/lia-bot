@@ -6,6 +6,7 @@
 /** @typedef {import("../kc/KCGameMapManager").MapScoreQueryData} KCGameMapManager.MapScoreQueryData} */
 /** @typedef {import("../kc/KCGameMapManager").MapLeaderboard} KCGameMapManager.MapLeaderboard} */
 /** @typedef {import("../kc/KCGameMapManager").MapLeaderboardEntry} KCGameMapManager.MapLeaderboardEntry} */
+/** @typedef {import('./Competition.js').Db.competition_register} Db.competition_register */
 
 import Discord from 'discord.js';
 import * as Bot from 'discord-bot-core';
@@ -23,6 +24,8 @@ export default class Chronom extends Bot.Module {
 
         this.days = 8;
         this.daysRole = 5;
+        //for reaching a high place
+        this.additionalMastersCount = 5;
     }
 
     /** @param {Discord.Guild} guild - Current guild. */
@@ -61,12 +64,12 @@ export default class Chronom extends Bot.Module {
         this.bot.sql.transaction(async query => {
             const roleId = this.bot.getRoleId(guild.id, 'MASTER_OF_CHRONOM');
 
-            /** @type {any[]} */
+            /** @type {Db.competition_register[]} */
             let resultsRegister = (await query(`SELECT * FROM competition_register 
         WHERE guild_id = '${guild.id}' AND game = 'cw4'`)).results;
             if(resultsRegister.length <= 0) return;
 
-            /** @type {({timestamp: number, leaderboard: Promise<KCGameMapManager.MapLeaderboard>, leaderboardFallback: Promise<KCGameMapManager.MapLeaderboard>})[]} */
+            /** @type {({timestamp: number, leaderboard: Promise<KCGameMapManager.MapLeaderboard>})[]} */
             let arr = [];
             for(let i = 0; i < this.days; i++) {
                 let timestamp = now - (1000 * 60 * 60 * 24 * i);
@@ -78,24 +81,22 @@ export default class Chronom extends Bot.Module {
                 arr[i] = {
                     timestamp: timestamp,
                     leaderboard: kcgmm.getMapScores(msqd, undefined, 'specialevent', { removeMverseTag: true }),
-                    leaderboardFallback: kcgmm.getMapScores(msqd, undefined, undefined, { removeMverseTag: true })
                 }
             }
 
-            /** @type {({timestamp: number, leaderboard: KCGameMapManager.MapLeaderboard, leaderboardFallback: KCGameMapManager.MapLeaderboard})[]} */
+            /** @type {({timestamp: number, leaderboard: KCGameMapManager.MapLeaderboard})[]} */
             let arr2 = [];
             for(let i = 0; i < this.days; i++) {
                 arr2[i] = {
                     timestamp: arr[i].timestamp,
-                    leaderboard: await arr[i].leaderboard,
-                    leaderboardFallback: await arr[i].leaderboardFallback
+                    leaderboard: await arr[i].leaderboard
                 }
             }
 
-            /** @type {Object.<string, boolean>} */
+            /** @type {Object.<string, Db.competition_register>} */
             let users = {};
             for(let resultRegister of resultsRegister) {
-                users[resultRegister.user_name] = true;
+                users[resultRegister.user_name] = resultRegister;
             }
 
             /** @type {Array<Object<string, boolean>>} */
@@ -109,10 +110,27 @@ export default class Chronom extends Bot.Module {
                         usersCompleted[i][entry.user] = true;
                     }
                 }
-                for(let entries of data.leaderboardFallback.entries) {
-                    if(entries == null) continue;
-                    for(let entry of entries) {
-                        usersCompleted[i][entry.user] = true;
+            }
+            
+            /** @type {{[user: string]: {timestamp: number, rank: number, objective: number, time: number, register: Db.competition_register}}} */
+            const additionalMasters = {};
+            let k = 0;
+            loop:
+            for(let i = 1; i < 10; i++) {
+                for(const map of arr2) {
+                    for(let j = 0; j < map.leaderboard.entries.length; j++) {
+                        const leaderboards = map.leaderboard.entries[j];
+                        if(leaderboards == null) continue;
+                        let l = leaderboards.find(v => v.rank === i);
+                        if(l == null) continue;
+                        const register = users[l.user];
+                        if(!register) continue;
+                        const leaderboard = l;
+                        if(additionalMasters[leaderboard.user] != null) continue;
+                        const time = leaderboard.time??0;
+                        additionalMasters[leaderboard.user] = {timestamp: map.timestamp, rank: i, objective: j, time: time, register: register};
+                        k++;
+                        if(k >= this.additionalMastersCount) break loop;
                     }
                 }
             }
@@ -130,6 +148,9 @@ export default class Chronom extends Bot.Module {
                 }
             }
 
+            /** @type {{[user: string]: {register: Db.competition_register, bestStreak: number}}} */
+            const masters = {};
+
             for(let user of Object.keys(streaks)) {
                 let resultRegister = resultsRegister.find(v => v.user_name === user);
                 if(resultRegister == null) continue;
@@ -139,6 +160,10 @@ export default class Chronom extends Bot.Module {
                 let streak = streaks[user];
                 if(roleId != null) {
                     if(streak.bestStreak >= this.daysRole) {
+                        masters[user] = { bestStreak: streak.bestStreak, register: users[user] }
+                    }
+
+                    if(streak.bestStreak >= this.daysRole || additionalMasters[user] != null) {
                         if(!member.roles.cache.has(roleId))
                             member.roles.add(roleId).catch(logger.error);
                     }
@@ -149,7 +174,43 @@ export default class Chronom extends Bot.Module {
                 }
             }
 
+            await (async () => {
+                let emote = '';
+                await this.bot.sql.transaction(async query => {
+                    /** @type {any} */
+                    let result = (await query(`SELECT * FROM emotes_game
+                                            WHERE guild_id = '${guild.id}' AND game = 'cw4'`)).results[0];
+                    emote = result?.emote;
+                }).catch(logger.error);
+
+
+                /** @type {import ('./Competition.js').Db.competition_main} */
+                const c = (await query(`SELECT * FROM competition_main WHERE guild_id = ?`, [guild.id])).results[0];
+                if(c == null || c.channel_id == null) return;
+                const channel = await guild.client.guilds.cache.get(guild.id)?.channels.fetch(c.channel_id).catch(() => {});
+                if(channel == null || !(channel instanceof Discord.TextChannel)) return;
+                let messageUpdated = false;
+                if(c.chronom_leaders_message_id != null) {
+                    const message = await channel.messages.fetch(c.chronom_leaders_message_id).catch(() => {});
+                    if(message != null) {
+                        getAdditionalMastersEmbed.call(this, additionalMasters, masters, message, emote);
+                        messageUpdated = true;
+                    }
+                }
+                if(!messageUpdated) {
+                    const message = await channel.send({embeds: [{description: '...'}]});
+                    getAdditionalMastersEmbed.call(this, additionalMasters, masters, message, emote);
+                    await query(`UPDATE competition_main SET chronom_leaders_message_id = ? WHERE guild_id = ?`, [message.id, guild.id]);
+                }
+            })().catch(logger.error);
+
+
+
+            //competition_main ADD COLUMN chronom_leaders_message_id
+            //channel_id
+
             if(m == null) return;
+
             //'!c chronom' code follows
 
             const embed = getEmbedChronom(m.member);
@@ -167,14 +228,9 @@ export default class Chronom extends Bot.Module {
 
             for(let i = 0; i < this.days; i++) {
                 let completed = streak.daysDone[i];
-                
-                let date = new Date(arr[i].timestamp);
-                let year = date.getFullYear();
-                let month = KCUtil.getMonthFromDate(date, true);
-                let day = KCUtil.getDayFromDate(date);
 
                 if(i < 5)
-                    str += `${completed ? ':white_check_mark:' : ':x:'} ${month} ${day}, ${year}\n`;
+                    str += `${completed ? ':white_check_mark:' : ':x:'} ${getDateString(arr[i].timestamp)}\n`;
             }
             str += `\nCurrent streak: ${streak.bestStreak}/${this.days}\n`;
 
@@ -221,4 +277,52 @@ function getEmbedChronom(member) {
         iconURL: member.user.avatarURL() || member.user.defaultAvatarURL
     }
     return embed;
+}
+
+/**
+ * @this {Chronom}
+ * @param {{[user: string]: {timestamp: number, rank: number, objective: number, time: number, register: Db.competition_register}}} additionalMasters
+ * @param {{[user: string]: {register: Db.competition_register, bestStreak: number}}} masters
+ * @param {string} emote
+ * @param {Discord.Message} message
+ */
+function getAdditionalMastersEmbed(additionalMasters, masters, message, emote) {
+    let embed = new Discord.MessageEmbed({
+        color: KCUtil.gameEmbedColors['cw4'],
+    });
+    
+    embed.title = `${emote} Masters of Chronom`;
+
+    embed.description = `Remember to submit scores with the \`specialevent\` group name!\n\nThe following users are currently Masters of Chronom for getting a high score on recent Chronom maps. This list always populates ${this.additionalMastersCount} entries.\n`;
+    for(const key of Object.keys(additionalMasters)) {
+        const master = additionalMasters[key];
+        let member = message.guild?.members.cache.get(master.register.user_id);
+        let name = member ? (member.nickname ? member.nickname : member.user.username) : master.register.user_name;
+
+        embed.description += `**${name}** is **#${master.rank}** in **${KCLocaleManager.getDisplayNameFromAlias("cw4_objectives", master.objective+'')}**\n > on __${getDateString(master.timestamp)}__ with **${KCUtil.getFormattedTimeFromFrames(master.time)}**\n`;
+    }
+
+    embed.description += `\nIn addition, the following users are also Masters of Chronom for keeping a streak of ${this.daysRole} Chronom completions.\n`;
+
+    for(const key of Object.keys(masters)) {
+        const master = masters[key];
+        let member = message.guild?.members.cache.get(master.register.user_id);
+        let name = member ? (member.nickname ? member.nickname : member.user.username) : master.register.user_name;
+        embed.description += `**${name}** with a streak of **${master.bestStreak}**\n`;
+    }
+
+    message.edit({embeds: [embed]}).catch(logger.error);
+}
+
+/**
+ * 
+ * @param {number} timestamp 
+ */
+function getDateString(timestamp) {
+    let date = new Date(timestamp);
+    let year = date.getFullYear();
+    let month = KCUtil.getMonthFromDate(date, true);
+    let day = KCUtil.getDayFromDate(date);
+
+    return `${month} ${day}, ${year}`;
 }
