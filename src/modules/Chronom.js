@@ -299,7 +299,7 @@ function getAdditionalMastersEmbed(additionalMasters, masters, message, emote) {
         let member = message.guild?.members.cache.get(master.register.user_id);
         let name = member ? (member.nickname ? member.nickname : member.user.username) : master.register.user_name;
 
-        embed.description += `**${name}** is **#${master.rank}** in **${KCLocaleManager.getDisplayNameFromAlias("cw4_objectives", master.objective+'')}**\n > on __${getDateString(master.timestamp)}__ with **${KCUtil.getFormattedTimeFromFrames(master.time)}**\n`;
+        embed.description += `**${name}** is **#${master.rank}** in ${KCLocaleManager.getDisplayNameFromAlias("cw4_objectives", master.objective+'')}\n > on ${getDateString(master.timestamp)} with ${KCUtil.getFormattedTimeFromFrames(master.time)}\n`;
     }
 
     embed.description += `\nIn addition, the following users are also Masters of Chronom for keeping a streak of ${this.daysRole} Chronom completions.\n`;

@@ -56,12 +56,17 @@ export const KCUtil = Object.freeze({
      */
     getDayFromDate : function(date) {
         let day = date.getDate();
-        switch(day) {
-        case 1: return `${day}st`;
-        case 2: return `${day}nd`;
-        case 3: return `${day}rd`;
-        default: return `${day}th`;
+        let dayStr = `${day}`
+        let lastDigit = +dayStr[dayStr.length-1];
+        if(day < 4 || day > 20) {
+            switch(lastDigit) {
+            case 1: return `${day}st`;
+            case 2: return `${day}nd`;
+            case 3: return `${day}rd`;
+            default: return `${day}th`;
+            }
         }
+        else return `${day}th`;
     },
 
     /**
