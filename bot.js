@@ -4,7 +4,10 @@ import Discord from 'discord.js';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCGameMapManager } from './src/kc/KCGameMapManager.js'; 
-import fs from 'fs';
+
+import { REST } from '@discordjs/rest';
+import { Routes } from 'discord-api-types/v9';
+import { SlashCommandBuilder } from '@discordjs/builders';
 
 const core = new Bot.Core({
     dbName: 'lia_bot',
@@ -39,7 +42,7 @@ core.on('ready', bot => {
         /** @type {import('./src/modules/CWMaps').default} */
         const cwMaps = await core.getModule((await import('./src/modules/CWMaps.js')).default);
 
-        await kcgmm.fetch('cw4').catch(logger.error);
+        /*await kcgmm.fetch('cw4').catch(logger.error);
         await Bot.Util.Promise.sleep(1000);
         await kcgmm.fetch('pf').catch(logger.error);
         await Bot.Util.Promise.sleep(1000);
@@ -84,7 +87,7 @@ core.on('ready', bot => {
                 await Bot.Util.Promise.sleep(1000);
                 await cwMaps.start(kcgmm, 'cw1').catch(logger.error);
             }, 1000 * 60 * 60 * 96);
-        })();
+        })();*/
 
         /** @type {import('./src/modules/Map.js').default} */
         const map = await core.getModule((await import('./src/modules/Map.js')).default);
@@ -97,6 +100,9 @@ core.on('ready', bot => {
         const wiki = await core.getModule((await import('./src/modules/Wiki.js')).default);
         /** @type {import('./src/modules/HurtHeal.js').default} */
         const hurtheal = await core.getModule((await import('./src/modules/HurtHeal.js')).default);
+        /** @type {import('./src/modules/Competition.js').default} */
+        const competition = await core.getModule((await import('./src/modules/Competition.js')).default);
+
         (() => {
             const obj = {
                 categoryNames: [':game_die: Miscellaneous', 'miscellaneous', 'misc']
@@ -269,7 +275,7 @@ core.on('ready', bot => {
             });
         }).catch(logger.error);
 
-        core.getModule((await import('./src/modules/Competition.js')).default).then(async competition => {
+        (async () => {
             const obj = {
                 baseNames: ['c', 'competition'],
                 categoryNames: [':trophy: Competition', 'competition', 'c']
@@ -291,15 +297,6 @@ core.on('ready', bot => {
                     competition.loop(guild, kcgmm, champion);
                 });
             }, 5000);
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'info' });
-            });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'setchannel', authorityLevel: null}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'set-channel' });
-            });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'register', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'register' });
-            });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'update', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'update', kcgmm: kcgmm });
             });
@@ -336,7 +333,7 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'pinmania', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'pinmania' });
             });
-        }).catch(logger.error);
+        })().catch(logger.error);
 
         (() => {
             const strings = [
@@ -361,6 +358,145 @@ core.on('ready', bot => {
             }
             update();
         })();
+
+        //Receive slash commands
+        bot.client.on('interactionCreate', async interaction => {
+            if(!interaction.isCommand()) return;
+            if(!interaction.inCachedGuild()) return;
+
+            if(interaction.guild == null || 
+               !(interaction.member instanceof Discord.GuildMember) ||
+               !(interaction.channel instanceof Discord.TextChannel || interaction.channel instanceof Discord.ThreadChannel)) {
+                await interaction.reply({ content: 'This interaction is unsupported.' });
+                return;
+            }
+
+            switch(interaction.commandName) {
+                case 'competition':
+                case 'competition_admin':
+                case 'competition_mod':
+                    competition.incomingInteraction(interaction, interaction.guild, interaction.member, interaction.channel);
+                    break;
+            }
+        });
+
+        (async () => {
+            if(bot.client.user == null) return;
+            const clientId = bot.client.user.id;
+
+            const commands = [new SlashCommandBuilder()
+                .setName('competition')
+                .setDescription('Collection of Competition related commands.')
+                .addSubcommand(subcommand =>
+                    subcommand.setName('info')
+                        .setDescription('View information about the Competition.')
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('register')
+                        .setDescription('Register your in-game name for Competition related bot features.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('Choose the game you wish to register your in-game name for.')
+                                .setRequired(true)
+                                .addChoices(
+                                    { name: 'Creeper World 4', value: 'cw4' },
+                                    { name: 'Particle Fleet',  value: 'pf' },
+                                    { name: 'Creeper World 3', value: 'cw3' },
+                                    { name: 'Creeper World 2', value: 'cw2' },
+                                    { name: 'Creeper World 1', value: 'cw' },
+                                )
+                        )
+                        .addStringOption(option =>
+                            option.setName('username')
+                                .setDescription('The name you use on the in-game leaderboards. Case sensitive!')
+                                .setRequired(true)
+                        )
+                ).toJSON(),
+                new SlashCommandBuilder()
+                    .setName('competition_admin')
+                    .setDescription('[Admin] Collection of Competition related commands.')
+                    .setDefaultPermission(false)
+                    .addSubcommand(subcommand =>
+                        subcommand.setName('setchannel')
+                            .setDescription('[Admin] Set the competition channel.')
+                ).toJSON(),
+                new SlashCommandBuilder()
+                    .setName('competition_mod')
+                    .setDescription('[Mod] Collection of Competition related commands.')
+                    .setDefaultPermission(false)
+                    .addSubcommand(subcommand =>
+                        subcommand.setName('unregister')
+                            .setDescription('[Mod] Remove a user\'s Competition registration entries.')
+                            .addUserOption(option => 
+                                option.setName('user')
+                                    .setDescription('The user to unregister from the Competition.')
+                                    .setRequired(true)
+                            )
+                ).toJSON()
+            ]
+
+            logger.info('Started refreshing application (/) commands.');
+            const rest = new REST({ version: '9' }).setToken(bot.token);
+            for(const guild of Array.from(bot.client.guilds.cache.values())) {
+                logger.info(`Refreshing commands for ${guild.name}.`);
+
+                await rest.put(
+                    Routes.applicationGuildCommands(clientId, guild.id),
+                    { body: commands },
+                );
+
+                await Bot.Util.Promise.sleep(3000);
+            }
+            logger.info('Successfully reloaded application (/) commands.');
+
+            logger.info('Started refreshing application (/) command permissions.');
+            for(const guild of Array.from(bot.client.guilds.cache.values())) {
+                /** @type {{ id: Discord.Snowflake, type: 'USER'|'ROLE', permission: boolean }} */
+                const permissionOwner = {
+                    id: '371018033298276353',
+                    type: 'USER',
+                    permission: true
+                }
+                /** @type {{[x: string]: { id: Discord.Snowflake, type: 'USER'|'ROLE', permission: boolean }|null}} */
+                const permissions = {
+                    Admin: (() => {
+                        const id = bot.getRoleId(guild.id, "ADMIN");
+                        if(id == null) return null;
+                        return { id, type: /** @type {'ROLE'} ]*/('ROLE'), permission: true }
+                    })(),
+                    EventMod: (() => {
+                        const id = bot.getRoleId(guild.id, "EVENT_MOD");
+                        if(id == null) return null;
+                        return { id, type: /** @type {'ROLE'} ]*/('ROLE'), permission: true }
+                    })(),
+                }
+
+                logger.info(`Refreshing command permissions for ${guild.name}.`);
+
+                let commandsList = await guild.commands.fetch().catch(() => {});
+                if(commandsList == null) {
+                    logger.error(`Failed to fetch commands for ${guild.name}.`);
+                    continue;
+                }
+                
+                const competitionAdmin = commandsList.get('competition_admin');
+                if(competitionAdmin) {
+                    guild.commands.permissions.add({
+                        command: competitionAdmin,
+                        permissions: (permissions.Admin == null ? [] : [permissions.Admin]).concat(permissionOwner)
+                    })
+                }
+                const competitionMod = commandsList.get('competition_mod');
+                if(competitionMod) {
+                    guild.commands.permissions.add({
+                        command: competitionMod,
+                        permissions: (permissions.EventMod == null ? [] : [permissions.EventMod]).concat(permissionOwner)
+                    })
+                }
+            }
+
+            
+        })().catch(logger.error);
+
     })().catch(logger.error);
 });
 

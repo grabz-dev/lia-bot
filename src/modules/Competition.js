@@ -207,15 +207,165 @@ export default class Competition extends Bot.Module {
     }
 
     /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {Discord.TextChannel | Discord.ThreadChannel} channel
+     */
+    async incomingInteraction(interaction, guild, member, channel) {
+        switch(interaction.options.getSubcommand()) {
+        case 'info':
+            return this.info(interaction, guild);
+        case 'setchannel':
+            return this.setChannel(interaction, guild, channel);
+        case 'register': {
+            let game = interaction.options.getString('game', true);
+            let username = interaction.options.getString('username', true)?.trim();
+            if(username.indexOf('[M]') > -1) {
+                await interaction.reply({ content: 'Your leaderboard name cannot contain [M].' });
+                return;
+            }
+            if(username.indexOf('`') > -1 || username.indexOf('&') > -1 || username.indexOf('?') > -1 || username.indexOf('=') > -1) {
+                await interaction.reply({ content: 'One or more disallowed characters used in leaderboard name.' });
+                return;
+            }
+            return this.register(interaction, guild, member, game, username);
+        }
+        case 'unregister': {
+            let targetUser = interaction.options.getUser('user', true);
+            return this.unregister(interaction, guild, targetUser);
+        }
+        }
+    }
+
+
+
+    //INTERACTION BASED COMMANDS START HERE
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {string} game
+     * @param {string} name
+     */
+    register(interaction, guild, member, game, name) {
+        this.bot.sql.transaction(async query => {
+            let gameName = KCLocaleManager.getDisplayNameFromAlias("game", game) || "unknown";
+    
+            /** @type {Db.competition_register} */
+            var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [guild.id, member.id, game, name])).results[0];
+            if(resultRegister) {
+                interaction.reply(this.bot.locale.category("competition", "already_registered_with_this_name", name, gameName)).catch(logger.error);
+                return;
+            }
+    
+            /** @type {Db.competition_register} */
+            var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [guild.id, game, name])).results[0];
+            if(resultRegister) {
+                interaction.reply(this.bot.locale.category("competition", "name_taken", name, gameName)).catch(logger.error);
+                return;
+            }
+    
+            /** @type {Db.competition_register} */
+            var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? FOR UPDATE`, [guild.id, member.id, game])).results[0];
+            if(resultRegister) {
+                await query(`UPDATE competition_register SET user_name = ? WHERE guild_id = ? AND user_id = ? AND game = ?`, [name, guild.id, member.id, game]);
+    
+                interaction.reply(this.bot.locale.category("competition", "register_name_changed", resultRegister.user_name, name, gameName)).catch(logger.error);
+            }
+            else {
+                await query(`INSERT INTO competition_register (guild_id, user_id, game, user_name) VALUES (?, ?, ?, ?)`, [guild.id, member.id, game, name]);
+        
+                interaction.reply(this.bot.locale.category("competition", "register_success", name, gameName)).catch(logger.error);
+            }
+        }).catch(logger.error);
+    }
+    
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild 
+     */
+    info(interaction, guild) {
+        this.bot.sql.transaction(async query => {
+            /** @type {Db.competition_main|null} */
+            let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}'`)).results[0];
+    
+            if(resultMain == null || resultMain.channel_id == null) {
+                interaction.reply(this.bot.locale.category("competition", "info_inactive")).catch(logger.error);
+                return;
+            }
+    
+            interaction.reply({ embeds:[getEmbedInfo.bind(this)(resultMain.channel_id)] }).catch(logger.error);
+        }).catch(logger.error);
+    }
+
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild 
+     * @param {Discord.TextChannel|Discord.ThreadChannel} channel 
+     */
+    setChannel(interaction, guild, channel) {
+        this.bot.sql.transaction(async query => {
+            /** @type {Db.competition_main|null} */
+            let resultMain = (await query(`SELECT channel_id FROM competition_main WHERE guild_id = '${guild.id}'
+                FOR UPDATE`)).results[0];
+    
+            if(resultMain)
+                await query(`UPDATE competition_main SET channel_id = '${channel.id}' WHERE guild_id = '${guild.id}'`);
+            else
+                await query(`INSERT INTO competition_main (guild_id, channel_id) VALUES ('${guild.id}', '${channel.id}')`);
+                
+            await query(`DELETE FROM competition_messages WHERE guild_id = '${guild.id}'`)
+    
+            interaction.reply(this.bot.locale.category("competition", "channel_set")).catch(logger.error);
+        }).catch(logger.error);
+    }
+
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild 
+     * @param {Discord.User} targetUser 
+     */
+    unregister(interaction, guild, targetUser) {
+        this.bot.sql.transaction(async query => {
+            /** @type {Db.competition_register[]} */
+            var resultsRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? FOR UPDATE`, [guild.id, targetUser.id])).results;
+    
+            if(resultsRegister.length <= 0) {
+                interaction.reply(this.bot.locale.category("competition", "unregister_not_registered")).catch(logger.error);
+                return;
+            }
+    
+            await query(`DELETE FROM competition_register WHERE guild_id = ? AND user_id = ?`, [guild.id, targetUser.id]);
+    
+            interaction.reply(this.bot.locale.category("competition", "unregister_success", resultsRegister.length+"")).catch(logger.error);
+        }).catch(logger.error);
+    }
+
+
+
+
+
+
+
+
+
+
+
+    /**
      * Module Function
      * @param {Bot.Message} m - Message of the user executing the command.
      * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
      * @param {'register'|'unregister'|'set-channel'|'info'|'status'|'start'|'destroy'|'add-map'|'remove-map'|'update'|'build-tally'|'end'|'map'|'intro'|'pinmania'} ext.action - Custom parameters provided to function call.
-     * @param {KCGameMapManager} ext.kcgmm
-     * @param {import('./Map.js').default} ext.map
-     * @param {import('./Champion.js').default} ext.champion
+     * @param {KCGameMapManager=} ext.kcgmm
+     * @param {import('./Map.js').default=} ext.map
+     * @param {import('./Champion.js').default=} ext.champion
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
@@ -233,28 +383,9 @@ export default class Competition extends Bot.Module {
                 return this.bot.locale.category("competition", "err_game_name_not_supported", args[0]);
 
             switch(ext.action) {
-            case 'register':
-                while(arg[0] === " ")
-                    arg = arg.substring(1);
-                if(arg.indexOf(" ") < 0)
-                    return this.bot.locale.category("competition", "err_leaderboard_name_not_provided");
-
-                arg = arg.substring(arg.indexOf(" ") + 1);
-                
-                if(arg.indexOf('[M] ') > -1) {
-                    return 'Your name cannot contain the Mverse [M] prefix.';
-                }
-
-                if(arg.indexOf('`') > -1 || arg.indexOf('&') > -1 || arg.indexOf('?') > -1 || arg.indexOf('=') > -1) {
-                    return 'One or more disallowed characters used in leaderboard name.';
-                }
-
-                let name = arg;
-
-                register.call(this, m, game, name);
-                return;
             case 'add-map':
             case 'remove-map': {
+                if(!ext.kcgmm) return;
                 const _data = ext.kcgmm.getMapQueryObjectFromCommandParameters(args);
                 if(_data.err) return _data.err;
 
@@ -268,6 +399,7 @@ export default class Competition extends Bot.Module {
                 return;
             }
             case 'map': {
+                if(!ext.kcgmm || !ext.map) return;
                 if(args.length > 1) {
                     const _data = ext.kcgmm.getMapQueryObjectFromCommandParameters(args);
                     if(_data.err) return _data.err;
@@ -279,27 +411,6 @@ export default class Competition extends Bot.Module {
                 return;
             }
             }
-        case 'unregister':
-            let snowflake = args[0];
-            if(snowflake == null)
-                return this.bot.locale.category("competition", "err_user_mention_not_provided");
-
-            snowflake = Bot.Util.getSnowflakeFromDiscordPing(snowflake) || "";
-            if(snowflake.length === 0)
-                return this.bot.locale.category("competition", "err_user_mention_not_correct");
-
-            unregister.call(this, m, snowflake);
-            return;
-        case 'set-channel':
-            setChannel.call(this, m);
-            return;
-        case 'info':
-            if(arg.length > 0) return;
-            info.call(this, m);
-            return;
-        case 'status':
-            status.call(this, m);
-            return;
         case 'start':
             const now = Date.now();
             let date = Date.parse(arg);
@@ -314,12 +425,15 @@ export default class Competition extends Bot.Module {
             destroy.call(this, m);
             return;
         case 'update':
+            if(!ext.kcgmm) return;
             update.call(this, m, ext.kcgmm);
             return;
         case 'build-tally':
+            if(!ext.kcgmm || !ext.champion) return;
             buildTally.call(this, m, ext.champion);
             return;
         case 'end':
+            if(!ext.kcgmm || !ext.champion) return;
             end.call(this, m, m.guild, ext.kcgmm, ext.champion);
             return;
         case 'intro':
@@ -454,122 +568,6 @@ export default class Competition extends Bot.Module {
             if(shouldEnd && champion) end.call(this, null, guild, kcgmm, champion, true);
         }).catch(logger.error);
     }
-}
-
-/**
- * Register this user for the competition.
- * @this {Competition}
- * @param {Bot.Message} m - Message of the user executing the command.
- * @param {string} game
- * @param {string} name
- */
-function register(m, game, name) {
-    this.bot.sql.transaction(async query => {
-        let gameName = KCLocaleManager.getDisplayNameFromAlias("game", game) || "unknown";
-
-        /** @type {Db.competition_register} */
-        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [m.guild.id, m.member.id, game, name])).results[0];
-        if(resultRegister) {
-            m.message.reply(this.bot.locale.category("competition", "already_registered_with_this_name", name, gameName)).catch(logger.error);
-            return;
-        }
-
-        /** @type {Db.competition_register} */
-        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [m.guild.id, game, name])).results[0];
-        if(resultRegister) {
-            m.message.reply(this.bot.locale.category("competition", "name_taken", name, gameName)).catch(logger.error);
-            return;
-        }
-
-        /** @type {Db.competition_register} */
-        var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? FOR UPDATE`, [m.guild.id, m.member.id, game])).results[0];
-        if(resultRegister) {
-            await query(`UPDATE competition_register SET user_name = ? WHERE guild_id = ? AND user_id = ? AND game = ?`, [name, m.guild.id, m.member.id, game]);
-
-            m.message.reply(this.bot.locale.category("competition", "register_name_changed", resultRegister.user_name, name, gameName)).catch(logger.error);
-        }
-        else {
-            await query(`INSERT INTO competition_register (guild_id, user_id, game, user_name) VALUES (?, ?, ?, ?)`, [m.guild.id, m.member.id, game, name]);
-    
-            m.message.reply(this.bot.locale.category("competition", "register_success", name, gameName)).catch(logger.error);
-        }
-    }).catch(logger.error);
-}
-
-/**
- * Remove a user's registration.
- * @this {Competition}
- * @param {Bot.Message} m - Message of the user executing the command.
- * @param {Discord.Snowflake} snowflake
- */
-function unregister(m, snowflake) {
-    this.bot.sql.transaction(async query => {
-        /** @type {Db.competition_register[]} */
-        var resultsRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? FOR UPDATE`, [m.guild.id, snowflake])).results;
-
-        if(resultsRegister.length <= 0) {
-            m.message.reply(this.bot.locale.category("competition", "unregister_not_registered")).catch(logger.error);
-            return;
-        }
-
-        await query(`DELETE FROM competition_register WHERE guild_id = ? AND user_id = ?`, [m.guild.id, snowflake]);
-
-        m.message.reply(this.bot.locale.category("competition", "unregister_success", resultsRegister.length+"")).catch(logger.error);
-    }).catch(logger.error);
-}
-
-/**
- * Set the current channel as the competition channel.
- * @this {Competition}
- * @param {Bot.Message} m - Message of the user executing the command.
- */
-function setChannel(m) {
-    this.bot.sql.transaction(async query => {
-        /** @type {Db.competition_main|null} */
-        let resultMain = (await query(`SELECT channel_id FROM competition_main WHERE guild_id = '${m.guild.id}'
-            FOR UPDATE`)).results[0];
-
-        if(resultMain)
-            await query(`UPDATE competition_main SET channel_id = '${m.channel.id}' WHERE guild_id = '${m.guild.id}'`);
-        else
-            await query(`INSERT INTO competition_main (guild_id, channel_id) VALUES ('${m.guild.id}', '${m.channel.id}')`);
-            
-        await query(`DELETE FROM competition_messages WHERE guild_id = '${m.guild.id}'`)
-
-        m.message.reply(this.bot.locale.category("competition", "channel_set")).catch(logger.error);
-    }).catch(logger.error);
-}
-
-/**
- * Post competition info.
- * @this {Competition}
- * @param {Bot.Message} m - Message of the user executing the command.
- */
-function info(m) {
-    this.bot.sql.transaction(async query => {
-        /** @type {Db.competition_main|null} */
-        let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}'`)).results[0];
-
-        if(resultMain == null || resultMain.channel_id == null) {
-            m.message.reply(this.bot.locale.category("competition", "info_inactive")).catch(logger.error);
-            return;
-        }
-
-        m.channel.send({ embeds:[getEmbedInfo.bind(this)(resultMain.channel_id)] }).catch(logger.error);
-    }).catch(logger.error);
-}
-
-/**
- * Post competition status.
- * @this {Competition}
- * @param {Bot.Message} m - Message of the user executing the command.
- */
-function status(m) {
-    this.bot.sql.transaction(async query => {
-        /** @type {Db.competition_main|null} */
-        let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${m.guild.id}'`)).results[0];
-        m.channel.send({ embeds:[getEmbedStatus.bind(this)(m.guild, resultMain)] }).catch(logger.error);
-    }).catch(logger.error);
 }
 
 /**
