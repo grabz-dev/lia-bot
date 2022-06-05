@@ -69,7 +69,7 @@ export default class Chronom extends Bot.Module {
         WHERE guild_id = '${guild.id}' AND game = 'cw4'`)).results;
             if(resultsRegister.length <= 0) return;
 
-            /** @type {({timestamp: number, leaderboard: Promise<KCGameMapManager.MapLeaderboard>})[]} */
+            /** @type {({timestamp: number, leaderboard: Promise<KCGameMapManager.MapLeaderboard>, leaderboardScores: Promise<KCGameMapManager.MapLeaderboard>})[]} */
             let arr = [];
             for(let i = 0; i < this.days; i++) {
                 let timestamp = now - (1000 * 60 * 60 * 24 * i);
@@ -81,15 +81,17 @@ export default class Chronom extends Bot.Module {
                 arr[i] = {
                     timestamp: timestamp,
                     leaderboard: kcgmm.getMapScores(msqd, undefined, 'specialevent', { removeMverseTag: true }),
+                    leaderboardScores: kcgmm.getMapScores(msqd, undefined, undefined, { removeMverseTag: false }),
                 }
             }
 
-            /** @type {({timestamp: number, leaderboard: KCGameMapManager.MapLeaderboard})[]} */
+            /** @type {({timestamp: number, leaderboard: KCGameMapManager.MapLeaderboard, leaderboardScores: KCGameMapManager.MapLeaderboard})[]} */
             let arr2 = [];
             for(let i = 0; i < this.days; i++) {
                 arr2[i] = {
                     timestamp: arr[i].timestamp,
-                    leaderboard: await arr[i].leaderboard
+                    leaderboard: await arr[i].leaderboard,
+                    leaderboardScores: await arr[i].leaderboardScores
                 }
             }
 
@@ -118,8 +120,8 @@ export default class Chronom extends Bot.Module {
             loop:
             for(let i = 1; i < 10; i++) {
                 for(const map of arr2) {
-                    for(let j = 0; j < map.leaderboard.entries.length; j++) {
-                        const leaderboards = map.leaderboard.entries[j];
+                    for(let j = 0; j < map.leaderboardScores.entries.length; j++) {
+                        const leaderboards = map.leaderboardScores.entries[j];
                         if(leaderboards == null) continue;
                         let l = leaderboards.find(v => v.rank === i);
                         if(l == null) continue;
@@ -206,9 +208,9 @@ export default class Chronom extends Bot.Module {
 
 
 
-            //competition_main ADD COLUMN chronom_leaders_message_id
-            //channel_id
 
+
+            
             if(m == null) return;
 
             //'!c chronom' code follows

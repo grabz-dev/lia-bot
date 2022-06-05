@@ -4,7 +4,10 @@ import Discord from 'discord.js';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCGameMapManager } from './src/kc/KCGameMapManager.js'; 
-import fs from 'fs';
+
+import { REST } from '@discordjs/rest';
+import { Routes } from 'discord-api-types/v9';
+import { SlashCommandBuilder } from '@discordjs/builders';
 
 const core = new Bot.Core({
     dbName: 'lia_bot',
@@ -29,6 +32,16 @@ const core = new Bot.Core({
     //errorGuildId: '192420539204239361',
     //errorChannelId: '399663134358372382',
 });
+
+const choices = {
+    game: [
+        { name: 'Creeper World 4', value: 'cw4' },
+        { name: 'Particle Fleet',  value: 'pf' },
+        { name: 'Creeper World 3', value: 'cw3' },
+        { name: 'Creeper World 2', value: 'cw2' },
+        { name: 'Creeper World 1', value: 'cw' }
+    ]
+}
 
 core.on('ready', bot => {
     (async () => {
@@ -97,6 +110,9 @@ core.on('ready', bot => {
         const wiki = await core.getModule((await import('./src/modules/Wiki.js')).default);
         /** @type {import('./src/modules/HurtHeal.js').default} */
         const hurtheal = await core.getModule((await import('./src/modules/HurtHeal.js')).default);
+        /** @type {import('./src/modules/Competition.js').default} */
+        const competition = await core.getModule((await import('./src/modules/Competition.js')).default);
+
         (() => {
             const obj = {
                 categoryNames: [':game_die: Miscellaneous', 'miscellaneous', 'misc']
@@ -269,7 +285,7 @@ core.on('ready', bot => {
             });
         }).catch(logger.error);
 
-        core.getModule((await import('./src/modules/Competition.js')).default).then(async competition => {
+        (async () => {
             const obj = {
                 baseNames: ['c', 'competition'],
                 categoryNames: [':trophy: Competition', 'competition', 'c']
@@ -303,9 +319,6 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'update', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'update', kcgmm: kcgmm });
             });
-            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'status', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'status' });
-            });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'start', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'start' });
             });
@@ -336,7 +349,7 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'pinmania', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
                 return competition.land(message, args, arg, { action: 'pinmania' });
             });
-        }).catch(logger.error);
+        })().catch(logger.error);
 
         (() => {
             const strings = [
@@ -361,6 +374,159 @@ core.on('ready', bot => {
             }
             update();
         })();
+
+        //Receive slash commands
+        bot.client.on('interactionCreate', async interaction => {
+            if(!interaction.isCommand()) return;
+            if(!interaction.inCachedGuild()) return;
+
+            if(interaction.guild == null || 
+               !(interaction.member instanceof Discord.GuildMember) ||
+               !(interaction.channel instanceof Discord.TextChannel || interaction.channel instanceof Discord.ThreadChannel)) {
+                await interaction.reply({ content: 'This interaction is unsupported.' });
+                return;
+            }
+
+            switch(interaction.commandName) {
+                case 'competition':
+                case 'competition_admin':
+                case 'competition_mod':
+                    competition.incomingInteraction(interaction, interaction.guild, interaction.member, interaction.channel, { kcgmm, champion, map }).catch(logger.error);
+                    break;
+            }
+        });
+
+        (async () => {
+            if(bot.client.user == null) return;
+            const clientId = bot.client.user.id;
+
+            const commands = [new SlashCommandBuilder()
+                .setName('competition')
+                .setDescription('Collection of Competition related commands.')
+                .addSubcommand(subcommand =>
+                    subcommand.setName('info')
+                        .setDescription('View information about the Competition.')
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('register')
+                        .setDescription('Register your in-game name for Competition related bot features.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('Choose the game you wish to register your in-game name for.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        )
+                        .addStringOption(option =>
+                            option.setName('username')
+                                .setDescription('The name you use on the in-game leaderboards. Case sensitive!')
+                                .setRequired(true)
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('update')
+                        .setDescription('Force a manual update of the Competition score standings.')
+                ).toJSON(),
+                new SlashCommandBuilder()
+                    .setName('competition_admin')
+                    .setDescription('[Admin] Collection of Competition related commands.')
+                    .setDefaultPermission(false)
+                    .addSubcommand(subcommand =>
+                        subcommand.setName('setchannel')
+                            .setDescription('[Admin] Set the competition channel.')
+                ).toJSON(),
+                new SlashCommandBuilder()
+                    .setName('competition_mod')
+                    .setDescription('[Mod] Collection of Competition related commands.')
+                    .setDefaultPermission(false)
+                    .addSubcommand(subcommand =>
+                        subcommand.setName('unregister')
+                            .setDescription('[Mod] Remove a user\'s Competition registration entries.')
+                            .addUserOption(option => 
+                                option.setName('user')
+                                    .setDescription('The user to unregister from the Competition.')
+                                    .setRequired(true)
+                            )
+                    ).addSubcommand(subcommand =>
+                        subcommand.setName('start')
+                            .setDescription('[Mod] Start a new Competition.')
+                            .addStringOption(option => 
+                                option.setName('date')
+                                    .setDescription('The end date for the Competition. Example date format: 2022-06-04')
+                                    .setRequired(true)
+                            )
+                    ).addSubcommand(subcommand =>
+                        subcommand.setName('destroy')
+                            .setDescription('[Mod] Erase the current Competition as if it never happened.')
+                    ).addSubcommand(subcommand =>
+                        subcommand.setName('add_map')
+                            .setDescription('[Mod] Add a map to the current Competition.')
+                            .addStringOption(option =>
+                                option.setName('game')
+                                    .setDescription('Choose the game to add the map from.')
+                                    .setRequired(true)
+                                    .addChoices(...choices.game)    
+                            ).addStringOption(option =>
+                                option.setName('parameters')
+                                    .setDescription('"custom 1234 nullify" "code small medium abc" "markv totems abc#1444"')
+                                    .setRequired(true)
+                            )
+                    ).addSubcommand(subcommand =>
+                        subcommand.setName('remove_map')
+                            .setDescription('[Mod] Remove a map from the current Competition.')
+                            .addStringOption(option =>
+                                option.setName('game')
+                                    .setDescription('Choose the game of the map.')
+                                    .setRequired(true)
+                                    .addChoices(...choices.game)    
+                            ).addStringOption(option =>
+                                option.setName('parameters')
+                                    .setDescription('"custom 1234 nullify" "code small medium abc" "markv totems abc#1444"')
+                                    .setRequired(true)
+                            )
+                    ).addSubcommand(subcommand =>
+                        subcommand.setName('end')
+                            .setDescription('[Mod] End the current Competition early, before the schedule.')
+                    ).addSubcommand(subcommand =>
+                        subcommand.setName('map')
+                            .setDescription('[Mod] Check if a map was already featured before, or pick a map at random.')
+                            .addStringOption(option =>
+                                option.setName('game')
+                                    .setDescription('Choose the game to find the map from.')
+                                    .setRequired(true)
+                                    .addChoices(...choices.game)    
+                            ).addStringOption(option =>
+                                option.setName('parameters')
+                                    .setDescription('Provide a list of parameters defining the map. e.g. "markv totems knucracker fly up#1222".')    
+                            )
+                    ).addSubcommand(subcommand =>
+                        subcommand.setName('intro')
+                            .setDescription('[Mod] Build an intro message to Champion of KC or Master of Chronom.')
+                            .addStringOption(option =>
+                                option.setName('type')
+                                    .setDescription('Display intro for Champion of KC or Master of Chronom?')
+                                    .setRequired(true)
+                                    .addChoices({ name: 'Champion of KC', value: 'champion' },
+                                                { name: 'Master of Chronom',  value: 'chronom' })    
+                            )
+                    ).addSubcommand(subcommand =>
+                        subcommand.setName('pinmania')
+                            .setDescription('[Mod] Automatically re-pin the pinned messages in Competition.')
+                    ).toJSON()
+            ]
+
+            logger.info('Started refreshing application (/) commands.');
+            const rest = new REST({ version: '9' }).setToken(bot.token);
+            for(const guild of Array.from(bot.client.guilds.cache.values())) {
+                logger.info(`Refreshing commands for ${guild.name}.`);
+
+                await rest.put(
+                    Routes.applicationGuildCommands(clientId, guild.id),
+                    { body: commands },
+                );
+
+                await Bot.Util.Promise.sleep(3000);
+            }
+            logger.info('Successfully reloaded application (/) commands.');
+        })().catch(logger.error);
+
     })().catch(logger.error);
 });
 
@@ -369,3 +535,17 @@ process.on('unhandledRejection', (reason, p) => {
     // @ts-ignore
     console.dir(reason.stack);
 });
+
+/**
+ * 
+ * @param {Discord.Message} m 
+ * @param {string} str
+ */
+function unsupportedMessage(m, str) {
+    m.reply(`Using commands in this way is no longer supported. Please use slash (/) commands e.g. /${str}`).then(message => {
+        setTimeout(() => {
+            m.delete();
+            message.delete();
+        }, 15000)
+    }).catch(logger.error);
+}

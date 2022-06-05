@@ -110,7 +110,7 @@ export default class Competition extends Bot.Module {
         this.games = ["cw4", "pf", "cw3", "cw2", "cw1"];
         this.maxScoresInTable = 8;
         this.timeOffsetHours = 24;
-        this.pinMania = false;
+        this.pinManiaActive = false;
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS competition_main (
@@ -213,9 +213,9 @@ export default class Competition extends Bot.Module {
      * @param {string} arg - The full string written by the user after the command.
      * @param {object} ext
      * @param {'register'|'unregister'|'set-channel'|'info'|'status'|'start'|'destroy'|'add-map'|'remove-map'|'update'|'build-tally'|'end'|'map'|'intro'|'pinmania'} ext.action - Custom parameters provided to function call.
-     * @param {KCGameMapManager} ext.kcgmm
-     * @param {import('./Map.js').default} ext.map
-     * @param {import('./Champion.js').default} ext.champion
+     * @param {KCGameMapManager=} ext.kcgmm
+     * @param {import('./Map.js').default=} ext.map
+     * @param {import('./Champion.js').default=} ext.champion
      * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
      */
     land(m, args, arg, ext) {
@@ -255,6 +255,7 @@ export default class Competition extends Bot.Module {
                 return;
             case 'add-map':
             case 'remove-map': {
+                if(!ext.kcgmm) return;
                 const _data = ext.kcgmm.getMapQueryObjectFromCommandParameters(args);
                 if(_data.err) return _data.err;
 
@@ -268,6 +269,7 @@ export default class Competition extends Bot.Module {
                 return;
             }
             case 'map': {
+                if(!ext.kcgmm || !ext.map) return;
                 if(args.length > 1) {
                     const _data = ext.kcgmm.getMapQueryObjectFromCommandParameters(args);
                     if(_data.err) return _data.err;
@@ -314,12 +316,15 @@ export default class Competition extends Bot.Module {
             destroy.call(this, m);
             return;
         case 'update':
+            if(!ext.kcgmm) return;
             update.call(this, m, ext.kcgmm);
             return;
         case 'build-tally':
+            if(!ext.champion) return;
             buildTally.call(this, m, ext.champion);
             return;
         case 'end':
+            if(!ext.kcgmm || !ext.champion) return;
             end.call(this, m, m.guild, ext.kcgmm, ext.champion);
             return;
         case 'intro':
@@ -334,6 +339,663 @@ export default class Competition extends Bot.Module {
             pinMania.call(this, m);
             return;
         }
+    }
+
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {Discord.TextChannel | Discord.ThreadChannel} channel
+     * @param {{ kcgmm: KCGameMapManager, champion: import('./Champion.js').default, map: import('./Map.js').default }} data 
+     */
+    async incomingInteraction(interaction, guild, member, channel, data) {
+        const commandName = interaction.options.getSubcommand();
+        switch(commandName) {
+        case 'pinmania':
+            return this.pinMania(interaction, channel, guild);
+        case 'info':
+            return this.info(interaction, guild);
+        case 'setchannel':
+            return this.setChannel(interaction, guild, channel);
+        case 'destroy':
+            return this.destroy(interaction, guild);
+        case 'update':
+            if(data?.kcgmm == null) return;
+            return this.update(interaction, guild, data.kcgmm);
+        case 'build_tally':
+            if(data?.champion == null) return;
+            return this.buildTally(interaction, guild, channel, data.champion);
+        case 'end':
+            if(data?.kcgmm == null || data?.champion == null) return;
+            return this.end(interaction, guild, data.kcgmm, data.champion);
+        case 'intro': {
+            let type = interaction.options.getString('type', true);
+            if(type !== 'champion' && type !== 'chronom') return;
+            return this.intro(interaction, guild, channel, type);
+        }
+        case 'register': {
+            let game = interaction.options.getString('game', true);
+            let username = interaction.options.getString('username', true)?.trim();
+            if(username.indexOf('[M]') > -1) {
+                await interaction.reply({ content: 'Your leaderboard name cannot contain [M].' }).catch(logger.error);
+                return;
+            }
+            if(username.indexOf('`') > -1 || username.indexOf('&') > -1 || username.indexOf('?') > -1 || username.indexOf('=') > -1) {
+                await interaction.reply({ content: 'One or more disallowed characters used in leaderboard name.' }).catch(logger.error);
+                return;
+            }
+            if(username.length > 40) {
+                await interaction.reply({ content: 'The chosen leaderboard name is too long.' }).catch(logger.error);
+                return;
+            }
+            return this.register(interaction, guild, member, game, username);
+        }
+        case 'unregister': {
+            let targetUser = interaction.options.getUser('user', true);
+            return this.unregister(interaction, guild, targetUser);
+        }
+        case 'start': {
+            let dateInput = interaction.options.getString('date', true);
+
+            const now = Date.now();
+            let date = Date.parse(dateInput);
+            if(Number.isNaN(date)) {
+                await interaction.reply({ content: this.bot.locale.category("competition", "err_end_date_invalid") }).catch(logger.error);
+                return;
+            }
+            if(now > date) {
+                await interaction.reply(this.bot.locale.category("competition", "end_date_in_past")).catch(logger.error);
+                return;
+            }
+
+            return this.start(interaction, guild, now, date);
+        }
+        case 'add_map':
+        case 'remove_map': {
+            if(data?.kcgmm == null) return;
+
+            let game = interaction.options.getString('game', true);
+            let parameters = interaction.options.getString('parameters', true);
+
+            const _data = data.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
+            if(_data.err) {
+                await interaction.reply({ content: _data.err }).catch(logger.error);
+                return;
+            }
+
+            const mapQueryData = _data.data;
+            if(mapQueryData.game === 'cw1' && mapQueryData.gameUID != null) {
+                await interaction.reply({ content: 'This action is not supported.' }).catch(logger.error);
+                return;
+            }
+
+            return this.addMap(interaction, guild, commandName, game, mapQueryData, data.kcgmm);
+        }
+        case 'map': {
+            if(data?.kcgmm == null || data?.map == null) return;
+
+            let game = interaction.options.getString('game', true);
+            let parameters = interaction.options.getString('parameters');
+
+            if(parameters != null) {
+                const _data = data.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
+                if(_data.err) return _data.err;
+                const mapQueryData = _data.data;
+                return this.map(interaction, guild, data.kcgmm, game, data.map, mapQueryData);
+            }
+            else {
+                return this.map(interaction, guild, data.kcgmm, game, data.map);
+            }
+        }
+        }
+    }
+
+
+
+    //INTERACTION BASED COMMANDS START HERE
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {string} game
+     * @param {string} name
+     */
+    register(interaction, guild, member, game, name) {
+        this.bot.sql.transaction(async query => {
+            let gameName = KCLocaleManager.getDisplayNameFromAlias("game", game) || "unknown";
+    
+            /** @type {Db.competition_register} */
+            var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [guild.id, member.id, game, name])).results[0];
+            if(resultRegister) {
+                interaction.reply(this.bot.locale.category("competition", "already_registered_with_this_name", name, gameName)).catch(logger.error);
+                return;
+            }
+    
+            /** @type {Db.competition_register} */
+            var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [guild.id, game, name])).results[0];
+            if(resultRegister) {
+                interaction.reply(this.bot.locale.category("competition", "name_taken", name, gameName)).catch(logger.error);
+                return;
+            }
+    
+            /** @type {Db.competition_register} */
+            var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? FOR UPDATE`, [guild.id, member.id, game])).results[0];
+            if(resultRegister) {
+                await query(`UPDATE competition_register SET user_name = ? WHERE guild_id = ? AND user_id = ? AND game = ?`, [name, guild.id, member.id, game]);
+    
+                interaction.reply(this.bot.locale.category("competition", "register_name_changed", resultRegister.user_name, name, gameName)).catch(logger.error);
+            }
+            else {
+                await query(`INSERT INTO competition_register (guild_id, user_id, game, user_name) VALUES (?, ?, ?, ?)`, [guild.id, member.id, game, name]);
+        
+                interaction.reply(this.bot.locale.category("competition", "register_success", name, gameName)).catch(logger.error);
+            }
+        }).catch(logger.error);
+    }
+    
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild 
+     */
+    info(interaction, guild) {
+        this.bot.sql.transaction(async query => {
+            /** @type {Db.competition_main|null} */
+            let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}'`)).results[0];
+    
+            if(resultMain == null || resultMain.channel_id == null) {
+                interaction.reply(this.bot.locale.category("competition", "info_inactive")).catch(logger.error);
+                return;
+            }
+    
+            interaction.reply({ embeds:[getEmbedInfo.bind(this)(resultMain.channel_id)] }).catch(logger.error);
+        }).catch(logger.error);
+    }
+
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild 
+     * @param {Discord.TextChannel|Discord.ThreadChannel} channel 
+     */
+    setChannel(interaction, guild, channel) {
+        this.bot.sql.transaction(async query => {
+            /** @type {Db.competition_main|null} */
+            let resultMain = (await query(`SELECT channel_id FROM competition_main WHERE guild_id = '${guild.id}'
+                FOR UPDATE`)).results[0];
+    
+            if(resultMain)
+                await query(`UPDATE competition_main SET channel_id = '${channel.id}' WHERE guild_id = '${guild.id}'`);
+            else
+                await query(`INSERT INTO competition_main (guild_id, channel_id) VALUES ('${guild.id}', '${channel.id}')`);
+                
+            await query(`DELETE FROM competition_messages WHERE guild_id = '${guild.id}'`)
+    
+            interaction.reply(this.bot.locale.category("competition", "channel_set")).catch(logger.error);
+        }).catch(logger.error);
+    }
+
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild 
+     * @param {Discord.User} targetUser 
+     */
+    unregister(interaction, guild, targetUser) {
+        this.bot.sql.transaction(async query => {
+            /** @type {Db.competition_register[]} */
+            var resultsRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? FOR UPDATE`, [guild.id, targetUser.id])).results;
+    
+            if(resultsRegister.length <= 0) {
+                interaction.reply(this.bot.locale.category("competition", "unregister_not_registered")).catch(logger.error);
+                return;
+            }
+    
+            await query(`DELETE FROM competition_register WHERE guild_id = ? AND user_id = ?`, [guild.id, targetUser.id]);
+    
+            interaction.reply(this.bot.locale.category("competition", "unregister_success", resultsRegister.length+"")).catch(logger.error);
+        }).catch(logger.error);
+    }
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild 
+     * @param {number} startTime 
+     * @param {number} endTime 
+     */
+    start(interaction, guild, startTime, endTime) {
+        this.bot.sql.transaction(async query => {
+            /** @type {Db.competition_main|null} */
+            let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}'
+                FOR UPDATE`)).results[0];
+    
+            if(resultMain && resultMain.time_start != null) {
+                await interaction.reply(this.bot.locale.category("competition", "already_started"));
+                return;
+            }
+    
+            if(!resultMain || resultMain.channel_id == null) {
+                await interaction.reply(this.bot.locale.category("competition", "no_channel"));
+                return;
+            }
+    
+            let channel = guild.channels.resolve(resultMain.channel_id);
+            if(!channel || !(channel instanceof Discord.TextChannel)) {
+                await interaction.reply(this.bot.locale.category("competition", "channel_no_access"));
+                return;
+            }
+    
+            let timeOffset = Math.floor(1000 * 60 * 60 * this.timeOffsetHours * Math.random());
+    
+            await query(`UPDATE competition_main SET time_start = '${startTime}', time_end = '${endTime}', time_end_offset = '${timeOffset}'
+                WHERE guild_id = '${guild.id}'`);
+    
+            channel.send(this.bot.locale.category("competition", "start_message")).catch(logger.error);
+            interaction.reply(this.bot.locale.category("competition", "start_success")).catch(logger.error);
+        }).catch(logger.error);
+    }
+
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild 
+     */
+    destroy(interaction, guild) {
+        this.bot.sql.transaction(async query => {
+            await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}' FOR UPDATE`);
+    
+            await query(`DELETE FROM competition_messages WHERE guild_id = '${guild.id}'`);
+            await query(`UPDATE competition_main SET time_start = NULL, time_end = NULL, time_end_offset = NULL WHERE guild_id = '${guild.id}'`);
+            await query(`DELETE FROM competition_maps WHERE guild_id = '${guild.id}'`);
+    
+            this.cache.set(guild.id, 'comp_maps', []);
+    
+            interaction.reply(this.bot.locale.category("competition", "erased")).catch(logger.error);
+        }).catch(logger.error);
+    }
+
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {'remove_map'|'add_map'} type
+     * @param {string} game
+     * @param {KCGameMapManager.MapScoreQueryData} msqd
+     * @param {KCGameMapManager} kcgmm
+     */
+    addMap(interaction, guild, type, game, msqd, kcgmm) {
+        this.bot.sql.transaction(async query => {
+            /** @type {Db.competition_main|null} */
+            let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}' FOR UPDATE`)).results[0];
+
+            if(!resultMain || !resultMain.channel_id) {
+                await interaction.reply(this.bot.locale.category("competition", "no_channel"));
+                return;
+            }
+            if(resultMain.time_start == null) {
+                await interaction.reply(this.bot.locale.category("competition", "addmap_not_started"));
+                return;
+            }
+
+            const sqlWhere = `WHERE guild_id = ${mysql.escape(guild.id)}
+            AND game = ${mysql.escape(game)}
+            AND type = ${mysql.escape(msqd.type)}
+            AND map_id ${msqd.id == null ? 'IS NULL' : `= ${mysql.escape(msqd.id)}`}
+            AND size ${msqd.size == null ? 'IS NULL' : `= ${mysql.escape(msqd.size)}`}
+            AND complexity ${msqd.complexity == null ? 'IS NULL' : `= ${mysql.escape(msqd.complexity)}`}
+            AND name ${msqd.name == null ? 'IS NULL' : `= ${mysql.escape(msqd.name)}`}
+            AND objective ${msqd.objective == null ? 'IS NULL' : `= ${mysql.escape(msqd.objective)}`}
+            AND timestamp ${msqd.timestamp == null ? 'IS NULL' : `= ${mysql.escape(msqd.timestamp)}`}`;
+
+            switch(type) {
+            case "remove_map":
+                /** @type {Db.competition_maps[]} */
+                var resultsMaps = (await query(`SELECT * FROM competition_maps ${sqlWhere}`)).results;
+
+                if(resultsMaps.length <= 0) {
+                    await interaction.reply(this.bot.locale.category("competition", "removemap_not_added"));
+                    return;
+                }
+
+                await query(`DELETE FROM competition_maps ${sqlWhere}`);
+                
+                await interaction.reply(this.bot.locale.category("competition", "removemap_success"));
+                break;
+            case "add_map":
+            default:
+                /** @type {Db.competition_maps[]} */
+                var resultsMaps = (await query(`SELECT * FROM competition_maps ${sqlWhere}`)).results;
+                if(resultsMaps.length > 0) {
+                    await interaction.reply(this.bot.locale.category("competition", "addmap_already_added"));
+                    return;
+                }
+
+                if(await getMapAlreadyFeaturedInPreviousCompetition(query, guild, game, msqd)) {
+                    await interaction.reply(this.bot.locale.category("competition", "addmap_already_in_history"));
+                    return;
+                }
+
+                await query(`INSERT INTO competition_maps (guild_id, game, type, map_id, size, complexity, name, objective, timestamp)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`, [guild.id, game, msqd.type, msqd.id, msqd.size, msqd.complexity, msqd.name, msqd.objective, msqd.timestamp]);
+
+                await interaction.reply(this.bot.locale.category("competition", "addmap_success"));
+                break;
+            }
+        }).then(() => {
+            this.loop(guild, kcgmm);
+        }).catch(logger.error);
+    }
+
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {KCGameMapManager} kcgmm
+     */
+    update(interaction, guild, kcgmm) {
+        this.loop(guild, kcgmm).then(() => {
+            interaction.reply(this.bot.locale.category("competition", "scores_updated")).catch(logger.error);
+        }).catch(e => {
+            interaction.reply(this.bot.locale.category("competition", "score_update_failed")).catch(logger.error);
+            logger.error(e);
+        });
+    }
+
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.TextChannel|Discord.ThreadChannel} channel
+     * @param {import('./Champion.js').default} champion
+     */
+    buildTally(interaction, guild, channel, champion) {
+        interaction.reply('Information follows:').catch(logger.error);
+        this.bot.sql.transaction(async query => {
+            await buildScoreTally.call(this, guild, channel, query, champion);
+        }).catch(logger.error);
+    }
+        
+    /**
+     * @param {Discord.CommandInteraction<"cached">|null} interaction 
+     * @param {Discord.Guild} guild
+     * @param {KCGameMapManager} kcgmm
+     * @param {import('./Champion.js').default} champion
+     * @param {boolean=} noRefresh
+     */
+    end(interaction, guild, kcgmm, champion, noRefresh) {
+        const now = Date.now();
+
+        this.bot.sql.transaction(async query => {
+            await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}' FOR UPDATE`);
+
+            if(interaction) await interaction.reply(this.bot.locale.category("competition", "end_in_progress"));
+
+            /** @type {Object.<string, string>} */
+            let emotes = {};
+            await this.bot.sql.transaction(async query => {
+                /** @type {any[]} */
+                let results = (await query(`SELECT * FROM emotes_game
+                                        WHERE guild_id = '${guild.id}'`)).results;
+                emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
+            }).catch(logger.error);
+
+            /** @type {Db.competition_main|null} */
+            let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}'`)).results[0];
+            /** @type {Db.competition_maps[]} */
+            let resultsMaps = (await query(`SELECT * FROM competition_maps WHERE guild_id = '${guild.id}'`)).results;
+
+            if(!resultMain || resultMain.channel_id == null) {
+                if(interaction) await interaction.editReply(this.bot.locale.category("competition", "no_channel"));
+                return;
+            }
+            const channel = guild.channels.resolve(resultMain.channel_id);
+            if(!channel || !(channel instanceof Discord.TextChannel)) {
+                if(interaction) await interaction.editReply(this.bot.locale.category("competition", "channel_no_access"));
+                return;
+            }
+            if(!resultMain.time_start) {
+                if(interaction) await interaction.editReply(this.bot.locale.category("competition", "not_running"));
+                return;
+            }
+            if(resultsMaps.length <= 0) {
+                if(interaction) await interaction.editReply(this.bot.locale.category("competition", "cant_end_no_maps"));
+                return;
+            }
+
+            if(!noRefresh) await this.loop(guild, kcgmm);
+
+            await Bot.Util.Promise.sleep(1000);
+            await channel.send(this.bot.locale.category("competition", "end_channel_ended"));
+
+            /** @type {Discord.Collection<Db.competition_maps, KCGameMapManager.MapLeaderboard>} */
+            const maps = new Discord.Collection();
+
+            //Ensure proper order of messages.
+            resultsMaps.sort((a, b) => this.games.indexOf(a.game) - this.games.indexOf(b.game));
+            
+            let _messages = [];
+            for(let resultMaps of resultsMaps) {
+                let map = getMapScoreQueryDataFromDatabase(resultMaps);
+
+                const fullMapLeaderboard = await kcgmm.getMapScores(map, undefined, "specialevent");
+                const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(query, guild, map.game, fullMapLeaderboard);
+                
+                maps.set(resultMaps, registeredMapLeaderboard);
+                
+                const mapData = map.id == null ? undefined : kcgmm.getMapById(map.game, map.id) ?? undefined;
+
+                const embed = getEmbedTemplate();
+                const field = await getEmbedFieldFromMapData.call(this, guild, registeredMapLeaderboard, map, emotes[map.game], mapData, true);
+                embed.title = field.name;
+                embed.description = field.value;
+                embed.footer = {
+                    text: Bot.Util.getFormattedDate(resultMain.time_start || 0, true) + " - " + Bot.Util.getFormattedDate(now, true),
+                }
+                
+                _messages.push((await channel.send({content: "Previous competition standings:", embeds: [embed]})).id);
+            }
+
+            await query(`UPDATE competition_main SET previous_competition_message_ids = ? WHERE guild_id = ?`, [_messages.join(','), guild.id]);
+
+            let insertComps = (await query(`INSERT INTO competition_history_competitions (guild_id, time_end)
+                VALUES ('${guild.id}', '${now}')`)).results;
+
+            for(let map of maps.keys()) {
+                let insertMaps = (await query(`INSERT INTO competition_history_maps (id_competition_history_competitions, game, type, map_id, size, complexity, name, objective, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [insertComps.insertId, map.game, map.type, map.map_id, map.size, map.complexity, map.name, map.objective, map.timestamp])).results;
+
+                let leaderboard = /** @type {KCGameMapManager.MapLeaderboard} */(maps.get(map));
+                let entries = leaderboard.entries[map.objective == null ? 0 : map.objective];
+                if(entries) {
+                    for(let score of entries) {
+                        let insertScores = (await query(`INSERT INTO competition_history_scores (id_competition_history_maps, user_rank, user_id, time, plays, score, eco, unitsBuilt, unitsLost)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [insertMaps.insertId, score.rank, score.user, score.time, score.plays, score.score, score.eco, score.unitsBuilt, score.unitsLost])).results;
+                    }
+                }
+            }
+
+            await query(`DELETE FROM competition_messages WHERE guild_id = '${guild.id}'`);
+            await query(`UPDATE competition_main SET time_start = NULL, time_end = NULL, time_end_offset = NULL WHERE guild_id = '${guild.id}'`);
+            await query(`DELETE FROM competition_maps WHERE guild_id = '${guild.id}'`);
+
+            if(interaction) await interaction.editReply(this.bot.locale.category("competition", "end_success"));
+            await buildScoreTally.call(this, guild, channel, query, champion);
+
+            this.cache.set(guild.id, 'comp_maps', []);
+        }).catch(logger.error);
+    }
+
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {KCGameMapManager} kcgmm
+     * @param {string} game
+     * @param {import('./Map.js').default} map
+     * @param {KCGameMapManager.MapScoreQueryData=} msqd
+     */
+    map(interaction, guild, kcgmm, game, map, msqd) {
+        this.bot.sql.transaction(async query => {
+            if(msqd != null) {
+                if(await getMapAlreadyFeaturedInPreviousCompetition(query, guild, game, msqd)) {
+                    interaction.reply('❌ This map was already featured in a previous competition.').catch(logger.error);
+                }
+                else {
+                    interaction.reply('✅ This map was not featured in a previous competition.').catch(logger.error);
+                }
+                return;
+            }
+
+            let mapList = kcgmm.getMapListId(game);
+            if(!mapList) {
+                interaction.reply(this.bot.locale.category('competition', 'game_not_supported')).catch(logger.error);
+                return;
+            }
+
+            /** @type {Db.competition_history_maps[]} */
+            let resultsMaps = (await query(`SELECT * FROM competition_history_maps chm 
+                JOIN competition_history_competitions chc ON chc.id = chm.id_competition_history_competitions
+                WHERE chc.guild_id = '${guild.id}'
+                AND chm.game = '${game}'
+                AND chm.type = 'custom'`)).results;
+
+            for(let resultMaps of resultsMaps) {
+                if(resultMaps.map_id) mapList.delete(resultMaps.map_id);
+            }
+
+            let arr = [...mapList.keys()];
+            let id = arr[Bot.Util.getRandomInt(0, arr.length)];
+
+            //TODO
+            //let err = map.land(m, [`${game}`, `${id}`], `${game} ${id}`, { action: 'map', kcgmm: kcgmm });
+            //if(err) m.channel.send(err).catch(logger.error);
+        }).catch(logger.error);
+    }
+
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.TextChannel|Discord.ThreadChannel} channel
+     * @param {'champion'|'chronom'} type
+     */
+    intro(interaction, guild, channel, type) {
+        const embed = getEmbedTemplate();
+
+        if(type === 'champion') {
+            let roleId = this.bot.getRoleId(guild.id, 'CHAMPION_OF_KC');
+            embed.color = 4482815;
+
+            embed.description = `:fire: **Introduction to Champions**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nReach top 5 in the score tally or place #1 at the end of a competition in any of the maps listed in the pinned messages in the pins above this one to become Champion.`;
+        }
+        else if(type === 'chronom') {
+            let roleId = this.bot.getRoleId(guild.id, 'MASTER_OF_CHRONOM');
+            embed.color = 12141774;
+
+            embed.description = `:fire: **Introduction to Chronom**\n:trophy: Become <@&${roleId}>!\n\nRegister your name: \`!c register help\`\n:warning: **__Submit scores with the \`specialevent\` group name__**\n\nComplete all of the latest Creeper World 4 Chronom maps to become Master of Chronom. Track your status with the \`!c chronom\` command in <#457188713978527746>.\nYou can also get this role by reaching a high score in one or more recent Chronom maps. See standings in the message above this pin.`;
+        }
+
+        embed.image = {
+            url: 'https://media.discordapp.net/attachments/376817338990985246/783860176292806697/specialevent.png'
+        }
+
+        channel.send({embeds: [embed]}).then(message => {
+            this.bot.sql.transaction(async query => {
+                if(type === 'champion') {
+                    await query(`UPDATE competition_main SET champion_intro_message_id = ? WHERE guild_id = ?`, [message.id, guild.id]);
+                }
+                else if(type === 'chronom') {
+                    await query(`UPDATE competition_main SET chronom_intro_message_id = ? WHERE guild_id = ?`, [message.id, guild.id]);
+                }
+            }).catch(logger.error)
+        }).catch(logger.error);
+
+        interaction.reply('Message sent.').catch(logger.error);
+    }
+
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction
+     * @param {Discord.TextChannel|Discord.ThreadChannel} channel
+     * @param {Discord.Guild} guild
+     */
+    pinMania(interaction, channel, guild) {
+        if(this.pinManiaActive) return;
+        this.pinManiaActive = true;
+        this.bot.sql.transaction(async query => {
+            interaction.deferReply().catch(logger.error);
+            /** @type {Db.competition_messages[]} */
+            let compMessages = (await query(`SELECT * FROM competition_messages WHERE guild_id = ?`, [guild.id])).results;
+            /** @type {Db.competition_main} */
+            let main = (await query(`SELECT * FROM competition_main WHERE guild_id = ?`, [guild.id])).results[0];
+            if(main == null || main.channel_id == null) {
+                interaction.reply('Competition channel is not set.').catch(logger.error);
+                return;
+            }
+            if(channel.id !== main.channel_id) {
+                interaction.reply('You can only do this in the Competition channel.').catch(logger.error);
+                return;
+            }
+            const pinned = await channel.messages.fetchPinned();
+            for(const msg of pinned) {
+                await msg[1].unpin();
+                await Bot.Util.Promise.sleep(1000);
+            }
+            if(main.previous_competition_message_ids != null) {
+                for(const channelId of main.previous_competition_message_ids.split(',').reverse()) {
+                    let message = await channel.messages.fetch(channelId).catch(() => {});
+                    if(message) {
+                        await message.pin();
+                        await Bot.Util.Promise.sleep(1000);
+                    }
+                }
+            }
+            if(main.previous_competition_title_message_id != null) {
+                let message = await channel.messages.fetch(main.previous_competition_title_message_id).catch(() => {});
+                if(message) {
+                    await message.pin();
+                    await Bot.Util.Promise.sleep(1000);
+                }
+            }
+            if(main.current_champions_message_id != null) {
+                let message = await channel.messages.fetch(main.current_champions_message_id).catch(() => {});
+                if(message) {
+                    await message.pin();
+                    await Bot.Util.Promise.sleep(1000);
+                }
+            }
+            if(main.score_tally_message_id != null) {
+                let message = await channel.messages.fetch(main.score_tally_message_id).catch(() => {});
+                if(message) {
+                    await message.pin();
+                    await Bot.Util.Promise.sleep(1000);
+                }
+            }
+            if(main.chronom_intro_message_id != null) {
+                let message = await channel.messages.fetch(main.chronom_intro_message_id).catch(() => {});
+                if(message) {
+                    await message.pin();
+                    await Bot.Util.Promise.sleep(1000);
+                }
+            }
+            if(main.chronom_leaders_message_id != null) {
+                let message = await channel.messages.fetch(main.chronom_leaders_message_id).catch(() => {});
+                if(message) {
+                    await message.pin();
+                    await Bot.Util.Promise.sleep(1000);
+                }
+            }
+            if(main.champion_intro_message_id != null) {
+                let message = await channel.messages.fetch(main.champion_intro_message_id).catch(() => {});
+                if(message) {
+                    await message.pin();
+                    await Bot.Util.Promise.sleep(1000);
+                }
+            }
+            compMessages.sort((a, b) => this.games.indexOf(b.game) - this.games.indexOf(a.game));
+            for(const msg of compMessages) {
+                let message = await channel.messages.fetch(msg.message_id).catch(() => {});
+                if(message) {
+                    await message.pin();
+                    await Bot.Util.Promise.sleep(1000);
+                }
+            }
+
+            this.pinManiaActive = false;
+
+            interaction.editReply('All done.').catch(logger.error);
+        }).catch(logger.error);
     }
     
     /** 
@@ -451,10 +1113,13 @@ export default class Competition extends Bot.Module {
             
             if(now >= timeEnd) return true;
         }).then(shouldEnd => {
-            if(shouldEnd && champion) end.call(this, null, guild, kcgmm, champion, true);
+            if(shouldEnd && champion) this.end(null, guild, kcgmm, champion, true);
         }).catch(logger.error);
     }
 }
+
+//THE FOLLOWING FUNCTIONS ARE PENDING REMOVAL
+
 
 /**
  * Register this user for the competition.
@@ -686,7 +1351,7 @@ function addMap(m, type, game, msqd, kcgmm) {
                 return;
             }
 
-            if(await getMapAlreadyFeaturedInPreviousCompetition(query, m, game, msqd)) {
+            if(await getMapAlreadyFeaturedInPreviousCompetition(query, m.guild, game, msqd)) {
                 await m.message.reply(this.bot.locale.category("competition", "addmap_already_in_history"));
                 return;
             }
@@ -853,7 +1518,7 @@ function end(m, guild, kcgmm, champion, noRefresh) {
 function map(m, kcgmm, game, map, msqd) {
     this.bot.sql.transaction(async query => {
         if(msqd != null) {
-            if(await getMapAlreadyFeaturedInPreviousCompetition(query, m, game, msqd)) {
+            if(await getMapAlreadyFeaturedInPreviousCompetition(query, m.guild, game, msqd)) {
                 m.channel.send('❌ This map was already featured in a previous competition.').catch(logger.error);
             }
             else {
@@ -931,8 +1596,8 @@ function intro(m, type) {
  * @param {Bot.Message} m
  */
 function pinMania(m) {
-    if(this.pinMania) return;
-    this.pinMania = true;
+    if(this.pinManiaActive) return;
+    this.pinManiaActive = true;
     this.bot.sql.transaction(async query => {
         /** @type {Db.competition_messages[]} */
         let compMessages = (await query(`SELECT * FROM competition_messages WHERE guild_id = ?`, [m.guild.id])).results;
@@ -1011,9 +1676,14 @@ function pinMania(m) {
             }
         }
 
-        this.pinMania = false;
+        this.pinManiaActive = false;
     }).catch(logger.error);
 }
+
+////////////////
+
+
+
 
 
 
@@ -1554,15 +2224,15 @@ function hasMapStatusChanged(guild, msqd, leaderboard) {
 /**
  * @this {Competition}
  * @param {SQLWrapper.Query} query
- * @param {Bot.Message} m
+ * @param {Discord.Guild} guild
  * @param {string} game
  * @param {KCGameMapManager.MapScoreQueryData} msqd
  * @returns {Promise<boolean>}
  */
-async function getMapAlreadyFeaturedInPreviousCompetition(query, m, game, msqd) {
+async function getMapAlreadyFeaturedInPreviousCompetition(query, guild, game, msqd) {
     /** @type {Db.competition_history_maps[]} */
     var resultsHistoryMaps = (await query(`SELECT * FROM competition_history_maps chm JOIN competition_history_competitions chc ON chc.id = chm.id_competition_history_competitions
-        WHERE chc.guild_id = ${mysql.escape(m.guild.id)}
+        WHERE chc.guild_id = ${mysql.escape(guild.id)}
         AND chm.game = ${mysql.escape(game)}
         AND chm.type = ${mysql.escape(msqd.type)}
         AND chm.map_id ${msqd.id == null ? 'IS NULL' : `= ${mysql.escape(msqd.id)}`}
