@@ -12,6 +12,7 @@ import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
+import { SQLUtil } from '../kc/SQLUtil.js';
 import mysql from 'mysql';
 
 /**
@@ -477,10 +478,10 @@ export default class Competition extends Bot.Module {
                 const _data = data.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
                 if(_data.err) return _data.err;
                 const mapQueryData = _data.data;
-                return this.map(interaction, guild, data.kcgmm, game, data.map, mapQueryData);
+                return this.map(interaction, guild, member, channel, data.kcgmm, game, data.map, mapQueryData);
             }
             else {
-                return this.map(interaction, guild, data.kcgmm, game, data.map);
+                return this.map(interaction, guild, member, channel, data.kcgmm, game, data.map);
             }
         }
         }
@@ -503,14 +504,14 @@ export default class Competition extends Bot.Module {
             /** @type {Db.competition_register} */
             var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [guild.id, member.id, game, name])).results[0];
             if(resultRegister) {
-                interaction.reply(this.bot.locale.category("competition", "already_registered_with_this_name", name, gameName)).catch(logger.error);
+                await interaction.reply(this.bot.locale.category("competition", "already_registered_with_this_name", name, gameName));
                 return;
             }
     
             /** @type {Db.competition_register} */
             var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [guild.id, game, name])).results[0];
             if(resultRegister) {
-                interaction.reply(this.bot.locale.category("competition", "name_taken", name, gameName)).catch(logger.error);
+                await interaction.reply(this.bot.locale.category("competition", "name_taken", name, gameName));
                 return;
             }
     
@@ -518,13 +519,11 @@ export default class Competition extends Bot.Module {
             var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? FOR UPDATE`, [guild.id, member.id, game])).results[0];
             if(resultRegister) {
                 await query(`UPDATE competition_register SET user_name = ? WHERE guild_id = ? AND user_id = ? AND game = ?`, [name, guild.id, member.id, game]);
-    
-                interaction.reply(this.bot.locale.category("competition", "register_name_changed", resultRegister.user_name, name, gameName)).catch(logger.error);
+                await interaction.reply(this.bot.locale.category("competition", "register_name_changed", resultRegister.user_name, name, gameName));
             }
             else {
                 await query(`INSERT INTO competition_register (guild_id, user_id, game, user_name) VALUES (?, ?, ?, ?)`, [guild.id, member.id, game, name]);
-        
-                interaction.reply(this.bot.locale.category("competition", "register_success", name, gameName)).catch(logger.error);
+                await interaction.reply(this.bot.locale.category("competition", "register_success", name, gameName));
             }
         }).catch(logger.error);
     }
@@ -539,11 +538,11 @@ export default class Competition extends Bot.Module {
             let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}'`)).results[0];
     
             if(resultMain == null || resultMain.channel_id == null) {
-                interaction.reply(this.bot.locale.category("competition", "info_inactive")).catch(logger.error);
+                await interaction.reply(this.bot.locale.category("competition", "info_inactive"));
                 return;
             }
     
-            interaction.reply({ embeds:[getEmbedInfo.bind(this)(resultMain.channel_id)] }).catch(logger.error);
+            await interaction.reply({ embeds:[getEmbedInfo.bind(this)(resultMain.channel_id)] });
         }).catch(logger.error);
     }
 
@@ -565,7 +564,7 @@ export default class Competition extends Bot.Module {
                 
             await query(`DELETE FROM competition_messages WHERE guild_id = '${guild.id}'`)
     
-            interaction.reply(this.bot.locale.category("competition", "channel_set")).catch(logger.error);
+            await interaction.reply(this.bot.locale.category("competition", "channel_set"));
         }).catch(logger.error);
     }
 
@@ -580,13 +579,13 @@ export default class Competition extends Bot.Module {
             var resultsRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? FOR UPDATE`, [guild.id, targetUser.id])).results;
     
             if(resultsRegister.length <= 0) {
-                interaction.reply(this.bot.locale.category("competition", "unregister_not_registered")).catch(logger.error);
+                await interaction.reply(this.bot.locale.category("competition", "unregister_not_registered"));
                 return;
             }
     
             await query(`DELETE FROM competition_register WHERE guild_id = ? AND user_id = ?`, [guild.id, targetUser.id]);
     
-            interaction.reply(this.bot.locale.category("competition", "unregister_success", resultsRegister.length+"")).catch(logger.error);
+            await interaction.reply(this.bot.locale.category("competition", "unregister_success", resultsRegister.length+""));
         }).catch(logger.error);
     }
     /**
@@ -622,8 +621,8 @@ export default class Competition extends Bot.Module {
             await query(`UPDATE competition_main SET time_start = '${startTime}', time_end = '${endTime}', time_end_offset = '${timeOffset}'
                 WHERE guild_id = '${guild.id}'`);
     
-            channel.send(this.bot.locale.category("competition", "start_message")).catch(logger.error);
-            interaction.reply(this.bot.locale.category("competition", "start_success")).catch(logger.error);
+            await channel.send(this.bot.locale.category("competition", "start_message"));
+            await interaction.reply(this.bot.locale.category("competition", "start_success"));
         }).catch(logger.error);
     }
 
@@ -641,7 +640,7 @@ export default class Competition extends Bot.Module {
     
             this.cache.set(guild.id, 'comp_maps', []);
     
-            interaction.reply(this.bot.locale.category("competition", "erased")).catch(logger.error);
+            await interaction.reply(this.bot.locale.category("competition", "erased"));
         }).catch(logger.error);
     }
 
@@ -759,14 +758,7 @@ export default class Competition extends Bot.Module {
 
             if(interaction) await interaction.reply(this.bot.locale.category("competition", "end_in_progress"));
 
-            /** @type {Object.<string, string>} */
-            let emotes = {};
-            await this.bot.sql.transaction(async query => {
-                /** @type {any[]} */
-                let results = (await query(`SELECT * FROM emotes_game
-                                        WHERE guild_id = '${guild.id}'`)).results;
-                emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
-            }).catch(logger.error);
+            let emotes = await SQLUtil.getEmotes(this.bot.sql, guild.id) ?? {};
 
             /** @type {Db.competition_main|null} */
             let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}'`)).results[0];
@@ -857,26 +849,29 @@ export default class Competition extends Bot.Module {
     /**
      * @param {Discord.CommandInteraction<"cached">} interaction 
      * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {Discord.TextChannel|Discord.ThreadChannel} channel
      * @param {KCGameMapManager} kcgmm
      * @param {string} game
      * @param {import('./Map.js').default} map
      * @param {KCGameMapManager.MapScoreQueryData=} msqd
      */
-    map(interaction, guild, kcgmm, game, map, msqd) {
+    map(interaction, guild, member, channel, kcgmm, game, map, msqd) {
         this.bot.sql.transaction(async query => {
             if(msqd != null) {
                 if(await getMapAlreadyFeaturedInPreviousCompetition(query, guild, game, msqd)) {
-                    interaction.reply('❌ This map was already featured in a previous competition.').catch(logger.error);
+                    await interaction.reply('❌ This map was already featured in a previous competition.');
+                    return;
                 }
                 else {
-                    interaction.reply('✅ This map was not featured in a previous competition.').catch(logger.error);
+                    await interaction.reply('✅ This map was not featured in a previous competition.');
+                    return;
                 }
-                return;
             }
 
             let mapList = kcgmm.getMapListId(game);
             if(!mapList) {
-                interaction.reply(this.bot.locale.category('competition', 'game_not_supported')).catch(logger.error);
+                await interaction.reply(this.bot.locale.category('competition', 'game_not_supported'));
                 return;
             }
 
@@ -894,9 +889,8 @@ export default class Competition extends Bot.Module {
             let arr = [...mapList.keys()];
             let id = arr[Bot.Util.getRandomInt(0, arr.length)];
 
-            //TODO
-            //let err = map.land(m, [`${game}`, `${id}`], `${game} ${id}`, { action: 'map', kcgmm: kcgmm });
-            //if(err) m.channel.send(err).catch(logger.error);
+            await map.map(interaction, guild, member, channel, game, kcgmm, { id: id, allowTemporaryDelete: false });
+            return;
         }).catch(logger.error);
     }
 
@@ -926,15 +920,15 @@ export default class Competition extends Bot.Module {
             url: 'https://media.discordapp.net/attachments/376817338990985246/783860176292806697/specialevent.png'
         }
 
-        channel.send({embeds: [embed]}).then(message => {
-            this.bot.sql.transaction(async query => {
+        channel.send({embeds: [embed]}).then(async message => {
+            await this.bot.sql.transaction(async query => {
                 if(type === 'champion') {
                     await query(`UPDATE competition_main SET champion_intro_message_id = ? WHERE guild_id = ?`, [message.id, guild.id]);
                 }
                 else if(type === 'chronom') {
                     await query(`UPDATE competition_main SET chronom_intro_message_id = ? WHERE guild_id = ?`, [message.id, guild.id]);
                 }
-            }).catch(logger.error)
+            });
         }).catch(logger.error);
 
         interaction.reply('Message sent.').catch(logger.error);
@@ -955,11 +949,11 @@ export default class Competition extends Bot.Module {
             /** @type {Db.competition_main} */
             let main = (await query(`SELECT * FROM competition_main WHERE guild_id = ?`, [guild.id])).results[0];
             if(main == null || main.channel_id == null) {
-                interaction.reply('Competition channel is not set.').catch(logger.error);
+                await interaction.reply('Competition channel is not set.');
                 return;
             }
             if(channel.id !== main.channel_id) {
-                interaction.reply('You can only do this in the Competition channel.').catch(logger.error);
+                await interaction.reply('You can only do this in the Competition channel.');
                 return;
             }
             const pinned = await channel.messages.fetchPinned();
@@ -1029,7 +1023,7 @@ export default class Competition extends Bot.Module {
 
             this.pinManiaActive = false;
 
-            interaction.editReply('All done.').catch(logger.error);
+            await interaction.editReply('All done.');
         }).catch(logger.error);
     }
     
@@ -1042,14 +1036,7 @@ export default class Competition extends Bot.Module {
     async loop(guild, kcgmm, champion) {
         const now = Date.now();
 
-        /** @type {Object.<string, string>} */
-        let emotes = {};
-        await this.bot.sql.transaction(async query => {
-            /** @type {any[]} */
-            let results = (await query(`SELECT * FROM emotes_game
-                                       WHERE guild_id = '${guild.id}'`)).results;
-            emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
-        }).catch(logger.error);
+        let emotes = await SQLUtil.getEmotes(this.bot.sql, guild.id) ?? {};
 
         await this.bot.sql.transaction(async query => {
             /** @type {Db.competition_main|null} */
@@ -1446,14 +1433,7 @@ function end(m, guild, kcgmm, champion, noRefresh) {
 
         if(m) await m.message.reply(this.bot.locale.category("competition", "end_in_progress"));
 
-        /** @type {Object.<string, string>} */
-        let emotes = {};
-        await this.bot.sql.transaction(async query => {
-            /** @type {any[]} */
-            let results = (await query(`SELECT * FROM emotes_game
-                                       WHERE guild_id = '${guild.id}'`)).results;
-            emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
-        }).catch(logger.error);
+        let emotes = await SQLUtil.getEmotes(this.bot.sql, guild.id) ?? {};
 
         /** @type {Db.competition_main|null} */
         let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}'`)).results[0];

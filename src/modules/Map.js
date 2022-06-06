@@ -11,6 +11,7 @@ import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
+import { SQLUtil } from '../kc/SQLUtil.js';
 import { HttpRequest } from '../utils/HttpRequest.js';
 import xml2js from 'xml2js';
 
@@ -52,7 +53,7 @@ export default class Map extends Bot.Module {
     /** @param {Discord.Message} message */
     onMessage(message) {
         const channel = message.channel;
-        if(!(channel instanceof Discord.TextChannel)) return;
+        if(!(channel instanceof Discord.TextChannel || channel instanceof Discord.ThreadChannel)) return;
 
         //If the channel name this message was sent in doesn't match our dictionary, don't do anything.
         const game = this.autoMap[channel.name];
@@ -76,7 +77,7 @@ export default class Map extends Bot.Module {
                 if(id <= 0 || id > 1000000 || Number.isNaN(id) || !Number.isFinite(id)) continue;
                 //Under normal circumstances, all checks have passed.
                 if(message.guild != null && message.member != null && this.kcgmm != null) {
-                    await map.call(this, { channel: channel, guild: message.guild, member: message.member, message: message }, game, id, this.kcgmm, true, true);
+                    await this.map(null, message.guild, message.member, channel, game, this.kcgmm, { id: id, allowTemporaryDelete: true });
                     count++;
                 }
                 //Don't post more than 2 map embeds, even if more valid splits are found.
@@ -200,34 +201,38 @@ export default class Map extends Bot.Module {
                 let game = interaction.options.getString('game', true);
                 let id = interaction.options.getInteger('id', true);
                 if(id < 0) {
-                    interaction.reply({ content: this.bot.locale.category('mapdata', 'err_mapid_negative'), ephemeral: true }).catch(logger.error);
+                    await interaction.reply({ content: this.bot.locale.category('mapdata', 'err_mapid_negative'), ephemeral: true });
                     return;
                 }
                 if(!Number.isFinite(id) || id <= 0) {
-                    interaction.reply({ content: this.bot.locale.category('mapdata', 'err_mapid_invalid'), ephemeral: true }).catch(logger.error);
+                    await interaction.reply({ content: this.bot.locale.category('mapdata', 'err_mapid_invalid'), ephemeral: true });
                     return;
                 }
-                return this.map(interaction, guild, member, channel, game, id, null, data.kcgmm, false, true);
+
+                await this.map(interaction, guild, member, channel, game, data.kcgmm, { id: id, allowTemporaryDelete: false });
+                return;
             }
             case 'title': {
                 let game = interaction.options.getString('game', true);
                 let title = interaction.options.getString('title', true);
                 let author = interaction.options.getString('author');
                 if(title.length < 3) {
-                    interaction.reply({ content: 'Title length must be at least three characters.', ephemeral: true }).catch(logger.error);
+                    await interaction.reply({ content: 'Title length must be at least three characters.', ephemeral: true });
                     return;
                 }
-                return this.map(interaction, guild, member, channel, game, title, author, data.kcgmm, false, true);
+                await this.map(interaction, guild, member, channel, game, data.kcgmm, { title: title, author: author??undefined, allowTemporaryDelete: false });
+                return;
             }
             case 'random': {
                 let game = interaction.options.getString('game') ?? this.games[Bot.Util.getRandomInt(0, this.games.length)];
                 let mapListByIds = data.kcgmm.getMapListId(game);
                 if(mapListByIds == null) {
-                    interaction.reply(this.bot.locale.category('mapdata', 'err_game_not_supported', KCLocaleManager.getDisplayNameFromAlias('game', game) + '')).catch(logger.error);
+                    await interaction.reply(this.bot.locale.category('mapdata', 'err_game_not_supported', KCLocaleManager.getDisplayNameFromAlias('game', game) + ''));
                     return;
                 }
                 let id = mapListByIds.random()?.id || 1;
-                return this.map(interaction, guild, member, channel, game, id, null, data.kcgmm, false, true);
+                await this.map(interaction, guild, member, channel, game, data.kcgmm, { id: id, allowTemporaryDelete: false });
+                return;
             }
             }
         }
@@ -238,75 +243,93 @@ export default class Map extends Bot.Module {
 
     //INTERACTION BASED COMMANDS START HERE
     /**
-    * @param {Discord.CommandInteraction<"cached">} interaction 
+    * @param {Discord.CommandInteraction<"cached">|null} interaction 
     * @param {Discord.Guild} guild
     * @param {Discord.GuildMember} member
     * @param {Discord.TextChannel|Discord.ThreadChannel} channel
     * @param {string} game
-    * @param {number|string} id
-    * @param {string|null} author
     * @param {KCGameMapManager} kcgmm
-    * @param {boolean=} suppressError
-    * @param {boolean=} allowTemporaryDelete
+    * @param {object} opts
+    * @param {number=} opts.id
+    * @param {string=} opts.title
+    * @param {string=} opts.author
+    * @param {boolean=} opts.allowTemporaryDelete
     */
-    async map(interaction, guild, member, channel, game, id, author, kcgmm, suppressError, allowTemporaryDelete) {
-        await interaction.deferReply().catch(logger.error);
+    async map(interaction, guild, member, channel, game, kcgmm, opts) {
+        if(interaction) await interaction.deferReply();
+        const emote = await SQLUtil.getEmote(this.bot.sql, guild.id, game) ?? ':game_die:';
 
-        let emote = ':game_die:';
-        await this.bot.sql.transaction(async query => {
-            let result = (await query(`SELECT * FROM emotes_game
-                                    WHERE guild_id = '${guild.id}' AND game = '${game}'`)).results[0];
-            if(result) emote = result.emote;
-        }).catch(logger.error);
+        /** @type {KCGameMapManager.MapData|KCGameMapManager.MapData[]|null} */
+        let mapData = null;
+        
+        //If we are doing an ID search
+        if(opts.id != null) {
+            //Look for the map
+            mapData = kcgmm.getMapById(game, opts.id);
+            //If the map is not found, fetch, and look for it again
+            if(mapData == null) {
+                if(game !== 'cw2') {
+                    try {
+                        await kcgmm.fetch(game);
+                    } catch {
+                        //Exit if fetch has failed (too quick)
+                        if(interaction) {
+                            let str = `I couldn't find map #${opts.id}.`;
+                            if(game !== 'cw2') str += ` If you're certain this map exists, try again in a few minutes.`;
+                            await interaction.editReply({ content: str });
+                        }
+                        return;
+                    }
+                }
+                mapData = kcgmm.getMapById(game, opts.id);
+            }
+            //If the map is not found the second time, we ain't got it chief
+            if(mapData == null) {
+                if(interaction) await interaction.editReply({ content: this.bot.locale.category('mapdata', 'search_result_not_found') });
+                return;
+            }
+        }
+        //If we are doing a title search
+        else if(opts.title != null) {
+            //Look for the map(s)
+            mapData = kcgmm.getMapByTitle(game, opts.title, opts.author??undefined);
+            //If no maps were found, it ain't here
+            if(mapData == null) {
+                if(interaction) await interaction.editReply({ content: `I couldn't find any maps matching the provided title.`})
+                return;
+            }
+        }
 
-        let mapData = typeof id === 'number' ? kcgmm.getMapById(game, id) : kcgmm.getMapByTitle(game, id, author??undefined);
-        if(mapData != null) {
-            const singleMap = !(mapData instanceof Array) ? mapData : mapData.length === 1 ? mapData[0] : null;
-            if(singleMap != null)
-                await fetchMapDescriptionForCW4.call(this, singleMap, kcgmm);
-
-            const embed = mapData instanceof Array ?
-                await getMultipleMapsMessageEmbed.call(this, mapData, emote, guild, game, kcgmm)
-                :
-                await getMapMessageEmbed.call(this, mapData, emote, guild, game, kcgmm);
-
-            
-            interaction.editReply({ embeds:[embed] }).then(message => {
-                if(allowTemporaryDelete) userDeletionHandler(member, message, embed);
-            }).catch(logger.error);
+        //If somehow wrong input was provided and neither of the previous statements fired
+        if(mapData == null) {
+            if(interaction) await interaction.editReply({ content: `An unexpected error occurred.`});
             return;
         }
-        else if(typeof id === 'string') {
-            interaction.editReply("Couldn't find requested map by title. Try with map ID?").catch(logger.error);
-            return;
+
+        //If we only found one map
+        if(!(mapData instanceof Array)) {
+            //Fetch its description
+            await fetchMapDescriptionForCW4.call(this, mapData, kcgmm);
         }
 
-        var str = this.bot.locale.category('mapdata', 'searching_map');
-        if(game === 'cw2') str += '\n\n' + this.bot.locale.category('mapdata', 'searching_map_cw2_add');
-        await interaction.editReply({ embeds: [{description: str}] }).then(message => {
-            (async () => {
-                if(game !== 'cw2')
-                    await kcgmm.fetch(game);
+        //Create message embed
+        const embed = mapData instanceof Array ?
+            await getMultipleMapsMessageEmbed.call(this, mapData, emote, guild, game, kcgmm)
+            :
+            await getMapMessageEmbed.call(this, mapData, emote, guild, game, kcgmm);
 
-                let mapData = kcgmm.getMapById(game, id);
-                if(!mapData) {
-                    if(suppressError) interaction.deleteReply().catch(logger.error);
-                    else interaction.editReply({ embeds: [{description: this.bot.locale.category('mapdata', 'search_result_not_found')}] }).catch(logger.error);
-                }
-                else {
-                    await fetchMapDescriptionForCW4.call(this, mapData, kcgmm);
-                    const embed = await getMapMessageEmbed.bind(this)(mapData, emote, guild, game, kcgmm);
-                    interaction.editReply({ embeds:[embed] }).then(message => {
-                        if(allowTemporaryDelete) userDeletionHandler(member, message, embed);
-                    }).catch(logger.error);
-                }
-            })().catch(e => {
-                logger.info(e);
-                if(suppressError) interaction.deleteReply().catch(logger.error);
-                else interaction.editReply({embeds: [{description: this.bot.locale.category('mapdata', 'search_result_too_fast')}]}).catch(logger.error);
-                
+        //Edit the interaction if this is an interaction
+        if(interaction) {
+            await interaction.editReply({ embeds:[embed] }).then(message => {
+                if(opts.allowTemporaryDelete) userDeletionHandler(member, message, embed);
             });
-        }).catch(logger.error);
+        }
+        //Otherwise send as regular message
+        else {
+            await channel.send({ embeds:[embed] }).then(message => {
+                if(opts.allowTemporaryDelete) userDeletionHandler(member, message, embed);
+            });
+        }
     }
 }
 
@@ -321,12 +344,7 @@ export default class Map extends Bot.Module {
 * @param {boolean=} allowTemporaryDelete
 */
 async function map(m, game, id, kcgmm, suppressError, allowTemporaryDelete) {
-    let emote = ':game_die:';
-    await this.bot.sql.transaction(async query => {
-        let result = (await query(`SELECT * FROM emotes_game
-                                   WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
-        if(result) emote = result.emote;
-    }).catch(logger.error);
+    let emote = await SQLUtil.getEmote(this.bot.sql, m.guild.id, game) ?? ':game_die:';
 
     let mapData = typeof id === 'number' ? kcgmm.getMapById(game, id) : kcgmm.getMapByTitle(game, id);
     if(mapData != null) {
@@ -385,13 +403,7 @@ async function map(m, game, id, kcgmm, suppressError, allowTemporaryDelete) {
 * @param {KCGameMapManager} kcgmm
 */
 async function score(m, mapQueryData, kcgmm) {
-    /** @type {null|string} */
-    let emote = null;
-    await this.bot.sql.transaction(async query => {
-        let result = (await query(`SELECT * FROM emotes_game
-                                   WHERE guild_id = '${m.guild.id}' AND game = '${mapQueryData.game}'`)).results[0];
-        if(result) emote = result.emote;
-    }).catch(logger.error);
+    let emote = await SQLUtil.getEmote(this.bot.sql, m.guild.id, mapQueryData.game);
 
     let embed = getEmbedTemplate.bind(this)(mapQueryData.game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), false);
     embed.fields = [];
@@ -461,14 +473,7 @@ async function score(m, mapQueryData, kcgmm) {
 * @param {KCGameMapManager.MapData[]} maps
 */
 async function bestof(m, game, date, maps) {
-    /** @type {null|string} */
-    let emote = null;
-    await this.bot.sql.transaction(async query => {
-        let result = (await query(`SELECT * FROM emotes_game
-                                   WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
-        if(result) emote = result.emote;
-    }).catch(logger.error);
-
+    let emote = await SQLUtil.getEmote(this.bot.sql, m.guild.id, game);
     let embed = getEmbedTemplate(game, m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), false);
 
     let field = {

@@ -7,6 +7,7 @@ const logger = Bot.logger;
 
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
+import { SQLUtil } from '../kc/SQLUtil.js';
 
 export default class Stream extends Bot.Module {
     /** @param {Core.Entry} bot */
@@ -106,12 +107,7 @@ function start(m, game, url) {
             return;
         }
 
-        let emote = ':game_die:';
-        await this.bot.sql.transaction(async query => {
-            let result = (await query(`SELECT * FROM emotes_game
-                                        WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
-            if(result) emote = result.emote;
-        }).catch(logger.error);
+        let emote = await SQLUtil.getEmote(this.bot.sql, m.guild.id, game) ?? ':game_die:';
 
         const embed = getEmbedTemplate(m.member);
         embed.color = KCUtil.gameEmbedColors[game];

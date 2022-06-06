@@ -13,6 +13,7 @@ import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
+import { SQLUtil } from '../kc/SQLUtil.js';
 
 export default class Chronom extends Bot.Module {
     /**
@@ -177,14 +178,7 @@ export default class Chronom extends Bot.Module {
             }
 
             await (async () => {
-                let emote = '';
-                await this.bot.sql.transaction(async query => {
-                    /** @type {any} */
-                    let result = (await query(`SELECT * FROM emotes_game
-                                            WHERE guild_id = '${guild.id}' AND game = 'cw4'`)).results[0];
-                    emote = result?.emote;
-                }).catch(logger.error);
-
+                let emote = await SQLUtil.getEmote(this.bot.sql, guild.id, 'cw4') ?? ':game_die:';
 
                 /** @type {import ('./Competition.js').Db.competition_main} */
                 const c = (await query(`SELECT * FROM competition_main WHERE guild_id = ?`, [guild.id])).results[0];

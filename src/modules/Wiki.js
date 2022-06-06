@@ -7,6 +7,7 @@ const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { HttpRequest } from '../utils/HttpRequest.js';
 import { KCUtil } from '../kc/KCUtil.js';
+import { SQLUtil } from '../kc/SQLUtil.js';
 import { JSDOM } from 'jsdom';
 
 /**
@@ -186,12 +187,7 @@ async function getXrpl(m, xrpl, pageName) {
     //Dispose of JSDOM instance
     window.close();
 
-    let emote = ':game_die:';
-    await this.bot.sql.transaction(async query => {
-        let result = (await query(`SELECT * FROM emotes_game
-                                   WHERE guild_id = '${m.guild.id}' AND game = '${this.rpl[xrpl].game}'`)).results[0];
-        if(result) emote = result.emote;
-    }).catch(logger.error);
+    let emote = await SQLUtil.getEmote(this.bot.sql, m.guild.id, this.rpl[xrpl].game) ?? ':game_die:';
 
     let embed = getEmbedTemplate.call(this, xrpl, pageName.toLowerCase(), m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), m.member);
 

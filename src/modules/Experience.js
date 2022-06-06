@@ -62,6 +62,7 @@ const logger = Bot.logger;
 import seedrandom from 'seedrandom';
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
+import { SQLUtil } from '../kc/SQLUtil.js';
 
 import { CustomManager, getMapsCompleted } from './Experience/CustomManager.js';
 import { CampaignManager } from './Experience/CampaignManager.js';
@@ -454,14 +455,7 @@ function profile(m, game, kcgmm, dm) {
     this.bot.sql.transaction(async query => {
         embed.fields = [];
 
-        /** @type {Object.<string, string>} */
-        let emotes = {};
-        await this.bot.sql.transaction(async query => {
-            /** @type {any[]} */
-            let results = (await query(`SELECT * FROM emotes_game
-                                       WHERE guild_id = '${m.guild.id}'`)).results;
-            emotes = results.reduce((a, v) => { a[v.game] = v.emote; return a; }, {});
-        }).catch(logger.error);
+        let emotes = await SQLUtil.getEmotes(this.bot.sql, m.guild.id) ?? {};
         const emote = emotes[game]||':game_die:';
 
         embed.color = KCUtil.gameEmbedColors[game];
@@ -599,12 +593,7 @@ function newMaps(m, game, kcgmm, dm) {
             WHERE user_id = '${m.member.id}' AND game = '${game}' FOR UPDATE`)).results[0];
 
         //Get emote for this game
-        let emote = ':game_die:';
-        await this.bot.sql.transaction(async query => {
-            let result = (await query(`SELECT * FROM emotes_game
-                WHERE guild_id = '${m.guild.id}' AND game = '${game}'`)).results[0];
-            if(result) emote = result.emote;
-        }).catch(logger.error);
+        let emote = await SQLUtil.getEmote(this.bot.sql, m.guild.id, game) ?? ':game_die:';
 
         //Exit if user is not registered
         if(resultUsers == null) {
@@ -1091,13 +1080,7 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
     let resultUsers = member == null ? null : (await query(`SELECT * FROM experience_users
         WHERE game = '${game}' and user_id = '${member.id}'`)).results[0];
     
-    let emote = ':game_die:';
-    await this.bot.sql.transaction(async query => {
-        let result = (await query(`SELECT * FROM emotes_game
-                                    WHERE guild_id = '${guild.id}' AND game = '${game}'`)).results[0];
-        if(result) emote = result.emote;
-    }).catch(logger.error);
-
+    let emote = await SQLUtil.getEmote(this.bot.sql, guild.id, game) ?? ':game_die:';
 
     let embed = getEmbedTemplate(member);
     embed.color = KCUtil.gameEmbedColors[game];

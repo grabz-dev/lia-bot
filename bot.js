@@ -554,7 +554,7 @@ core.on('ready', bot => {
                                     .addChoices(...choices.game)    
                             ).addStringOption(option =>
                                 option.setName('parameters')
-                                    .setDescription('Provide a list of parameters defining the map. e.g. "markv totems knucracker fly up#1222".')    
+                                    .setDescription('"custom 1234 nullify" "code small medium abc" "markv totems abc#1444"')    
                             )
                     ).addSubcommand(subcommand =>
                         subcommand.setName('intro')

@@ -247,7 +247,10 @@ export function KCGameMapManager(options, locale) {
     }
 
     /**
-     * 
+     * Find map(s) by map title/author
+     * null is returned if no matches are found
+     * MapData is returned if a single match is found
+     * MapData[] is returned if multiple matches are found
      * @param {string} game 
      * @param {string} title 
      * @param {string=} author
