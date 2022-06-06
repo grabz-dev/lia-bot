@@ -27,10 +27,7 @@ const core = new Bot.Core({
         Discord.Intents.FLAGS.DIRECT_MESSAGES,
         Discord.Intents.FLAGS.DIRECT_MESSAGE_REACTIONS,
         Discord.Intents.FLAGS.DIRECT_MESSAGE_TYPING,
-    ],
-    overrideMemberId: '371018033298276353',
-    //errorGuildId: '192420539204239361',
-    //errorChannelId: '399663134358372382',
+    ]
 });
 
 const choices = {
@@ -387,12 +384,30 @@ core.on('ready', bot => {
                 return;
             }
 
+            let forcePermit = false;
+            if(Bot.Util.isMemberAdmin(interaction.member) || interaction.member.id === bot.fullAuthorityOverride) {
+                forcePermit = true;
+            }
+
             switch(interaction.commandName) {
                 case 'competition':
                 case 'competition_admin':
-                case 'competition_mod':
+                case 'competition_mod': {
+                    if(!forcePermit && !competition.interactionPermitted(interaction, interaction.guild, interaction.member)) {
+                        interaction.reply({ content: 'You are not permitted to use this command.', ephemeral: true }).catch(logger.error);
+                        break;
+                    }
                     competition.incomingInteraction(interaction, interaction.guild, interaction.member, interaction.channel, { kcgmm, champion, map }).catch(logger.error);
                     break;
+                }
+                case 'map': {
+                    if(!forcePermit && !map.interactionPermitted(interaction, interaction.guild, interaction.member)) {
+                        interaction.reply({ content: 'You are not permitted to use this command.', ephemeral: true }).catch(logger.error);
+                        break;
+                    }
+                    map.incomingInteraction(interaction, interaction.guild, interaction.member, interaction.channel, { kcgmm }).catch(logger.error);
+                    break;
+                }
             }
         });
 
@@ -400,7 +415,52 @@ core.on('ready', bot => {
             if(bot.client.user == null) return;
             const clientId = bot.client.user.id;
 
-            const commands = [new SlashCommandBuilder()
+            const commands = [
+                new SlashCommandBuilder()
+                .setName('map')
+                .setDescription('Display information about a map.')
+                .addSubcommand(subcommand =>
+                    subcommand.setName('id')
+                        .setDescription('Display information about a map, searching by ID.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('Choose the game the map is from.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        )
+                        .addIntegerOption(option =>
+                            option.setName('id')
+                                .setDescription('The map ID number.')
+                                .setRequired(true)
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('title')
+                        .setDescription('Display information about a map, searching by map title.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('Choose the game the map is from.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        )
+                        .addStringOption(option =>
+                            option.setName('title')
+                                .setDescription('The full or partial map title to search (case insensitive).')
+                                .setRequired(true)
+                        )
+                        .addStringOption(option =>
+                            option.setName('author')
+                                .setDescription('The name of the map author (case insensitive).')
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('random')
+                        .setDescription('Display information about a map, choosing a random one.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('Choose the game to pick randomly from. Omit to also pick a random game.')
+                                .addChoices(...choices.game)
+                        )
+                ).toJSON(),
+                new SlashCommandBuilder()
                 .setName('competition')
                 .setDescription('Collection of Competition related commands.')
                 .addSubcommand(subcommand =>
@@ -427,7 +487,7 @@ core.on('ready', bot => {
                 new SlashCommandBuilder()
                     .setName('competition_admin')
                     .setDescription('[Admin] Collection of Competition related commands.')
-                    .setDefaultPermission(false)
+                    .setDefaultMemberPermissions('0')
                     .addSubcommand(subcommand =>
                         subcommand.setName('setchannel')
                             .setDescription('[Admin] Set the competition channel.')
@@ -435,7 +495,7 @@ core.on('ready', bot => {
                 new SlashCommandBuilder()
                     .setName('competition_mod')
                     .setDescription('[Mod] Collection of Competition related commands.')
-                    .setDefaultPermission(false)
+                    .setDefaultMemberPermissions('0')
                     .addSubcommand(subcommand =>
                         subcommand.setName('unregister')
                             .setDescription('[Mod] Remove a user\'s Competition registration entries.')

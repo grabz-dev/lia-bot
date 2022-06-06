@@ -164,6 +164,150 @@ export default class Map extends Bot.Module {
             return;
         }
     }
+
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @returns {boolean}
+     */
+    interactionPermitted(interaction, guild, member) {
+        const commandName = interaction.commandName;
+        const subcommandName = interaction.options.getSubcommand();
+        switch(commandName) {
+        case 'map': return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {Discord.TextChannel | Discord.ThreadChannel} channel
+     * @param {{ kcgmm: KCGameMapManager }} data 
+     */
+    async incomingInteraction(interaction, guild, member, channel, data) {
+        const commandName = interaction.commandName;
+        const subcommandName = interaction.options.getSubcommand();
+        switch(commandName) {
+        case 'map': {
+            switch(subcommandName) {
+            case 'id': {
+                let game = interaction.options.getString('game', true);
+                let id = interaction.options.getInteger('id', true);
+                if(id < 0) {
+                    interaction.reply({ content: this.bot.locale.category('mapdata', 'err_mapid_negative'), ephemeral: true }).catch(logger.error);
+                    return;
+                }
+                if(!Number.isFinite(id) || id <= 0) {
+                    interaction.reply({ content: this.bot.locale.category('mapdata', 'err_mapid_invalid'), ephemeral: true }).catch(logger.error);
+                    return;
+                }
+                return this.map(interaction, guild, member, channel, game, id, null, data.kcgmm, false, true);
+            }
+            case 'title': {
+                let game = interaction.options.getString('game', true);
+                let title = interaction.options.getString('title', true);
+                let author = interaction.options.getString('author');
+                if(title.length < 3) {
+                    interaction.reply({ content: 'Title length must be at least three characters.', ephemeral: true }).catch(logger.error);
+                    return;
+                }
+                return this.map(interaction, guild, member, channel, game, title, author, data.kcgmm, false, true);
+            }
+            case 'random': {
+                let game = interaction.options.getString('game') ?? this.games[Bot.Util.getRandomInt(0, this.games.length)];
+                let mapListByIds = data.kcgmm.getMapListId(game);
+                if(mapListByIds == null) {
+                    interaction.reply(this.bot.locale.category('mapdata', 'err_game_not_supported', KCLocaleManager.getDisplayNameFromAlias('game', game) + '')).catch(logger.error);
+                    return;
+                }
+                let id = mapListByIds.random()?.id || 1;
+                return this.map(interaction, guild, member, channel, game, id, null, data.kcgmm, false, true);
+            }
+            }
+        }
+        }
+    }
+
+
+
+    //INTERACTION BASED COMMANDS START HERE
+    /**
+    * @param {Discord.CommandInteraction<"cached">} interaction 
+    * @param {Discord.Guild} guild
+    * @param {Discord.GuildMember} member
+    * @param {Discord.TextChannel|Discord.ThreadChannel} channel
+    * @param {string} game
+    * @param {number|string} id
+    * @param {string|null} author
+    * @param {KCGameMapManager} kcgmm
+    * @param {boolean=} suppressError
+    * @param {boolean=} allowTemporaryDelete
+    */
+    async map(interaction, guild, member, channel, game, id, author, kcgmm, suppressError, allowTemporaryDelete) {
+        await interaction.deferReply().catch(logger.error);
+
+        let emote = ':game_die:';
+        await this.bot.sql.transaction(async query => {
+            let result = (await query(`SELECT * FROM emotes_game
+                                    WHERE guild_id = '${guild.id}' AND game = '${game}'`)).results[0];
+            if(result) emote = result.emote;
+        }).catch(logger.error);
+
+        let mapData = typeof id === 'number' ? kcgmm.getMapById(game, id) : kcgmm.getMapByTitle(game, id, author??undefined);
+        if(mapData != null) {
+            const singleMap = !(mapData instanceof Array) ? mapData : mapData.length === 1 ? mapData[0] : null;
+            if(singleMap != null)
+                await fetchMapDescriptionForCW4.call(this, singleMap, kcgmm);
+
+            const embed = mapData instanceof Array ?
+                await getMultipleMapsMessageEmbed.call(this, mapData, emote, guild, game, kcgmm)
+                :
+                await getMapMessageEmbed.call(this, mapData, emote, guild, game, kcgmm);
+
+            
+            interaction.editReply({ embeds:[embed] }).then(message => {
+                if(allowTemporaryDelete) userDeletionHandler(member, message, embed);
+            }).catch(logger.error);
+            return;
+        }
+        else if(typeof id === 'string') {
+            interaction.editReply("Couldn't find requested map by title. Try with map ID?").catch(logger.error);
+            return;
+        }
+
+        var str = this.bot.locale.category('mapdata', 'searching_map');
+        if(game === 'cw2') str += '\n\n' + this.bot.locale.category('mapdata', 'searching_map_cw2_add');
+        await interaction.editReply({ embeds: [{description: str}] }).then(message => {
+            (async () => {
+                if(game !== 'cw2')
+                    await kcgmm.fetch(game);
+
+                let mapData = kcgmm.getMapById(game, id);
+                if(!mapData) {
+                    if(suppressError) interaction.deleteReply().catch(logger.error);
+                    else interaction.editReply({ embeds: [{description: this.bot.locale.category('mapdata', 'search_result_not_found')}] }).catch(logger.error);
+                }
+                else {
+                    await fetchMapDescriptionForCW4.call(this, mapData, kcgmm);
+                    const embed = await getMapMessageEmbed.bind(this)(mapData, emote, guild, game, kcgmm);
+                    interaction.editReply({ embeds:[embed] }).then(message => {
+                        if(allowTemporaryDelete) userDeletionHandler(member, message, embed);
+                    }).catch(logger.error);
+                }
+            })().catch(e => {
+                logger.info(e);
+                if(suppressError) interaction.deleteReply().catch(logger.error);
+                else interaction.editReply({embeds: [{description: this.bot.locale.category('mapdata', 'search_result_too_fast')}]}).catch(logger.error);
+                
+            });
+        }).catch(logger.error);
+    }
 }
 
 /**
@@ -196,7 +340,7 @@ async function map(m, game, id, kcgmm, suppressError, allowTemporaryDelete) {
             await getMapMessageEmbed.call(this, mapData, emote, m.guild, game, kcgmm);
 
         m.channel.send({ embeds:[embed] }).then(message => {
-            if(allowTemporaryDelete) userDeletionHandler(m, message, embed);
+            if(allowTemporaryDelete) userDeletionHandler(m.member, message, embed);
         }).catch(logger.error);
         return;
     }
@@ -222,7 +366,7 @@ async function map(m, game, id, kcgmm, suppressError, allowTemporaryDelete) {
                 message.delete().catch(logger.error);
                 const embed = await getMapMessageEmbed.bind(this)(mapData, emote, m.guild, game, kcgmm);
                 m.channel.send({ embeds:[embed] }).then(message => {
-                    if(allowTemporaryDelete) userDeletionHandler(m, message, embed);
+                    if(allowTemporaryDelete) userDeletionHandler(m.member, message, embed);
                 }).catch(logger.error);
             }
         })().catch(e => {
@@ -385,10 +529,16 @@ async function getMultipleMapsMessageEmbed(maps, emoteStr, guild, game, kcgmm) {
     let embed = getEmbedTemplate.bind(this)(game, emote, false);
     embed.description = '';
 
+    let i = 0;
     for(const map of maps) {
         let title = map.title;
         if(map.forumId != null) title = `[${title}](https://knucklecracker.com/forums/index.php?topic=${map.forumId})`;
         embed.description += `**Map #${map.id}** - ${title} __by ${map.author}__\n`;
+        i++;
+        if(i >= 10) {
+            embed.description += `...and ${maps.length - i} more maps.`;
+            break;
+        }
     }
 
     return embed;
@@ -533,11 +683,11 @@ function getEmbedTemplate(game, emote, thumbnail, thumbnailURL) {
 }
 
 /**
- * @param {Bot.Message} m
+ * @param {Discord.GuildMember} member
  * @param {Discord.Message} message
  * @param {Discord.MessageEmbed} embed
  */
-function userDeletionHandler(m, message, embed) {
+function userDeletionHandler(member, message, embed) {
     const collector = message.createReactionCollector({
         time: 1000 * 60 * 1,
     })
@@ -547,7 +697,7 @@ function userDeletionHandler(m, message, embed) {
         if(message.member && user.id === message.member.id) return;
         await reaction.users.remove(user);
 
-        if(user.id === m.member.id) {
+        if(user.id === member.id) {
             switch(reaction.emoji.name) {
             case '❌':
                 message.delete().catch(logger.error);
@@ -557,8 +707,7 @@ function userDeletionHandler(m, message, embed) {
     });
 
     collector.on('end', async () => {
-        if(!message.deleted)
-            await message.reactions.removeAll();
+        await message.reactions.removeAll().catch(() => {});
     });
 
     message.react('❌').catch(logger.error);

@@ -250,19 +250,36 @@ export function KCGameMapManager(options, locale) {
      * 
      * @param {string} game 
      * @param {string} title 
+     * @param {string=} author
      * @returns {MapData|MapData[]|null}
      */
-    this.getMapByTitle = function(game, title) {
+    this.getMapByTitle = function(game, title, author) {
         let mapArr = this._maps.array.get(game);
         if(mapArr == null) return null;
 
         title = title.toLowerCase().replaceAll(' ', '');
+        if(author != null)
+            author = author.toLowerCase().replaceAll(' ', '');
+    
         /** @type { MapData[] } */
         const mapsFound = [];
 
         for(const map of mapArr) {
             const mapTitle = map.title.toLowerCase().replaceAll(' ', '');
-            if(title === mapTitle) mapsFound.push(Object.assign({}, map))
+            if(title === mapTitle) {
+                if(author == null || map.author.toLowerCase().replaceAll(' ', '') === author)
+                    mapsFound.push(Object.assign({}, map));
+            }
+        }
+
+        if(mapsFound.length === 0) {
+            for(const map of mapArr) {
+                const mapTitle = map.title.toLowerCase().replaceAll(' ', '');
+                if(mapTitle.indexOf(title) > -1) {
+                    if(author == null || map.author.toLowerCase().replaceAll(' ', '') === author)
+                        mapsFound.push(Object.assign({}, map))
+                }
+            }
         }
 
         if(mapsFound.length === 0) return null;

@@ -346,6 +346,41 @@ export default class Competition extends Bot.Module {
      * @param {Discord.CommandInteraction<"cached">} interaction 
      * @param {Discord.Guild} guild
      * @param {Discord.GuildMember} member
+     * @returns {boolean}
+     */
+    interactionPermitted(interaction, guild, member) {
+        const commandName = interaction.options.getSubcommand();
+        switch(commandName) {
+        case 'pinmania':
+        case 'setchannel':
+        case 'destroy':
+        case 'build_tally':
+        case 'end':
+        case 'intro':
+        case 'unregister':
+        case 'add_map':
+        case 'remove_map':
+        case 'map': {
+            const roleId = this.bot.getRoleId(guild.id, "EVENT_MOD");
+            if(roleId == null) return false;
+            if(member.roles.cache.has(roleId)) return true;
+            return false;
+        }
+        case 'info':
+        case 'update':
+        case 'register': {
+            return true;
+        }
+        default:
+            return false;
+        }
+    }
+
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
      * @param {{ kcgmm: KCGameMapManager, champion: import('./Champion.js').default, map: import('./Map.js').default }} data 
      */
