@@ -1239,7 +1239,7 @@ async function getChartFromGame(query, game, type) {
  * @param {Discord.Message} userMessage
  * @param {boolean|number} userMessageDelete - if true, delete after 10 seconds. if number, delete after provided number of seconds.
  * @param {string | Discord.MessagePayload | Discord.MessageOptions} botMessage
- * @param {Discord.PartialDMChannel | Discord.TextChannel | Discord.ThreadChannel} botChannel
+ * @param {Discord.PartialDMChannel | Discord.TextChannel | Discord.ThreadChannel | Discord.VoiceChannel } botChannel
  * @param {boolean} isReply
  * @param {boolean} botMessageDelete
  * @returns {Promise<Discord.Message>}

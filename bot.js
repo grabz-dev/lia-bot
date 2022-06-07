@@ -36,7 +36,7 @@ const choices = {
         { name: 'Particle Fleet',  value: 'pf' },
         { name: 'Creeper World 3', value: 'cw3' },
         { name: 'Creeper World 2', value: 'cw2' },
-        { name: 'Creeper World 1', value: 'cw' }
+        { name: 'Creeper World 1', value: 'cw1' }
     ]
 }
 
@@ -54,6 +54,7 @@ core.on('ready', bot => {
         await kcgmm.fetch('pf').catch(logger.error);
         await Bot.Util.Promise.sleep(1000);
         await kcgmm.fetch('cw3').catch(logger.error);
+        
         await cwMaps.updateCW1Maps(kcgmm);
         await cwMaps.updateCW2Maps(kcgmm);
         (async () => {
@@ -109,6 +110,26 @@ core.on('ready', bot => {
         const hurtheal = await core.getModule((await import('./src/modules/HurtHeal.js')).default);
         /** @type {import('./src/modules/Competition.js').default} */
         const competition = await core.getModule((await import('./src/modules/Competition.js')).default);
+        /** @type {import('./src/modules/Experience.js').default} */
+        const experience = await core.getModule((await import('./src/modules/Experience.js')).default);
+        /** @type {import('./src/modules/Chronom.js').default} */
+        const chronom = await core.getModule((await import('./src/modules/Chronom.js')).default);
+        /** @type {import('./src/modules/Emotes.js').default} */
+        const emotes = await core.getModule((await import('./src/modules/Emotes.js')).default);
+
+        setTimeout(() => {
+            core.addLoop(1000 * 60 * 48, guild => { experience.loop(guild, kcgmm, champion); });
+        }, 9000);
+        setTimeout(() => {
+            core.addLoop(1000 * 60 * 5, guild => { hurtheal.loop(guild); });
+        }, 20000);
+        setTimeout(() => {
+            core.addLoop(1000 * 60 * 27, guild => { chronom.loop(guild, kcgmm); });
+        }, 5000);
+        setTimeout(() => {
+            core.addLoop(1000 * 60 * 14, guild => { competition.loop(guild, kcgmm, champion); });
+        }, 5000);
+
 
         (() => {
             const obj = {
@@ -124,43 +145,34 @@ core.on('ready', bot => {
             });
 
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'map', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return map.land(message, args, arg, { action: 'map', kcgmm: kcgmm });
+                unsupportedMessage(message.message, 'map');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['score', 'scores'], commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return map.land(message, args, arg, { action: 'score', kcgmm: kcgmm });
+                unsupportedMessage(message.message, 'score');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['bestof', 'month'], commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return map.land(message, args, arg, { action: 'bestof', kcgmm: kcgmm });
+                unsupportedMessage(message.message, 'bestof');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'stream', commandNames: 'setchannel', authorityLevel: null}), (message, args, arg) => {
-                return stream.land(message, args, arg, { action: 'set-channel' });
+                unsupportedMessage(message.message, 'stream setchannel');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'stream', commandNames: ['', 'start'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return stream.land(message, args, arg, { action: 'start' });
+                unsupportedMessage(message.message, 'stream start');
             });
 
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'crpl', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return wiki.land(message, args, arg, { action: 'crpl' });
+                unsupportedMessage(message.message, 'crpl');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'prpl', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return wiki.land(message, args, arg, { action: 'prpl' });
+                unsupportedMessage(message.message, 'prpl');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: '4rpl', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return wiki.land(message, args, arg, { action: '4rpl' });
+                unsupportedMessage(message.message, '4rpl');
             });
         })();
 
         (() => {
-            const obj = {
-                categoryNames: [':video_game: Hurt or Heal', 'hurt or heal', 'hurt heal', 'hh']
-            }
-
-            setTimeout(() => {
-                core.addLoop(1000 * 60 * 5, guild => {
-                    hurtheal.loop(guild);
-                });
-            }, 20000);
-
+            const obj = { categoryNames: [':video_game: Hurt or Heal', 'hurt or heal', 'hurt heal', 'hh'] }
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'hh', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 return hurtheal.land(message, args, arg, { action: 'show' });
             });
@@ -232,55 +244,48 @@ core.on('ready', bot => {
         }).catch(logger.error);
         
 
-        core.getModule((await import('./src/modules/Emotes.js')).default).then(emotes => {
+        (async () => {
             core.addCommand({baseNames: 'emote', commandNames: null, categoryNames: [':diamond_shape_with_a_dot_inside: Core', 'core'], authorityLevel: 'MODERATOR'}, (message, args, arg) => {
-                return emotes.emote(message, args, arg, {});
+                unsupportedMessage(message.message, 'emote');
             });
-        }).catch(logger.error);
+        })().catch(logger.error);
 
-        core.getModule((await import('./src/modules/Experience.js')).default).then(experience => {
+        (async () => {
             const obj = {
                 baseNames: ['exp', 'experience'],
                 categoryNames: [':joystick: Experience', 'experience', 'exp']
             }
-
-            setTimeout(() => {
-                core.addLoop(1000 * 60 * 27, guild => {
-                    experience.loop(guild, kcgmm, champion);
-                });
-            }, 9000);
-
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'info', kcgmm: kcgmm });
+                unsupportedMessage(message.message, 'exp info');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'register', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'register' });
+                unsupportedMessage(message.message, 'exp register');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['profile', 'show'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'profile', kcgmm: kcgmm });
+                unsupportedMessage(message.message, 'exp profile');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['new', 'claim', 'get'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'new', kcgmm: kcgmm });
+                unsupportedMessage(message.message, 'exp new');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['leaders', 'leaderboard', 'leaderboards'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'leaderboard', kcgmm: kcgmm, champion: champion });
+                unsupportedMessage(message.message, 'exp leaderboard');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'rename', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'rename' });
+                unsupportedMessage(message.message, 'exp rename');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'ignore', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'ignore', kcgmm: kcgmm });
+                unsupportedMessage(message.message, 'exp ignore');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'unignore', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'unignore', kcgmm: kcgmm });
+                unsupportedMessage(message.message, 'exp unignore');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'ignorelist', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'ignorelist' });
+                unsupportedMessage(message.message, 'exp ignorelist');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'message', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
-                return experience.land(message, args, arg, { action: 'message', kcgmm: kcgmm, champion: champion });
+                unsupportedMessage(message.message, 'exp message');
             });
-        }).catch(logger.error);
+        })().catch(logger.error);
 
         (async () => {
             const obj = {
@@ -288,63 +293,50 @@ core.on('ready', bot => {
                 categoryNames: [':trophy: Competition', 'competition', 'c']
             }
 
-            core.getModule((await import('./src/modules/Chronom.js')).default).then(chronom => {
-                setTimeout(() => {
-                    core.addLoop(1000 * 60 * 27, guild => {
-                        chronom.loop(guild, kcgmm);
-                    });
-                }, 5000);
-                core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'chronom', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                    return chronom.land(message, args, arg, { action: 'chronom', kcgmm: kcgmm });
-                });
-            }).catch(logger.error);
-
-            setTimeout(() => {
-                core.addLoop(1000 * 60 * 14, guild => {
-                    competition.loop(guild, kcgmm, champion);
-                });
-            }, 5000);
+            core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'chronom', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
+                unsupportedMessage(message.message, 'chronom');
+            });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'info' });
+                unsupportedMessage(message.message, 'c info');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'setchannel', authorityLevel: null}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'set-channel' });
+                unsupportedMessage(message.message, 'c setchannel');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'register', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'register' });
+                unsupportedMessage(message.message, 'c register');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'update', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'update', kcgmm: kcgmm });
+                unsupportedMessage(message.message, 'c update');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'start', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'start' });
+                unsupportedMessage(message.message, 'c start');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['addmap', 'add'], authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'add-map', kcgmm: kcgmm });
+                unsupportedMessage(message.message, 'c addmap');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: ['removemap', 'remove'], authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'remove-map', kcgmm: kcgmm });
+                unsupportedMessage(message.message, 'c removemap');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'end', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'end', kcgmm: kcgmm, champion: champion });
+                unsupportedMessage(message.message, 'c end');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'buildtally', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'build-tally', champion: champion });
+                unsupportedMessage(message.message, 'c buildtally');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'destroy', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'destroy' });
+                unsupportedMessage(message.message, 'c destroy');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'wipe', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'unregister' });
+                unsupportedMessage(message.message, 'c unregister');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'map', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'map', kcgmm: kcgmm, map: map });
+                unsupportedMessage(message.message, 'c map');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'intro', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'intro' });
+                unsupportedMessage(message.message, 'c intro');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'pinmania', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
-                return competition.land(message, args, arg, { action: 'pinmania' });
+                unsupportedMessage(message.message, 'c pinmania');
             });
         })().catch(logger.error);
 
@@ -384,28 +376,62 @@ core.on('ready', bot => {
                 return;
             }
 
+            logger.info(`${interaction.member.nickname??interaction.member.user.username}#${interaction.member.user.discriminator} used /${interaction.commandName}`);
+
+            /**
+             * @param {Discord.TextChannel|Discord.ThreadChannel} channel
+             * @param {Bot.Module} module 
+             * @param {any} data 
+             */
+            const interact = (channel, module, data) => {
+                if(!forcePermit && !module.interactionPermitted(interaction, interaction.guild, interaction.member)) {
+                    interaction.reply({ content: 'You are not permitted to use this command.', ephemeral: true }).catch(logger.error);
+                    return;
+                }
+                module.incomingInteraction(interaction, interaction.guild, interaction.member, channel, data).catch(logger.error);
+                return;
+            }
+
             let forcePermit = false;
             if(Bot.Util.isMemberAdmin(interaction.member) || interaction.member.id === bot.fullAuthorityOverride) {
                 forcePermit = true;
             }
 
             switch(interaction.commandName) {
-                case 'competition':
-                case 'competition_admin':
-                case 'competition_mod': {
-                    if(!forcePermit && !competition.interactionPermitted(interaction, interaction.guild, interaction.member)) {
-                        interaction.reply({ content: 'You are not permitted to use this command.', ephemeral: true }).catch(logger.error);
-                        break;
-                    }
-                    competition.incomingInteraction(interaction, interaction.guild, interaction.member, interaction.channel, { kcgmm, champion, map }).catch(logger.error);
+                case '4rpl':
+                case 'prpl':
+                case 'crpl': {
+                    interact(interaction.channel, wiki, { });
                     break;
                 }
-                case 'map': {
-                    if(!forcePermit && !map.interactionPermitted(interaction, interaction.guild, interaction.member)) {
-                        interaction.reply({ content: 'You are not permitted to use this command.', ephemeral: true }).catch(logger.error);
-                        break;
-                    }
-                    map.incomingInteraction(interaction, interaction.guild, interaction.member, interaction.channel, { kcgmm }).catch(logger.error);
+                case 'mod_emote': {
+                    interact(interaction.channel, emotes, { });
+                    break;
+                }
+                case 'chronom': {
+                    interact(interaction.channel, chronom, { kcgmm });
+                    break;
+                }
+                case 'stream':
+                case 'mod_stream': {
+                    interact(interaction.channel, stream, { });
+                    break;
+                }
+                case 'exp':
+                case 'mod_exp': {
+                    interact(interaction.channel, experience, { kcgmm, champion });
+                    break;
+                }
+                case 'c':
+                case 'mod_c':
+                case 'admin_c': {
+                    interact(interaction.channel, competition, { kcgmm, champion, map });
+                    break;
+                }
+                case 'map':
+                case 'score':
+                case 'bestof': {
+                    interact(interaction.channel, map, { kcgmm });
                     break;
                 }
             }
@@ -417,6 +443,216 @@ core.on('ready', bot => {
 
             const commands = [
                 new SlashCommandBuilder()
+                .setName('4rpl')
+                .setDescription('Bring up information about a 4RPL command from the wiki.')
+                .addStringOption(option =>
+                    option.setName('command')
+                        .setDescription('The 4RPL command to bring up.')
+                        .setRequired(true)
+                ).toJSON(),
+                new SlashCommandBuilder()
+                .setName('prpl')
+                .setDescription('Bring up information about a PRPL command from the wiki.')
+                .addStringOption(option =>
+                    option.setName('command')
+                        .setDescription('The PRPL command to bring up.')
+                        .setRequired(true)
+                ).toJSON(),
+                new SlashCommandBuilder()
+                .setName('crpl')
+                .setDescription('Bring up information about a CRPL command from the wiki.')
+                .addStringOption(option =>
+                    option.setName('command')
+                        .setDescription('The CRPL command to bring up.')
+                        .setRequired(true)
+                ).toJSON(),
+                new SlashCommandBuilder()
+                .setName('mod_emote')
+                .setDescription('[Mod] Set a game related emote for use in various game related bot messages and embeds.')
+                .setDefaultMemberPermissions('0')
+                .addStringOption(option =>
+                    option.setName('game')
+                        .setDescription('The game to assign the emote for.')
+                        .setRequired(true)
+                        .addChoices(...choices.game)
+                ).addStringOption(option =>
+                    option.setName('emote')
+                        .setDescription('The emote to use.')
+                        .setRequired(true)
+                ).toJSON(),
+                new SlashCommandBuilder()
+                .setName('chronom')
+                .setDescription('Display your Creeper World 4 Chronom standings. This can earn you the Master of Chronom role!')
+                .toJSON(),
+                new SlashCommandBuilder()
+                .setName('stream')
+                .setDescription('Collection of Stream related commands.')
+                .addSubcommand(subcommand => 
+                    subcommand.setName('start')
+                        .setDescription('Show a stream notification in #community-events that you are currently streaming a KC game.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game you are streaming.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        ).addStringOption(option =>
+                            option.setName('url')
+                                .setDescription('The link to your stream.')
+                                .setRequired(true)
+                        )
+                ).toJSON(),
+                new SlashCommandBuilder()
+                .setName('mod_stream')
+                .setDescription('[Mod] Collection of Stream related commands.')
+                .setDefaultMemberPermissions('0')
+                .addSubcommand(subcommand => 
+                    subcommand.setName('setchannel')
+                        .setDescription('[Mod] Set a channel that will receive stream notifications.')
+                ).toJSON(),
+                new SlashCommandBuilder()
+                .setName('exp')
+                .setDescription('Collection of Experience related commands.')
+                .addSubcommand(subcommand =>
+                    subcommand.setName('register')
+                        .setDescription('Register your in-game name for Experience related bot features.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game you wish to register your in-game name for.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        ).addStringOption(option =>
+                            option.setName('username')
+                                .setDescription('The name you use on the in-game leaderboards. Case sensitive!')
+                                .setRequired(true)
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('leaderboard')
+                        .setDescription('Display the Exp leaderboard for a given game. Leaderboards are also pinned in #bot-commands!')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game to display the current Experience leaderboard for.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('profile')
+                        .setDescription('Display your current Experience profile and maps left to complete.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game to display your profile for.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        ).addBooleanOption(option =>
+                            option.setName('dm')
+                                .setDescription('Set to True if you want a copy of the message to be sent to you in DM\'s.')
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('new')
+                        .setDescription('Claim experience from maps completed in the current round, and generate more maps to beat.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game to claim and get new maps from.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        ).addBooleanOption(option =>
+                            option.setName('dm')
+                                .setDescription('Set to True if you want a copy of the message to be sent to you in DM\'s.')
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('info')
+                        .setDescription('View information about what Experience is, and how to get started.')
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('ignore')
+                        .setDescription('Ignore map(s). Ignored maps will not show up when generating new maps until unignored.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game to claim and get new maps from.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        ).addStringOption(option =>
+                            option.setName('map')
+                                .setDescription('The map ID to ignore. Type `rest` to ignore your remaining uncomplete Experience maps.')
+                                .setRequired(true)
+                        ).addIntegerOption(option =>
+                            option.setName('map2')
+                                .setDescription('Additional map ID to ignore')
+                        ).addIntegerOption(option =>
+                            option.setName('map3')
+                                .setDescription('Additional map ID to ignore')
+                        ).addIntegerOption(option =>
+                            option.setName('map4')
+                                .setDescription('Additional map ID to ignore')
+                        ).addIntegerOption(option =>
+                            option.setName('map5')
+                                .setDescription('Additional map ID to ignore')
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('unignore')
+                        .setDescription('Ungnore map(s). Unignoring maps will make them show up again when generating new maps.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game to claim and get new maps from.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        ).addIntegerOption(option =>
+                            option.setName('map')
+                                .setDescription('The map ID to unignore.')
+                                .setRequired(true)
+                        ).addIntegerOption(option =>
+                            option.setName('map2')
+                                .setDescription('Additional map ID to unignore')
+                        ).addIntegerOption(option =>
+                            option.setName('map3')
+                                .setDescription('Additional map ID to unignore')
+                        ).addIntegerOption(option =>
+                            option.setName('map4')
+                                .setDescription('Additional map ID to unignore')
+                        ).addIntegerOption(option =>
+                            option.setName('map5')
+                                .setDescription('Additional map ID to unignore')
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('ignorelist')
+                        .setDescription('Display a list of all the maps you\'ve ignored in Experience.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game to display the ignored maps from.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        )
+                ).toJSON(),
+                new SlashCommandBuilder()
+                .setName('mod_exp')
+                .setDescription('[Mod] Collection of Experience related commands.')
+                .setDefaultMemberPermissions('0')
+                .addSubcommand(subcommand =>
+                    subcommand.setName('message')
+                        .setDescription('Build or rebuild an automaticaly updating Exp leaderboard message for a given game.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game to build the autoupdating message for. This will detach the previous message, if any.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('rename')
+                        .setDescription('Change a user\'s registered leaderboard name for a given game.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game to change the user\'s name for.')
+                                .setRequired(true)
+                                .addChoices(...choices.game)
+                        ).addUserOption(option =>
+                            option.setName('user')
+                                .setDescription('The user to change the name of.')    
+                                .setRequired(true)
+                        ).addStringOption(option =>
+                            option.setName('name')
+                                .setDescription('The chosen user\'s new desired leaderboard name.')    
+                                .setRequired(true)
+                        )
+                ).toJSON(),
+                new SlashCommandBuilder()
                 .setName('map')
                 .setDescription('Display information about a map.')
                 .addSubcommand(subcommand =>
@@ -424,11 +660,10 @@ core.on('ready', bot => {
                         .setDescription('Display information about a map, searching by ID.')
                         .addStringOption(option =>
                             option.setName('game')
-                                .setDescription('Choose the game the map is from.')
+                                .setDescription('The game the map is from.')
                                 .setRequired(true)
                                 .addChoices(...choices.game)
-                        )
-                        .addIntegerOption(option =>
+                        ).addIntegerOption(option =>
                             option.setName('id')
                                 .setDescription('The map ID number.')
                                 .setRequired(true)
@@ -438,16 +673,14 @@ core.on('ready', bot => {
                         .setDescription('Display information about a map, searching by map title.')
                         .addStringOption(option =>
                             option.setName('game')
-                                .setDescription('Choose the game the map is from.')
+                                .setDescription('The game the map is from.')
                                 .setRequired(true)
                                 .addChoices(...choices.game)
-                        )
-                        .addStringOption(option =>
+                        ).addStringOption(option =>
                             option.setName('title')
                                 .setDescription('The full or partial map title to search (case insensitive).')
                                 .setRequired(true)
-                        )
-                        .addStringOption(option =>
+                        ).addStringOption(option =>
                             option.setName('author')
                                 .setDescription('The name of the map author (case insensitive).')
                         )
@@ -456,12 +689,38 @@ core.on('ready', bot => {
                         .setDescription('Display information about a map, choosing a random one.')
                         .addStringOption(option =>
                             option.setName('game')
-                                .setDescription('Choose the game to pick randomly from. Omit to also pick a random game.')
+                                .setDescription('The game to pick randomly from. Omit to also pick a random game.')
                                 .addChoices(...choices.game)
                         )
                 ).toJSON(),
                 new SlashCommandBuilder()
-                .setName('competition')
+                .setName('score')
+                .setDescription('Display scores of a map.')
+                .addStringOption(option =>
+                    option.setName('game')
+                        .setDescription('The game the map is from.')
+                        .setRequired(true)
+                        .addChoices(...choices.game)
+                ).addStringOption(option =>
+                    option.setName('parameters')
+                        .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
+                        .setRequired(true)
+                ).toJSON(),
+                new SlashCommandBuilder()
+                .setName('bestof')
+                .setDescription('Display a list of the highest rated maps from a given month.')
+                .addStringOption(option =>
+                    option.setName('game')
+                        .setDescription('The game the maps should be from.')
+                        .setRequired(true)
+                        .addChoices(...choices.game)
+                ).addStringOption(option =>
+                    option.setName('date')
+                        .setDescription('The month to pick. Example date format: 2022-06')
+                        .setRequired(true)
+                ).toJSON(),
+                new SlashCommandBuilder()
+                .setName('c')
                 .setDescription('Collection of Competition related commands.')
                 .addSubcommand(subcommand =>
                     subcommand.setName('info')
@@ -471,11 +730,10 @@ core.on('ready', bot => {
                         .setDescription('Register your in-game name for Competition related bot features.')
                         .addStringOption(option =>
                             option.setName('game')
-                                .setDescription('Choose the game you wish to register your in-game name for.')
+                                .setDescription('The game you wish to register your in-game name for.')
                                 .setRequired(true)
                                 .addChoices(...choices.game)
-                        )
-                        .addStringOption(option =>
+                        ).addStringOption(option =>
                             option.setName('username')
                                 .setDescription('The name you use on the in-game leaderboards. Case sensitive!')
                                 .setRequired(true)
@@ -485,7 +743,7 @@ core.on('ready', bot => {
                         .setDescription('Force a manual update of the Competition score standings.')
                 ).toJSON(),
                 new SlashCommandBuilder()
-                    .setName('competition_admin')
+                    .setName('admin_c')
                     .setDescription('[Admin] Collection of Competition related commands.')
                     .setDefaultMemberPermissions('0')
                     .addSubcommand(subcommand =>
@@ -493,7 +751,7 @@ core.on('ready', bot => {
                             .setDescription('[Admin] Set the competition channel.')
                 ).toJSON(),
                 new SlashCommandBuilder()
-                    .setName('competition_mod')
+                    .setName('mod_c')
                     .setDescription('[Mod] Collection of Competition related commands.')
                     .setDefaultMemberPermissions('0')
                     .addSubcommand(subcommand =>
@@ -516,29 +774,29 @@ core.on('ready', bot => {
                         subcommand.setName('destroy')
                             .setDescription('[Mod] Erase the current Competition as if it never happened.')
                     ).addSubcommand(subcommand =>
-                        subcommand.setName('add_map')
+                        subcommand.setName('addmap')
                             .setDescription('[Mod] Add a map to the current Competition.')
                             .addStringOption(option =>
                                 option.setName('game')
-                                    .setDescription('Choose the game to add the map from.')
+                                    .setDescription('The game to add the map from.')
                                     .setRequired(true)
                                     .addChoices(...choices.game)    
                             ).addStringOption(option =>
                                 option.setName('parameters')
-                                    .setDescription('"custom 1234 nullify" "code small medium abc" "markv totems abc#1444"')
+                                    .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
                                     .setRequired(true)
                             )
                     ).addSubcommand(subcommand =>
-                        subcommand.setName('remove_map')
+                        subcommand.setName('removemap')
                             .setDescription('[Mod] Remove a map from the current Competition.')
                             .addStringOption(option =>
                                 option.setName('game')
-                                    .setDescription('Choose the game of the map.')
+                                    .setDescription('The game of the map.')
                                     .setRequired(true)
                                     .addChoices(...choices.game)    
                             ).addStringOption(option =>
                                 option.setName('parameters')
-                                    .setDescription('"custom 1234 nullify" "code small medium abc" "markv totems abc#1444"')
+                                    .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
                                     .setRequired(true)
                             )
                     ).addSubcommand(subcommand =>
@@ -549,12 +807,12 @@ core.on('ready', bot => {
                             .setDescription('[Mod] Check if a map was already featured before, or pick a map at random.')
                             .addStringOption(option =>
                                 option.setName('game')
-                                    .setDescription('Choose the game to find the map from.')
+                                    .setDescription('The game to find the map from.')
                                     .setRequired(true)
                                     .addChoices(...choices.game)    
                             ).addStringOption(option =>
                                 option.setName('parameters')
-                                    .setDescription('"custom 1234 nullify" "code small medium abc" "markv totems abc#1444"')    
+                                    .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
                             )
                     ).addSubcommand(subcommand =>
                         subcommand.setName('intro')
@@ -602,7 +860,7 @@ process.on('unhandledRejection', (reason, p) => {
  * @param {string} str
  */
 function unsupportedMessage(m, str) {
-    m.reply(`Using commands in this way is no longer supported. Please use slash (/) commands e.g. /${str}`).then(message => {
+    m.reply(`I am now using slash commands! You can use this command with \`/${str}\``).then(message => {
         setTimeout(() => {
             m.delete();
             message.delete();

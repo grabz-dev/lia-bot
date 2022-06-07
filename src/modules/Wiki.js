@@ -134,83 +134,101 @@ export default class Wiki extends Bot.Module {
     }
 
     /**
-     * Module Function
-     * @param {Bot.Message} m - Message of the user executing the command.
-     * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-     * @param {string} arg - The full string written by the user after the command.
-     * @param {object} ext
-     * @param {'crpl'|'prpl'|'4rpl'} ext.action - Custom parameters provided to function call.
-     * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @returns {boolean}
      */
-    land(m, args, arg, ext) {
-        switch(ext.action) {
+    interactionPermitted(interaction, guild, member) {
+        const commandName = interaction.commandName;
+        switch(commandName) {
         case 'crpl':
         case 'prpl':
         case '4rpl': {
-            let pageName = arg.replace(/[\n\r\s]+/g, '').toLowerCase();
-            pageName = this.rpl[ext.action].pageOverrides[pageName]??pageName;
+            return true;
+        }
+        }
+        return false;
+    }
 
-            getXrpl.call(this, m, ext.action, pageName);
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {Discord.TextChannel | Discord.ThreadChannel} channel
+     * @param {{}} data 
+     */
+    async incomingInteraction(interaction, guild, member, channel, data) {
+        const commandName = interaction.commandName;
+        switch(commandName) {
+        case 'crpl':
+        case 'prpl':
+        case '4rpl': {
+            let command = interaction.options.getString('command', true);
+            await this.getXrpl(interaction, guild, member, commandName, command);
+            return;
         }
         }
     }
-}
 
-/**
- * Get XRPL wiki page.
- * @this {Wiki}
- * @param {Bot.Message} m - Message of the user executing the command.
- * @param {'crpl'|'prpl'|'4rpl'} xrpl
- * @param {string} pageName - The name of the wiki page.
- */
-async function getXrpl(m, xrpl, pageName) {
-    /** @type {WikiData} */
-    let wikidata = {
-        title: '',
-        cmd: '',
-        desc: '',
-        footer: '',
-        fields: /** @type {Discord.EmbedField[]} */([]),
-        doesNotExist: false,
+    /**
+     * Get XRPL wiki page.
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {'crpl'|'prpl'|'4rpl'} xrpl
+     * @param {string} pageName - The name of the wiki page.
+     */
+    async getXrpl(interaction, guild, member, xrpl, pageName) {
+        await interaction.deferReply();
+
+        /** @type {WikiData} */
+        let wikidata = {
+            title: '',
+            cmd: '',
+            desc: '',
+            footer: '',
+            fields: /** @type {Discord.EmbedField[]} */([]),
+            doesNotExist: false,
+        }
+        
+        //URL of the rpl doc page.
+        const url = `${this.rpl[xrpl].urlCmd}${pageName.toLowerCase()}`;
+        const data = await HttpRequest.get(url);
+        const dom = new JSDOM(data);
+        const window = dom.window;
+        const document = window.document;
+
+        //Populate wikidata
+        processWikiPage.call(this, wikidata, xrpl, pageName, document);
+
+        //Dispose of JSDOM instance
+        window.close();
+
+        let emote = await SQLUtil.getEmote(this.bot.sql, guild.id, this.rpl[xrpl].game) ?? ':game_die:';
+
+        let embed = getEmbedTemplate.call(this, xrpl, pageName.toLowerCase(), guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), member);
+
+        embed.description = '';
+        if(wikidata.cmd.length > 0)
+            embed.description += `__**[${wikidata.cmd}](${url})**__\n`;
+        embed.description += `${wikidata.desc}`;
+        embed.fields = wikidata.fields;
+        if(wikidata.footer.length > 0) embed.footer = {
+            text: wikidata.footer
+        }
+
+        if(wikidata.doesNotExist) {
+            let message = await interaction.editReply({ embeds: [embed] });
+            setTimeout(() => message.delete().catch(logger.error), 10000);
+        }
+        else {
+            await interaction.editReply({ embeds: [embed] });
+        }
+        
     }
-    
-    //URL of the rpl doc page.
-    const url = `${this.rpl[xrpl].urlCmd}${pageName.toLowerCase()}`;
-    const data = await HttpRequest.get(url);
-    const dom = new JSDOM(data);
-    const window = dom.window;
-    const document = window.document;
-
-    //Populate wikidata
-    processWikiPage.call(this, wikidata, xrpl, pageName, document);
-
-    //Dispose of JSDOM instance
-    window.close();
-
-    let emote = await SQLUtil.getEmote(this.bot.sql, m.guild.id, this.rpl[xrpl].game) ?? ':game_die:';
-
-    let embed = getEmbedTemplate.call(this, xrpl, pageName.toLowerCase(), m.guild.emojis.resolve(Bot.Util.getSnowflakeFromDiscordPing(emote||'')||''), m.member);
-
-    embed.description = '';
-    if(wikidata.cmd.length > 0)
-        embed.description += `__**[${wikidata.cmd}](${url})**__\n`;
-    embed.description += `${wikidata.desc}`;
-    embed.fields = wikidata.fields;
-    if(wikidata.footer.length > 0) embed.footer = {
-        text: wikidata.footer
-    }
-
-    m.message.delete();
-
-    if(wikidata.doesNotExist) {
-        m.channel.send({ embeds: [embed] }).then(message => {
-            setTimeout(() => message.delete().catch(logger.error), 3000);
-        }).catch(logger.error);
-    }
-    else {
-        m.channel.send({ embeds: [embed] }).catch(logger.error);
-    }
-    
 }
 
 /**
@@ -324,13 +342,10 @@ function getEmbedTemplate(rpl, name, emote, initiator) {
     return new Discord.MessageEmbed({
         color: KCUtil.gameEmbedColors[this.rpl[rpl].game],
         author: {
-            name: `${initiator.nickname ?? initiator.user.username}#${initiator.user.discriminator}`,
-            icon_url: initiator.user.avatarURL() ?? initiator.user.defaultAvatarURL
+            name: `${rpl.toUpperCase()}`,
+            icon_url: emote ? emote.url : undefined
         },
         footer: {
-            text: `${rpl.toUpperCase()} • !${rpl} ${name}`,
-            icon_url: emote ? emote.url : undefined,
-            
         },
         fields: [],
     });

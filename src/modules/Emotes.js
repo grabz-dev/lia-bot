@@ -27,52 +27,82 @@ export default class Emotes extends Bot.Module {
     }
 
     /**
-     * Module Function: Associate an emote with a KC game for use with various things.
-     * @param {Bot.Message} m - Message of the user executing the command.
-     * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-     * @param {string} arg - The full string written by the user after the command.
-     * @param {object} ext - Custom parameters provided to function call.
-     * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @returns {boolean}
      */
-    emote(m, args, arg, ext) {
-        if(args[0] == null)
-            return this.bot.locale.category("emotes", "err_game_name_not_provided");
-        
-        let game = KCLocaleManager.getPrimaryAliasFromAlias("game", args[0]);
-        if(game == null)
-            return this.bot.locale.category("emotes", "err_game_name_not_supported", args[0]);
+    interactionPermitted(interaction, guild, member) {
+        const commandName = interaction.commandName;
+        switch(commandName) {
+        case 'emote': {
+            const roleId = this.bot.getRoleId(guild.id, "MODERATOR");
+            if(roleId == null) return false;
+            if(member.roles.cache.has(roleId)) return true;
+            return false;
+        }
+        }
+        return false;
+    }
 
-        let emote = args[1];
-        if(emote == null)
-            return this.bot.locale.category("emotes", "err_emote_not_provided");
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {Discord.TextChannel | Discord.ThreadChannel} channel
+     * @param {{}} data 
+     */
+    async incomingInteraction(interaction, guild, member, channel, data) {
+        const commandName = interaction.commandName;
+        switch(commandName) {
+        case 'mod_emote': {
+            let game = interaction.options.getString('game', true);
+            let emote = interaction.options.getString('emote', true);
 
-        let snowflake = Bot.Util.getSnowflakeFromDiscordPing(args[1]);
-        if(snowflake == null)
-            return this.bot.locale.category('emotes', 'err_emote_not_correct');
+            let snowflake = Bot.Util.getSnowflakeFromDiscordPing(emote);
+            if(snowflake == null) {
+                await interaction.reply({ content: this.bot.locale.category('emotes', 'err_emote_not_correct') });
+                return;
+            }
 
-        let id = snowflake;
+            this.emote(interaction, guild, game, emote, snowflake);
+            return;
+        }
+        }
+    }
 
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {string} game
+     * @param {string} emote
+     * @param {string} id
+     */
+    emote(interaction, guild, game, emote, id) {
         this.bot.sql.transaction(async query => {
-            let emoji = m.guild.emojis.resolve(id);
+            await interaction.deferReply();
+            let emoji = guild.emojis.resolve(id);
             if(!emoji) {
-                m.channel.send(this.bot.locale.category('emotes', 'err_emote_not_on_server')).catch(logger.error);
+                interaction.editReply(this.bot.locale.category('emotes', 'err_emote_not_on_server')).catch(logger.error);
                 return;
             }
 
             /** @type {any[]} */
             let results = (await query(`SELECT game, emote FROM emotes_game
-                                        WHERE guild_id = '${m.guild.id}' AND game = '${game}'
+                                        WHERE guild_id = '${guild.id}' AND game = '${game}'
                                         FOR UPDATE`)).results;
             if(results.length > 0) {
                 await query(`UPDATE emotes_game SET emote = '${emote}'
-                             WHERE guild_id = '${m.guild.id}' AND game = '${game}'`);
+                             WHERE guild_id = '${guild.id}' AND game = '${game}'`);
             }
             else {
                 await query(`INSERT INTO emotes_game (guild_id, game, emote)
-                             VALUES ('${m.guild.id}', '${game}', '${emote}')`);
+                             VALUES ('${guild.id}', '${game}', '${emote}')`);
             }
 
-            m.message.reply(this.bot.locale.category("emotes", "success")).catch(logger.error);
+            await interaction.editReply(this.bot.locale.category("emotes", "success")).catch(logger.error);
         }).catch(logger.error);
     }
 }

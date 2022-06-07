@@ -29,97 +29,116 @@ export default class Stream extends Bot.Module {
     }
 
     /**
-     * Module Function
-     * @param {Bot.Message} m - Message of the user executing the command.
-     * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-     * @param {string} arg - The full string written by the user after the command.
-     * @param {object} ext
-     * @param {|'set-channel'|'start'} ext.action - Custom parameters provided to function call.
-     * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @returns {boolean}
      */
-    land(m, args, arg, ext) {
-        switch(ext.action) {
-        case 'set-channel':
-            setChannel.call(this, m);
-            return;
-        case 'start':
-            if(args[0] == null)
-                return this.bot.locale.category("stream", "err_game_name_not_provided");
-            let game = KCLocaleManager.getPrimaryAliasFromAlias("game", args[0]);
-            if(game == null)
-                return this.bot.locale.category("stream", "err_game_name_not_supported", args[0]);
+    interactionPermitted(interaction, guild, member) {
+        const commandName = interaction.commandName;
+        const subcommandName = interaction.options.getSubcommand();
+        switch(subcommandName) {
+        case 'start': {
+            return true;
+        }
+        case 'setchannel': {
+            const roleId = this.bot.getRoleId(guild.id, "MODERATOR");
+            if(roleId == null) return false;
+            if(member.roles.cache.has(roleId)) return true;
+            return false;
+        }
+        }
 
-            switch(ext.action) {
-            case 'start':
-                if(args[1] == null)
-                    return this.bot.locale.category("stream", "err_url_not_provided");
-                let url = getValidURL(args[1]);
-                if(url == null)
-                    return this.bot.locale.category("stream", "err_url_bad");
-                start.call(this, m, game, url);
+        return false;
+    }
+
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {Discord.TextChannel | Discord.ThreadChannel} channel
+     * @param {{}} data 
+     */
+    async incomingInteraction(interaction, guild, member, channel, data) {
+        const commandName = interaction.commandName;
+        const subcommandName = interaction.options.getSubcommand();
+        switch(subcommandName) {
+        case 'setchannel': {
+            return this.setChannel(interaction, guild, channel);
+        }
+        case 'start': {
+            let game = interaction.options.getString('game', true);
+            let url = getValidURL(interaction.options.getString('url', true));
+            if(url == null) {
+                await interaction.reply({ content: this.bot.locale.category("stream", "err_url_bad") });
                 return;
             }
-        default:
-            return;
+            return this.start(interaction, guild, member, game, url);
         }
+        }
+    }
+
+
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.TextChannel|Discord.ThreadChannel} channel
+     */
+    setChannel(interaction, guild, channel) {
+        this.bot.sql.transaction(async query => {
+            await interaction.deferReply();
+
+            /** @type {any[]} */
+            let results = (await query(`SELECT channel_id FROM stream_main
+                                        WHERE guild_id = '${guild.id}'
+                                        FOR UPDATE`)).results;
+            if(results.length > 0) {
+                await query(`UPDATE stream_main SET channel_id = '${channel.id}'
+                            WHERE guild_id = '${guild.id}'`);
+            }
+            else {
+                await query(`INSERT INTO stream_main (guild_id, channel_id)
+                            VALUES ('${guild.id}', '${channel.id}')`);
+            }
+
+            await interaction.editReply(this.bot.locale.category("stream", "channel_set"));
+        }).catch(logger.error);
+    }
+
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {string} game
+     * @param {string} url
+     */
+    start(interaction, guild, member, game, url) {
+        this.bot.sql.transaction(async query => {
+            await interaction.deferReply();
+
+            /** @type {any} */
+            let resultMain = (await query(`SELECT * FROM stream_main WHERE guild_id = '${guild.id}'`)).results[0];
+
+            let channel = (!resultMain || !resultMain.channel_id ? undefined : guild.channels.resolve(resultMain.channel_id));
+            if(!(channel instanceof Discord.TextChannel)) {
+                await interaction.editReply(this.bot.locale.category("stream", "channel_missing"));
+                return;
+            }
+
+            let emote = await SQLUtil.getEmote(this.bot.sql, guild.id, game) ?? ':game_die:';
+
+            const embed = getEmbedTemplate(member);
+            embed.color = KCUtil.gameEmbedColors[game];
+            embed.description = `Streaming ${emote}${KCLocaleManager.getDisplayNameFromAlias("game", game)}\nat ${url}`;
+
+            channel.send({embeds: [embed]});
+            await interaction.editReply('Stream notification sent!');
+        }).catch(logger.error);
     }
 }
 
-/**
- * Set channel for stream notifications.
- * @this {Stream}
- * @param {Bot.Message} m
- */
-function setChannel(m) {
-    this.bot.sql.transaction(async query => {
-        /** @type {any[]} */
-        let results = (await query(`SELECT channel_id FROM stream_main
-                                    WHERE guild_id = '${m.guild.id}'
-                                    FOR UPDATE`)).results;
-        if(results.length > 0) {
-            await query(`UPDATE stream_main SET channel_id = '${m.channel.id}'
-                         WHERE guild_id = '${m.guild.id}'`);
-        }
-        else {
-            await query(`INSERT INTO stream_main (guild_id, channel_id)
-                         VALUES ('${m.guild.id}', '${m.channel.id}')`);
-        }
-
-        m.message.reply(this.bot.locale.category("stream", "channel_set")).catch(logger.error);
-    }).catch(logger.error);
-}
-
-/**
- * Start a new stream.
- * @this {Stream}
- * @param {Bot.Message} m
- * @param {string} game
- * @param {string} url
- */
-function start(m, game, url) {
-    this.bot.sql.transaction(async query => {
-        /** @type {any} */
-        let resultMain = (await query(`SELECT * FROM stream_main WHERE guild_id = '${m.guild.id}'`)).results[0];
-
-        let channel = (!resultMain || !resultMain.channel_id ? undefined : m.guild.channels.resolve(resultMain.channel_id));
-        if(!(channel instanceof Discord.TextChannel)) {
-            m.message.reply(this.bot.locale.category("stream", "channel_missing")).catch(logger.error);
-            return;
-        }
-
-        let emote = await SQLUtil.getEmote(this.bot.sql, m.guild.id, game) ?? ':game_die:';
-
-        const embed = getEmbedTemplate(m.member);
-        embed.color = KCUtil.gameEmbedColors[game];
-        embed.description = `Streaming ${emote}${KCLocaleManager.getDisplayNameFromAlias("game", game)}\nat ${url}`;
-
-        channel.send({embeds: [embed]});
-        m.message.delete();
-    }).catch(logger.error);
-}
-
-
-/////////////////////////////////////
 
 
 /**

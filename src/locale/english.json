@@ -71,8 +71,8 @@
             "already_ignoring_map": "You are already ignoring %0.",
             "already_completed_map": "You have already completed %0.",
             "not_ignoring_map": "%0 is/are not in your ignore list.",
-            "map_ignored": "%0 will no longer show up. To unignore, see `!exp unignore help`. To see all ignored maps, see `!exp ignorelist %1`.",
-            "map_unignored": "%0 will now show up again. To see all ignored maps, see `!exp ignorelist %1`.",
+            "map_ignored": "%0 will no longer show up for %2. To unignore, see `!exp unignore help`. To see all ignored maps, see `!exp ignorelist %1`.",
+            "map_unignored": "%0 will now show up again for %2. To see all ignored maps, see `!exp ignorelist %1`.",
             "maps_ignored": "The following maps are on your ignore list:"
         },
         "mapdata": {
@@ -139,8 +139,6 @@
             "competitor_role_missing:": "A competitor role is not set up on this server, making it impossible to join or leave the competition.",
             "competitor_role_already_owned": "You're already a Competitor!",
             "competitor_role_not_owned": "You're not a Competitor!",
-            "join_success": "Greetings Competitor! The next step is to register your leaderboard name.\n\n```!c register pf yournamehere\n!c register cw3 yournamehere\n!c register cw2 yournamehere```",
-            "leave_success": "You're no longer a Competitor. You can come back at any time using `!competition join`.\n\nFuture competitions will no longer show your name on the scoreboards. However, your points will not be lost, just not visible.",
             "addmap_not_started": "A competition must be running first to add a map.",
             "removemap_not_added": "The specified map has not been added to the current competition, meaning it is free to add.",
             "addmap_already_added": "This map has already been added to the competition.",
@@ -154,7 +152,7 @@
             "end_in_progress": "Ending competition. Standby for confirmation.",
             "end_success": "Competition ended.",
             "end_channel_ended": "Competition has ended! Leaderboards:",
-            "chronom_not_registered": "You must first register your %0 leaderboard name. This must be the name you use in leaderboards.\n`!c register cw4 yournamehere`"
+            "chronom_not_registered": "You must first register your %0 leaderboard name. This must be the name you use in leaderboards.\n`/c register`"
         }
     },
     "command": {

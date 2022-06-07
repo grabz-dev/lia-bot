@@ -35,40 +35,60 @@ export default class Chronom extends Bot.Module {
     }
 
     /**
-     * Module Function
-     * @param {Bot.Message} m - Message of the user executing the command.
-     * @param {string[]} args - List of arguments provided by the user delimited by whitespace.
-     * @param {string} arg - The full string written by the user after the command.
-     * @param {object} ext
-     * @param {'chronom'} ext.action - Custom parameters provided to function call.
-     * @param {KCGameMapManager} ext.kcgmm
-     * @param {import('./Map.js').default} ext.map
-     * @returns {string | void} Nothing if finished correctly, string if an error is thrown.
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @returns {boolean}
      */
-    land(m, args, arg, ext) {
-        switch(ext.action) {
-        case 'chronom':
-            chronom.call(this, m, ext.kcgmm);
-            return;
+    interactionPermitted(interaction, guild, member) {
+        const commandName = interaction.commandName;
+        switch(commandName) {
+        case 'chronom': {
+            return true;
+        }
+        }
+
+        return false;
+    }
+
+    /**
+     * 
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {Discord.TextChannel | Discord.ThreadChannel} channel
+     * @param {{ kcgmm: KCGameMapManager }} data 
+     */
+     async incomingInteraction(interaction, guild, member, channel, data) {
+        const commandName = interaction.commandName;
+        switch(commandName) {
+        case 'chronom': {
+            return this.chronom(interaction, guild, member, data.kcgmm);
+        }
         }
     }
 
     /** 
      * @param {Discord.Guild} guild 
      * @param {KCGameMapManager} kcgmm
-     * @param {Bot.Message=} m - Message of the user executing the command.
+     * @param {{interaction: Discord.CommandInteraction<"cached">, member: Discord.GuildMember, guild: Discord.Guild}=} m 
      * @returns {Promise<void>}
      */
     async loop(guild, kcgmm, m) {
         const now = Date.now();
 
         this.bot.sql.transaction(async query => {
+            if(m?.interaction) await m.interaction.deferReply();
+
             const roleId = this.bot.getRoleId(guild.id, 'MASTER_OF_CHRONOM');
 
             /** @type {Db.competition_register[]} */
             let resultsRegister = (await query(`SELECT * FROM competition_register 
         WHERE guild_id = '${guild.id}' AND game = 'cw4'`)).results;
-            if(resultsRegister.length <= 0) return;
+            if(resultsRegister.length <= 0 && m == null) {
+                return;
+            };
 
             /** @type {({timestamp: number, leaderboard: Promise<KCGameMapManager.MapLeaderboard>, leaderboardScores: Promise<KCGameMapManager.MapLeaderboard>})[]} */
             let arr = [];
@@ -214,7 +234,7 @@ export default class Chronom extends Bot.Module {
             let resultRegister = (await query(`SELECT * FROM competition_register 
             WHERE guild_id = '${m.guild.id}' AND user_id = '${m.member.id}' AND game = 'cw4'`)).results[0];
             if(resultRegister == null) {
-                m.message.reply(this.bot.locale.category('competition', 'chronom_not_registered', KCLocaleManager.getDisplayNameFromAlias('game', 'cw4'))).catch(logger.error);
+                await m.interaction.editReply(this.bot.locale.category('competition', 'chronom_not_registered', KCLocaleManager.getDisplayNameFromAlias('game', 'cw4')));
                 return;
             }
 
@@ -239,22 +259,21 @@ export default class Chronom extends Bot.Module {
                 }
             }
 
-            str += `\n\nSubmit scores with \`${resultRegister.user_name}\` as your name and \`specialevent\` as the group name.\n\`!c register help\` to change your name.`;
+            str += `\n\nSubmit scores with \`${resultRegister.user_name}\` as your name and \`specialevent\` as the group name.\n\`/c register\` to change your name.`;
             embed.description = str;
-            m.channel.send({embeds: [embed]}).catch(logger.error);
-            
+            await m.interaction.editReply({embeds: [embed]});
         }).catch(logger.error);
     }
-}
 
-/**
- * Post chronom info, update chronom role
- * @this {Chronom}
- * @param {Bot.Message} m - Message of the user executing the command.
- * @param {KCGameMapManager} kcgmm
- */
-function chronom(m, kcgmm) {
-    this.loop(m.guild, kcgmm, m);
+    /**
+     * @param {Discord.CommandInteraction<"cached">} interaction 
+     * @param {Discord.Guild} guild
+     * @param {Discord.GuildMember} member
+     * @param {KCGameMapManager} kcgmm
+     */
+    chronom(interaction, guild, member, kcgmm) {
+        this.loop(guild, kcgmm, { guild, interaction, member });
+    }
 }
 
 
