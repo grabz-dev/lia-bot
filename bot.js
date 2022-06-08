@@ -102,6 +102,8 @@ core.on('ready', bot => {
         const chronom = await core.getModule((await import('./src/modules/Chronom.js')).default);
         /** @type {import('./src/modules/Emotes.js').default} */
         const emotes = await core.getModule((await import('./src/modules/Emotes.js')).default);
+        /** @type {import('./src/modules/Farkle.js').default} */
+        const farkle = await core.getModule((await import('./src/modules/Farkle.js')).default);
 
         map.kcgmm = kcgmm;
         chronom.kcgmm = kcgmm;
@@ -188,55 +190,54 @@ core.on('ready', bot => {
             });
         })();
 
-        core.getModule((await import('./src/modules/Farkle.js')).default).then(farkle => {
+        (() => {
             const obj = {
                 categoryNames: [':video_game: Farkle', 'farkle', 'f']
             }
 
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['setchannel'], authorityLevel: null}), (message, args, arg) => {
-                return farkle.land(message, args, arg, { action: 'setchannel' });
+                unsupportedMessage(message.message, 'f setchannel');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['solo'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return farkle.land(message, args, arg, { action: 'solo' });
+                unsupportedMessage(message.message, 'f solo');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['host', 'h'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return farkle.land(message, args, arg, { action: 'host' });
+                unsupportedMessage(message.message, 'f host');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['leave', 'l'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return farkle.land(message, args, arg, { action: 'leave' });
+                unsupportedMessage(message.message, 'f leave');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['join', 'j'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return farkle.land(message, args, arg, { action: 'join' });
+                unsupportedMessage(message.message, 'f join');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: ['start', 's'], authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return farkle.land(message, args, arg, { action: 'start' });
+                unsupportedMessage(message.message, 'f start');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'skin', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return farkle.land(message, args, arg, { action: 'skin' });
+                unsupportedMessage(message.message, 'f skin');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'games', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return farkle.land(message, args, arg, { action: 'games' });
+                unsupportedMessage(message.message, 'f games');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'profile', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return farkle.land(message, args, arg, { action: 'profile' });
+                unsupportedMessage(message.message, 'f profile');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'spectate', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return farkle.land(message, args, arg, { action: 'spectate' });
+                unsupportedMessage(message.message, 'f spectate');
             });
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['f', 'farkle'], commandNames: 'rules', authorityLevel: 'EVERYONE'}), (message, args, arg) => {
-                return farkle.land(message, args, arg, { action: 'rules' });
+                unsupportedMessage(message.message, 'f rules');
             });
 
-        }).catch(logger.error);
+        })();
         
-
-        (async () => {
+        (() => {
             core.addCommand({baseNames: 'emote', commandNames: null, categoryNames: [':diamond_shape_with_a_dot_inside: Core', 'core'], authorityLevel: 'MODERATOR'}, (message, args, arg) => {
                 unsupportedMessage(message.message, 'emote');
             });
-        })().catch(logger.error);
+        })();
 
-        (async () => {
+        (() => {
             const obj = {
                 baseNames: ['exp', 'experience'],
                 categoryNames: [':joystick: Experience', 'experience', 'exp']
@@ -271,9 +272,9 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'message', authorityLevel: 'MODERATOR'}), (message, args, arg) => {
                 unsupportedMessage(message.message, 'exp message');
             });
-        })().catch(logger.error);
+        })();
 
-        (async () => {
+        (() => {
             const obj = {
                 baseNames: ['c', 'competition'],
                 categoryNames: [':trophy: Competition', 'competition', 'c']
@@ -324,7 +325,7 @@ core.on('ready', bot => {
             core.addCommand(Object.assign(Object.assign({}, obj), {commandNames: 'pinmania', authorityLevel: 'EVENT_MOD'}), (message, args, arg) => {
                 unsupportedMessage(message.message, 'c pinmania');
             });
-        })().catch(logger.error);
+        })();
 
         (() => {
             const strings = [
