@@ -1,4 +1,5 @@
 'use strict';
+/** @typedef {import('discord-api-types/rest/v9').RESTPostAPIApplicationCommandsJSONBody} RESTPostAPIApplicationCommandsJSONBody */
 /** @typedef {import('discord-bot-core/src/Core').Entry} Core.Entry */
 /** @typedef {import('discord-bot-core/src/Core')} Message */
 /** @typedef {import('../kc/KCGameMapManager.js').KCGameMapManager} KCGameMapManager */
@@ -7,6 +8,7 @@
 /** @typedef {import('../kc/KCGameMapManager.js').MapLeaderboardEntry} KCGameMapManager.MapLeaderboardEntry */
 
 import Discord from 'discord.js';
+import { SlashCommandBuilder } from '@discordjs/builders';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
@@ -191,6 +193,82 @@ export default class Map extends Bot.Module {
             return;
         }
         }
+    }
+
+    /**
+     * 
+     * @returns {RESTPostAPIApplicationCommandsJSONBody[]}
+     */
+    getSlashCommands() {
+        return [
+            new SlashCommandBuilder()
+            .setName('map')
+            .setDescription('Display information about a map.')
+            .addSubcommand(subcommand =>
+                subcommand.setName('id')
+                    .setDescription('Display information about a map, searching by ID.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game the map is from.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    ).addIntegerOption(option =>
+                        option.setName('id')
+                            .setDescription('The map ID number.')
+                            .setRequired(true)
+                    )
+            ).addSubcommand(subcommand =>
+                subcommand.setName('title')
+                    .setDescription('Display information about a map, searching by map title.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game the map is from.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    ).addStringOption(option =>
+                        option.setName('title')
+                            .setDescription('The full or partial map title to search (case insensitive).')
+                            .setRequired(true)
+                    ).addStringOption(option =>
+                        option.setName('author')
+                            .setDescription('The name of the map author (case insensitive).')
+                    )
+            ).addSubcommand(subcommand =>
+                subcommand.setName('random')
+                    .setDescription('Display information about a map, choosing a random one.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game to pick randomly from. Omit to also pick a random game.')
+                            .addChoices(...KCUtil.slashChoices.game)
+                    )
+            ).toJSON(),
+            new SlashCommandBuilder()
+            .setName('score')
+            .setDescription('Display scores of a map.')
+            .addStringOption(option =>
+                option.setName('game')
+                    .setDescription('The game the map is from.')
+                    .setRequired(true)
+                    .addChoices(...KCUtil.slashChoices.game)
+            ).addStringOption(option =>
+                option.setName('parameters')
+                    .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
+                    .setRequired(true)
+            ).toJSON(),
+            new SlashCommandBuilder()
+            .setName('bestof')
+            .setDescription('Display a list of the highest rated maps from a given month.')
+            .addStringOption(option =>
+                option.setName('game')
+                    .setDescription('The game the maps should be from.')
+                    .setRequired(true)
+                    .addChoices(...KCUtil.slashChoices.game)
+            ).addStringOption(option =>
+                option.setName('date')
+                    .setDescription('The month to pick. Example date format: 2022-06')
+                    .setRequired(true)
+            ).toJSON(),
+        ]
     }
 
 

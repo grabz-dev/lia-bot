@@ -21,6 +21,15 @@ export const KCUtil = Object.freeze({
         fields: 25,
         fieldValue: 1024
     }),
+    slashChoices: Object.freeze({
+        game: [
+            Object.freeze({ name: 'Creeper World 4', value: 'cw4' }),
+            Object.freeze({ name: 'Particle Fleet',  value: 'pf' }),
+            Object.freeze({ name: 'Creeper World 3', value: 'cw3' }),
+            Object.freeze({ name: 'Creeper World 2', value: 'cw2' }),
+            Object.freeze({ name: 'Creeper World 1', value: 'cw1' })
+        ]
+    }),
 
     /**
      * Get formatted time elapsed from number of frames

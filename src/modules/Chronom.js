@@ -1,4 +1,5 @@
 'use strict';
+/** @typedef {import('discord-api-types/rest/v9').RESTPostAPIApplicationCommandsJSONBody} RESTPostAPIApplicationCommandsJSONBody */
 /** @typedef {import('discord-bot-core/src/Core').Entry} Core.Entry */
 /** @typedef {import('discord-bot-core/src/structures/SQLWrapper').Query} SQLWrapper.Query */
 /** @typedef {import('../kc/KCGameMapManager.js').KCGameMapManager} KCGameMapManager */
@@ -9,6 +10,7 @@
 /** @typedef {import('./Competition.js').Db.competition_register} Db.competition_register */
 
 import Discord from 'discord.js';
+import { SlashCommandBuilder } from '@discordjs/builders';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
@@ -60,13 +62,26 @@ export default class Chronom extends Bot.Module {
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
      * @param {{ kcgmm: KCGameMapManager }} data 
      */
-     async incomingInteraction(interaction, guild, member, channel, data) {
+    async incomingInteraction(interaction, guild, member, channel, data) {
         const commandName = interaction.commandName;
         switch(commandName) {
         case 'chronom': {
             return this.chronom(interaction, guild, member, data.kcgmm);
         }
         }
+    }
+
+    /**
+     * 
+     * @returns {RESTPostAPIApplicationCommandsJSONBody[]}
+     */
+    getSlashCommands() {
+        return [
+            new SlashCommandBuilder()
+            .setName('chronom')
+                .setDescription('Display your Creeper World 4 Chronom standings. This can earn you the Master of Chronom role!')
+                .toJSON(),
+        ]
     }
 
     /** 

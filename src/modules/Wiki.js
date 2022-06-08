@@ -1,7 +1,9 @@
 'use strict';
+/** @typedef {import('discord-api-types/rest/v9').RESTPostAPIApplicationCommandsJSONBody} RESTPostAPIApplicationCommandsJSONBody */
 /** @typedef {import('discord-bot-core/src/Core').Entry} Core.Entry */
 
 import Discord from 'discord.js';
+import { SlashCommandBuilder } from '@discordjs/builders';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
@@ -171,6 +173,37 @@ export default class Wiki extends Bot.Module {
             return;
         }
         }
+    }
+
+    /**
+     * 
+     * @returns {RESTPostAPIApplicationCommandsJSONBody[]}
+     */
+    getSlashCommands() {
+        return [new SlashCommandBuilder()
+        .setName('4rpl')
+        .setDescription('Bring up information about a 4RPL command from the wiki.')
+        .addStringOption(option =>
+            option.setName('command')
+                .setDescription('The 4RPL command to bring up.')
+                .setRequired(true)
+        ).toJSON(),
+        new SlashCommandBuilder()
+        .setName('prpl')
+        .setDescription('Bring up information about a PRPL command from the wiki.')
+        .addStringOption(option =>
+            option.setName('command')
+                .setDescription('The PRPL command to bring up.')
+                .setRequired(true)
+        ).toJSON(),
+        new SlashCommandBuilder()
+        .setName('crpl')
+        .setDescription('Bring up information about a CRPL command from the wiki.')
+        .addStringOption(option =>
+            option.setName('command')
+                .setDescription('The CRPL command to bring up.')
+                .setRequired(true)
+        ).toJSON()];
     }
 
     /**

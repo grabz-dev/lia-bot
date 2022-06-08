@@ -1,7 +1,9 @@
 'use strict';
+/** @typedef {import('discord-api-types/rest/v9').RESTPostAPIApplicationCommandsJSONBody} RESTPostAPIApplicationCommandsJSONBody */
 /** @typedef {import('discord-bot-core/src/Core').Entry} Core.Entry */
 
 import Discord from 'discord.js';
+import { SlashCommandBuilder } from '@discordjs/builders';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 
@@ -78,6 +80,40 @@ export default class Stream extends Bot.Module {
             return this.start(interaction, guild, member, game, url);
         }
         }
+    }
+
+    /**
+     * 
+     * @returns {RESTPostAPIApplicationCommandsJSONBody[]}
+     */
+    getSlashCommands() {
+        return [
+            new SlashCommandBuilder()
+            .setName('stream')
+            .setDescription('Collection of Stream related commands.')
+            .addSubcommand(subcommand => 
+                subcommand.setName('start')
+                    .setDescription('Show a stream notification in #community-events that you are currently streaming a KC game.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game you are streaming.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    ).addStringOption(option =>
+                        option.setName('url')
+                            .setDescription('The link to your stream.')
+                            .setRequired(true)
+                    )
+            ).toJSON(),
+            new SlashCommandBuilder()
+            .setName('mod_stream')
+            .setDescription('[Mod] Collection of Stream related commands.')
+            .setDefaultMemberPermissions('0')
+            .addSubcommand(subcommand => 
+                subcommand.setName('setchannel')
+                    .setDescription('[Mod] Set a channel that will receive stream notifications.')
+            ).toJSON(),
+        ]
     }
 
 

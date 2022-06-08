@@ -1,10 +1,13 @@
 'use strict';
+/** @typedef {import('discord-api-types/rest/v9').RESTPostAPIApplicationCommandsJSONBody} RESTPostAPIApplicationCommandsJSONBody */
 /** @typedef {import('discord-bot-core/src/Core').Entry} Core.Entry */
 
 import Discord from 'discord.js';
+import { SlashCommandBuilder } from '@discordjs/builders';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
+import { KCUtil } from '../kc/KCUtil.js';
 
 export default class Emotes extends Bot.Module {
     /** @param {Core.Entry} bot */
@@ -36,7 +39,7 @@ export default class Emotes extends Bot.Module {
     interactionPermitted(interaction, guild, member) {
         const commandName = interaction.commandName;
         switch(commandName) {
-        case 'emote': {
+        case 'mod_emote': {
             const roleId = this.bot.getRoleId(guild.id, "MODERATOR");
             if(roleId == null) return false;
             if(member.roles.cache.has(roleId)) return true;
@@ -71,6 +74,29 @@ export default class Emotes extends Bot.Module {
             return;
         }
         }
+    }
+
+    /**
+     * 
+     * @returns {RESTPostAPIApplicationCommandsJSONBody[]}
+     */
+    getSlashCommands() {
+        return [
+            new SlashCommandBuilder()
+            .setName('mod_emote')
+            .setDescription('[Mod] Set a game related emote for use in various game related bot messages and embeds.')
+            .setDefaultMemberPermissions('0')
+            .addStringOption(option =>
+                option.setName('game')
+                    .setDescription('The game to assign the emote for.')
+                    .setRequired(true)
+                    .addChoices(...KCUtil.slashChoices.game)
+            ).addStringOption(option =>
+                option.setName('emote')
+                    .setDescription('The emote to use.')
+                    .setRequired(true)
+            ).toJSON(),
+        ]
     }
 
     /**

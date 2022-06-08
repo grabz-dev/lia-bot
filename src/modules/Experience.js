@@ -1,4 +1,5 @@
 'use strict';
+/** @typedef {import('discord-api-types/rest/v9').RESTPostAPIApplicationCommandsJSONBody} RESTPostAPIApplicationCommandsJSONBody */
 /** @typedef {import('discord-bot-core/src/Core').Entry} Core.Entry */
 /** @typedef {import('discord-bot-core/src/structures/SQLWrapper').Query} SQLWrapper.Query */
 /** @typedef {import('../kc/KCGameMapManager.js').KCGameMapManager} KCGameMapManager */
@@ -57,6 +58,7 @@
 
 
 import Discord from 'discord.js';
+import { SlashCommandBuilder } from '@discordjs/builders';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import seedrandom from 'seedrandom';
@@ -264,6 +266,158 @@ export default class Experience extends Bot.Module {
                 return this.ignorelist(interaction, guild, member, game);
             }
         }
+    }
+
+    /**
+     * 
+     * @returns {RESTPostAPIApplicationCommandsJSONBody[]}
+     */
+    getSlashCommands() {
+        return [
+            new SlashCommandBuilder()
+            .setName('exp')
+            .setDescription('Collection of Experience related commands.')
+            .addSubcommand(subcommand =>
+                subcommand.setName('register')
+                    .setDescription('Register your in-game name for Experience related bot features.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game you wish to register your in-game name for.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    ).addStringOption(option =>
+                        option.setName('username')
+                            .setDescription('The name you use on the in-game leaderboards. Case sensitive!')
+                            .setRequired(true)
+                    )
+            ).addSubcommand(subcommand =>
+                subcommand.setName('leaderboard')
+                    .setDescription('Display the Exp leaderboard for a given game. Leaderboards are also pinned in #bot-commands!')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game to display the current Experience leaderboard for.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    )
+            ).addSubcommand(subcommand =>
+                subcommand.setName('profile')
+                    .setDescription('Display your current Experience profile and maps left to complete.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game to display your profile for.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    ).addBooleanOption(option =>
+                        option.setName('dm')
+                            .setDescription('Set to True if you want a copy of the message to be sent to you in DM\'s.')
+                    )
+            ).addSubcommand(subcommand =>
+                subcommand.setName('new')
+                    .setDescription('Claim experience from maps completed in the current round, and generate more maps to beat.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game to claim and get new maps from.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    ).addBooleanOption(option =>
+                        option.setName('dm')
+                            .setDescription('Set to True if you want a copy of the message to be sent to you in DM\'s.')
+                    )
+            ).addSubcommand(subcommand =>
+                subcommand.setName('info')
+                    .setDescription('View information about what Experience is, and how to get started.')
+            ).addSubcommand(subcommand =>
+                subcommand.setName('ignore')
+                    .setDescription('Ignore map(s). Ignored maps will not show up when generating new maps until unignored.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game to claim and get new maps from.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    ).addStringOption(option =>
+                        option.setName('map')
+                            .setDescription('The map ID to ignore. Type `rest` to ignore your remaining uncomplete Experience maps.')
+                            .setRequired(true)
+                    ).addIntegerOption(option =>
+                        option.setName('map2')
+                            .setDescription('Additional map ID to ignore')
+                    ).addIntegerOption(option =>
+                        option.setName('map3')
+                            .setDescription('Additional map ID to ignore')
+                    ).addIntegerOption(option =>
+                        option.setName('map4')
+                            .setDescription('Additional map ID to ignore')
+                    ).addIntegerOption(option =>
+                        option.setName('map5')
+                            .setDescription('Additional map ID to ignore')
+                    )
+            ).addSubcommand(subcommand =>
+                subcommand.setName('unignore')
+                    .setDescription('Ungnore map(s). Unignoring maps will make them show up again when generating new maps.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game to claim and get new maps from.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    ).addIntegerOption(option =>
+                        option.setName('map')
+                            .setDescription('The map ID to unignore.')
+                            .setRequired(true)
+                    ).addIntegerOption(option =>
+                        option.setName('map2')
+                            .setDescription('Additional map ID to unignore')
+                    ).addIntegerOption(option =>
+                        option.setName('map3')
+                            .setDescription('Additional map ID to unignore')
+                    ).addIntegerOption(option =>
+                        option.setName('map4')
+                            .setDescription('Additional map ID to unignore')
+                    ).addIntegerOption(option =>
+                        option.setName('map5')
+                            .setDescription('Additional map ID to unignore')
+                    )
+            ).addSubcommand(subcommand =>
+                subcommand.setName('ignorelist')
+                    .setDescription('Display a list of all the maps you\'ve ignored in Experience.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game to display the ignored maps from.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    )
+            ).toJSON(),
+            new SlashCommandBuilder()
+            .setName('mod_exp')
+            .setDescription('[Mod] Collection of Experience related commands.')
+            .setDefaultMemberPermissions('0')
+            .addSubcommand(subcommand =>
+                subcommand.setName('message')
+                    .setDescription('Build or rebuild an automaticaly updating Exp leaderboard message for a given game.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game to build the autoupdating message for. This will detach the previous message, if any.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    )
+            ).addSubcommand(subcommand =>
+                subcommand.setName('rename')
+                    .setDescription('Change a user\'s registered leaderboard name for a given game.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game to change the user\'s name for.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    ).addUserOption(option =>
+                        option.setName('user')
+                            .setDescription('The user to change the name of.')    
+                            .setRequired(true)
+                    ).addStringOption(option =>
+                        option.setName('name')
+                            .setDescription('The chosen user\'s new desired leaderboard name.')    
+                            .setRequired(true)
+                    )
+            ).toJSON(),
+        ]
     }
 
     /** 

@@ -1,4 +1,5 @@
 'use strict';
+/** @typedef {import('discord-api-types/rest/v9').RESTPostAPIApplicationCommandsJSONBody} RESTPostAPIApplicationCommandsJSONBody */
 /** @typedef {import('discord-bot-core/src/Core').Entry} Core.Entry */
 /** @typedef {import('discord-bot-core/src/structures/SQLWrapper').Query} SQLWrapper.Query */
 /** @typedef {import('../kc/KCGameMapManager.js').KCGameMapManager} KCGameMapManager */
@@ -8,6 +9,7 @@
 /** @typedef {import("../kc/KCGameMapManager").MapLeaderboardEntry} KCGameMapManager.MapLeaderboardEntry} */
 
 import Discord from 'discord.js';
+import { SlashCommandBuilder } from '@discordjs/builders';
 import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
@@ -355,6 +357,123 @@ export default class Competition extends Bot.Module {
         }
     }
 
+    /**
+     * 
+     * @returns {RESTPostAPIApplicationCommandsJSONBody[]}
+     */
+    getSlashCommands() {
+        return [
+            new SlashCommandBuilder()
+            .setName('c')
+            .setDescription('Collection of Competition related commands.')
+            .addSubcommand(subcommand =>
+                subcommand.setName('info')
+                    .setDescription('View information about the Competition.')
+            ).addSubcommand(subcommand =>
+                subcommand.setName('register')
+                    .setDescription('Register your in-game name for Competition related bot features.')
+                    .addStringOption(option =>
+                        option.setName('game')
+                            .setDescription('The game you wish to register your in-game name for.')
+                            .setRequired(true)
+                            .addChoices(...KCUtil.slashChoices.game)
+                    ).addStringOption(option =>
+                        option.setName('username')
+                            .setDescription('The name you use on the in-game leaderboards. Case sensitive!')
+                            .setRequired(true)
+                    )
+            ).addSubcommand(subcommand =>
+                subcommand.setName('update')
+                    .setDescription('Force a manual update of the Competition score standings.')
+            ).toJSON(),
+            new SlashCommandBuilder()
+                .setName('admin_c')
+                .setDescription('[Admin] Collection of Competition related commands.')
+                .setDefaultMemberPermissions('0')
+                .addSubcommand(subcommand =>
+                    subcommand.setName('setchannel')
+                        .setDescription('[Admin] Set the competition channel.')
+            ).toJSON(),
+            new SlashCommandBuilder()
+                .setName('mod_c')
+                .setDescription('[Mod] Collection of Competition related commands.')
+                .setDefaultMemberPermissions('0')
+                .addSubcommand(subcommand =>
+                    subcommand.setName('unregister')
+                        .setDescription('[Mod] Remove a user\'s Competition registration entries.')
+                        .addUserOption(option => 
+                            option.setName('user')
+                                .setDescription('The user to unregister from the Competition.')
+                                .setRequired(true)
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('start')
+                        .setDescription('[Mod] Start a new Competition.')
+                        .addStringOption(option => 
+                            option.setName('date')
+                                .setDescription('The end date for the Competition. Example date format: 2022-06-04')
+                                .setRequired(true)
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('destroy')
+                        .setDescription('[Mod] Erase the current Competition as if it never happened.')
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('addmap')
+                        .setDescription('[Mod] Add a map to the current Competition.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game to add the map from.')
+                                .setRequired(true)
+                                .addChoices(...KCUtil.slashChoices.game)    
+                        ).addStringOption(option =>
+                            option.setName('parameters')
+                                .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
+                                .setRequired(true)
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('removemap')
+                        .setDescription('[Mod] Remove a map from the current Competition.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game of the map.')
+                                .setRequired(true)
+                                .addChoices(...KCUtil.slashChoices.game)    
+                        ).addStringOption(option =>
+                            option.setName('parameters')
+                                .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
+                                .setRequired(true)
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('end')
+                        .setDescription('[Mod] End the current Competition early, before the schedule.')
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('map')
+                        .setDescription('[Mod] Check if a map was already featured before, or pick a map at random.')
+                        .addStringOption(option =>
+                            option.setName('game')
+                                .setDescription('The game to find the map from.')
+                                .setRequired(true)
+                                .addChoices(...KCUtil.slashChoices.game)    
+                        ).addStringOption(option =>
+                            option.setName('parameters')
+                                .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('intro')
+                        .setDescription('[Mod] Build an intro message to Champion of KC or Master of Chronom.')
+                        .addStringOption(option =>
+                            option.setName('type')
+                                .setDescription('Display intro for Champion of KC or Master of Chronom?')
+                                .setRequired(true)
+                                .addChoices({ name: 'Champion of KC', value: 'champion' },
+                                            { name: 'Master of Chronom',  value: 'chronom' })    
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('pinmania')
+                        .setDescription('[Mod] Automatically re-pin the pinned messages in Competition.')
+                ).toJSON()
+        ]
+    }
 
 
     //INTERACTION BASED COMMANDS START HERE
