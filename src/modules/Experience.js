@@ -80,6 +80,7 @@ export default class Experience extends Bot.Module {
      */
     constructor(bot) {
         super(bot);
+        this.commands = ['exp', 'mod_exp'];
 
         this.games = ['cw4', 'pf', 'cw3', 'cw2', 'cw1'];
         this.expBarLength = 40;
@@ -91,6 +92,11 @@ export default class Experience extends Bot.Module {
             markv: new MarkVManager(this),
         }
         this.symbols = ["", "K", "M", "B", "T", "q", "Q", "s", "S", "O", "N", "D"];
+
+        /** @type {KCGameMapManager|null} */
+        this.kcgmm = null;
+        /** @type {import('./Champion.js').default|null} */
+        this.champion = null;
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS experience_messages (
@@ -183,9 +189,13 @@ export default class Experience extends Bot.Module {
      * @param {Discord.Guild} guild
      * @param {Discord.GuildMember} member
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
-     * @param {{ kcgmm: KCGameMapManager, champion: import('./Champion.js').default}} data 
      */
-    async incomingInteraction(interaction, guild, member, channel, data) {
+    async incomingInteraction(interaction, guild, member, channel) {
+        if(this.kcgmm == null || this.champion == null) {
+            logger.error("Not initialized.");
+            return;
+        };
+
         const subcommandName = interaction.options.getSubcommand();
         switch(subcommandName) {
             case 'register': {
@@ -207,21 +217,21 @@ export default class Experience extends Bot.Module {
             }
             case 'leaderboard': {
                 let game = interaction.options.getString('game', true);
-                return this.leaderboard(interaction, guild, member, game, data.kcgmm, data.champion);
+                return this.leaderboard(interaction, guild, member, game, this.kcgmm, this.champion);
             }
             case 'message': {
                 let game = interaction.options.getString('game', true);
-                return this.message(interaction, guild, channel, game, data.kcgmm, data.champion);
+                return this.message(interaction, guild, channel, game, this.kcgmm, this.champion);
             }
             case 'profile': {
                 let game = interaction.options.getString('game', true);
                 let dm = interaction.options.getBoolean('dm');
-                return this.profile(interaction, guild, member, game, data.kcgmm, dm??false);
+                return this.profile(interaction, guild, member, game, this.kcgmm, dm??false);
             }
             case 'new': {
                 let game = interaction.options.getString('game', true);
                 let dm = interaction.options.getBoolean('dm');
-                return this.newMaps(interaction, guild, member, game, data.kcgmm, dm??false);
+                return this.newMaps(interaction, guild, member, game, this.kcgmm, dm??false);
             }
             case 'rename': {
                 let game = interaction.options.getString('game', true);
@@ -257,9 +267,9 @@ export default class Experience extends Bot.Module {
                 }
 
                 if(subcommandName === 'ignore')
-                    return this.ignore(interaction, guild, member, game, maps, true, rest ? { rest, kcgmm: data.kcgmm } : undefined);
+                    return this.ignore(interaction, guild, member, game, maps, true, rest ? { rest, kcgmm: this.kcgmm } : undefined);
                 else
-                    return this.ignore(interaction, guild, member, game, maps, false, rest ? { rest, kcgmm: data.kcgmm } : undefined);
+                    return this.ignore(interaction, guild, member, game, maps, false, rest ? { rest, kcgmm: this.kcgmm } : undefined);
             }
             case 'ignorelist': {
                 let game = interaction.options.getString('game', true);
@@ -392,7 +402,7 @@ export default class Experience extends Bot.Module {
             .setDefaultMemberPermissions('0')
             .addSubcommand(subcommand =>
                 subcommand.setName('message')
-                    .setDescription('Build or rebuild an automaticaly updating Exp leaderboard message for a given game.')
+                    .setDescription('[Mod] Build or rebuild an automaticaly updating Exp leaderboard message for a given game.')
                     .addStringOption(option =>
                         option.setName('game')
                             .setDescription('The game to build the autoupdating message for. This will detach the previous message, if any.')
@@ -401,7 +411,7 @@ export default class Experience extends Bot.Module {
                     )
             ).addSubcommand(subcommand =>
                 subcommand.setName('rename')
-                    .setDescription('Change a user\'s registered leaderboard name for a given game.')
+                    .setDescription('[Mod] Change a user\'s registered leaderboard name for a given game.')
                     .addStringOption(option =>
                         option.setName('game')
                             .setDescription('The game to change the user\'s name for.')

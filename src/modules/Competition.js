@@ -109,11 +109,19 @@ export default class Competition extends Bot.Module {
      */
     constructor(bot) {
         super(bot);
+        this.commands = ['c', 'mod_c', 'admin_c'];
 
         this.games = ["cw4", "pf", "cw3", "cw2", "cw1"];
         this.maxScoresInTable = 8;
         this.timeOffsetHours = 24;
         this.pinManiaActive = false;
+
+        /** @type {KCGameMapManager|null} */
+        this.kcgmm = null;
+        /** @type {import('./Champion.js').default|null} */
+        this.champion = null;
+        /** @type {import('./Map.js').default|null} */
+        this.map = null;
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS competition_main (
@@ -250,9 +258,13 @@ export default class Competition extends Bot.Module {
      * @param {Discord.Guild} guild
      * @param {Discord.GuildMember} member
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
-     * @param {{ kcgmm: KCGameMapManager, champion: import('./Champion.js').default, map: import('./Map.js').default }} data 
      */
-    async incomingInteraction(interaction, guild, member, channel, data) {
+    async incomingInteraction(interaction, guild, member, channel) {
+        if(this.kcgmm == null || this.champion == null || this.map == null) {
+            logger.error("Not initialized.");
+            return;
+        };
+
         const commandName = interaction.options.getSubcommand();
         switch(commandName) {
         case 'pinmania':
@@ -264,14 +276,11 @@ export default class Competition extends Bot.Module {
         case 'destroy':
             return this.destroy(interaction, guild);
         case 'update':
-            if(data?.kcgmm == null) return;
-            return this.update(interaction, guild, data.kcgmm);
+            return this.update(interaction, guild, this.kcgmm);
         case 'build_tally':
-            if(data?.champion == null) return;
-            return this.buildTally(interaction, guild, channel, data.champion);
+            return this.buildTally(interaction, guild, channel, this.champion);
         case 'end':
-            if(data?.kcgmm == null || data?.champion == null) return;
-            return this.end(interaction, guild, data.kcgmm, data.champion);
+            return this.end(interaction, guild, this.kcgmm, this.champion);
         case 'intro': {
             let type = interaction.options.getString('type', true);
             if(type !== 'champion' && type !== 'chronom') return;
@@ -316,12 +325,10 @@ export default class Competition extends Bot.Module {
         }
         case 'addmap':
         case 'removemap': {
-            if(data?.kcgmm == null) return;
-
             let game = interaction.options.getString('game', true);
             let parameters = interaction.options.getString('parameters', true);
 
-            const _data = data.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
+            const _data = this.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
             if(_data.err) {
                 await interaction.reply({ content: _data.err });
                 return;
@@ -333,25 +340,23 @@ export default class Competition extends Bot.Module {
                 return;
             }
 
-            return this.addMap(interaction, guild, commandName, game, mapQueryData, data.kcgmm);
+            return this.addMap(interaction, guild, commandName, game, mapQueryData, this.kcgmm);
         }
         case 'map': {
-            if(data?.kcgmm == null || data?.map == null) return;
-
             let game = interaction.options.getString('game', true);
             let parameters = interaction.options.getString('parameters');
 
             if(parameters != null) {
-                const _data = data.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
+                const _data = this.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
                 if(_data.err) {
                     await interaction.reply({ content: _data.err });
                     return;
                 }
                 const mapQueryData = _data.data;
-                return this.map(interaction, guild, member, channel, data.kcgmm, game, data.map, mapQueryData);
+                return this.mapCmd(interaction, guild, member, channel, this.kcgmm, game, this.map, mapQueryData);
             }
             else {
-                return this.map(interaction, guild, member, channel, data.kcgmm, game, data.map);
+                return this.mapCmd(interaction, guild, member, channel, this.kcgmm, game, this.map);
             }
         }
         }
@@ -858,7 +863,7 @@ export default class Competition extends Bot.Module {
      * @param {import('./Map.js').default} map
      * @param {KCGameMapManager.MapScoreQueryData=} msqd
      */
-    map(interaction, guild, member, channel, kcgmm, game, map, msqd) {
+    mapCmd(interaction, guild, member, channel, kcgmm, game, map, msqd) {
         this.bot.sql.transaction(async query => {
             await interaction.deferReply();
             if(msqd != null) {

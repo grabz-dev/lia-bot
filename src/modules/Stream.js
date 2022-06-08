@@ -15,6 +15,7 @@ export default class Stream extends Bot.Module {
     /** @param {Core.Entry} bot */
     constructor(bot) {
         super(bot);
+        this.commands = ['stream', 'mod_stream'];
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS stream_main (
@@ -61,9 +62,8 @@ export default class Stream extends Bot.Module {
      * @param {Discord.Guild} guild
      * @param {Discord.GuildMember} member
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
-     * @param {{}} data 
      */
-    async incomingInteraction(interaction, guild, member, channel, data) {
+    async incomingInteraction(interaction, guild, member, channel) {
         const commandName = interaction.commandName;
         const subcommandName = interaction.options.getSubcommand();
         switch(subcommandName) {

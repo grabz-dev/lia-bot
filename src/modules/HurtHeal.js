@@ -235,6 +235,7 @@ export default class HurtHeal extends Bot.Module {
     /** @param {Core.Entry} bot */
     constructor(bot) {
         super(bot);
+        this.commands = ['hh', 'mod_hh'];
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS hurtheal_setup (
@@ -277,7 +278,7 @@ export default class HurtHeal extends Bot.Module {
 
         this.barLength = 20;
         this.lastActionsCounted = 2;
-        this.lastActionsShown = 5;
+        this.lastActionsShown = 8;
 
         this.dictionary = {
             'hurt': 'hurt',
@@ -543,9 +544,8 @@ export default class HurtHeal extends Bot.Module {
      * @param {Discord.Guild} guild
      * @param {Discord.GuildMember} member
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
-     * @param {{}} data 
      */
-    async incomingInteraction(interaction, guild, member, channel, data) {
+    async incomingInteraction(interaction, guild, member, channel) {
         const subcommandName = interaction.options.getSubcommand();
         switch(subcommandName) {
         case 'setchannel': {
@@ -665,10 +665,10 @@ export default class HurtHeal extends Bot.Module {
             .setDefaultMemberPermissions('0')
             .addSubcommand(subcommand =>
                 subcommand.setName('setchannel')
-                    .setDescription('Set the Hurt or Heal channel.')
+                    .setDescription('[Mod] Set the Hurt or Heal channel.')
             ).addSubcommand(subcommand =>
                 subcommand.setName('theme')
-                    .setDescription('Set the current Hurt or Heal game\'s theme name.')
+                    .setDescription('[Mod] Set the current Hurt or Heal game\'s theme name.')
                     .addStringOption(option =>
                         option.setName('theme')
                             .setDescription('The theme name to set.')
@@ -676,10 +676,10 @@ export default class HurtHeal extends Bot.Module {
                     )
             ).addSubcommand(subcommand =>
                 subcommand.setName('end')
-                    .setDescription('Ends the current Hurt or Heal game.')
+                    .setDescription('[Mod] Ends the current Hurt or Heal game.')
             ).addSubcommand(subcommand =>
                 subcommand.setName('chart')
-                    .setDescription('Display charts from a specified previous Hurt or Heal game.')
+                    .setDescription('[Mod] Display charts from a specified previous Hurt or Heal game.')
                     .addIntegerOption(option => 
                         option.setName('id')
                             .setDescription('The ID of the Hurt or Heal game.')
@@ -687,10 +687,10 @@ export default class HurtHeal extends Bot.Module {
                     )
             ).addSubcommand(subcommand =>
                 subcommand.setName('list')
-                    .setDescription('Show a list of all previous Hurt or Heal games.')
+                    .setDescription('[Mod] Show a list of all previous Hurt or Heal games.')
             ).addSubcommand(subcommand =>
                 subcommand.setName('start')
-                    .setDescription('Start a new Hurt or Heal game.')
+                    .setDescription('[Mod] Start a new Hurt or Heal game.')
                     .addIntegerOption(option =>
                         option.setName('health')
                             .setDescription('The amount of health that each item in this game will have.')

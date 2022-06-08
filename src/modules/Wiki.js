@@ -34,6 +34,7 @@ export default class Wiki extends Bot.Module {
     /** @param {Core.Entry} bot */
     constructor(bot) {
         super(bot);
+        this.commands = ['crpl', 'prpl', '4rpl'];
 
         //For page overrides, keys must be lowercase!
 
@@ -160,9 +161,8 @@ export default class Wiki extends Bot.Module {
      * @param {Discord.Guild} guild
      * @param {Discord.GuildMember} member
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
-     * @param {{}} data 
      */
-    async incomingInteraction(interaction, guild, member, channel, data) {
+    async incomingInteraction(interaction, guild, member, channel) {
         const commandName = interaction.commandName;
         switch(commandName) {
         case 'crpl':

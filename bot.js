@@ -6,9 +6,6 @@ import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 import { KCGameMapManager } from './src/kc/KCGameMapManager.js'; 
 
-import { REST } from '@discordjs/rest';
-import { Routes } from 'discord-api-types/v9';
-
 const core = new Bot.Core({
     dbName: 'lia_bot',
     intents: [
@@ -89,7 +86,6 @@ core.on('ready', bot => {
 
         /** @type {import('./src/modules/Map.js').default} */
         const map = await core.getModule((await import('./src/modules/Map.js')).default);
-        map.manualInit(kcgmm);
         /** @type {import('./src/modules/Stream.js').default} */
         const stream = await core.getModule((await import('./src/modules/Stream.js')).default);
         /** @type {import('./src/modules/Champion.js').default} */
@@ -106,6 +102,14 @@ core.on('ready', bot => {
         const chronom = await core.getModule((await import('./src/modules/Chronom.js')).default);
         /** @type {import('./src/modules/Emotes.js').default} */
         const emotes = await core.getModule((await import('./src/modules/Emotes.js')).default);
+
+        map.kcgmm = kcgmm;
+        chronom.kcgmm = kcgmm;
+        experience.kcgmm = kcgmm;
+        experience.champion = champion;
+        competition.kcgmm = kcgmm;
+        competition.champion = champion;
+        competition.map = map;
 
         setTimeout(() => {
             core.addLoop(1000 * 60 * 48, guild => { experience.loop(guild, kcgmm, champion); });
@@ -125,14 +129,6 @@ core.on('ready', bot => {
             const obj = {
                 categoryNames: [':game_die: Miscellaneous', 'miscellaneous', 'misc']
             }
-
-            core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: ['roll', 'dice', 'die'], commandNames: null, authorityLevel: 'EVERYONE'}), (m, args, arg) => {
-                let param = Number(args[0]);
-                let sides = Number.isNaN(param) ? 6 : param;
-                let roll = Bot.Util.getRandomInt(0, sides) + 1;
-    
-                m.message.reply(`[:game_die: D${sides}] rolled \`${roll}\`!`).catch(logger.error);
-            });
 
             core.addCommand(Object.assign(Object.assign({}, obj), {baseNames: 'map', commandNames: null, authorityLevel: 'EVERYONE'}), (message, args, arg) => {
                 unsupportedMessage(message.message, 'map');
@@ -353,114 +349,6 @@ core.on('ready', bot => {
             }
             update();
         })();
-
-        //Receive slash commands
-        bot.client.on('interactionCreate', async interaction => {
-            if(!interaction.isCommand()) return;
-            if(!interaction.inCachedGuild()) return;
-
-            if(interaction.guild == null || 
-               !(interaction.member instanceof Discord.GuildMember) ||
-               !(interaction.channel instanceof Discord.TextChannel || interaction.channel instanceof Discord.ThreadChannel)) {
-                await interaction.reply({ content: 'This interaction is unsupported.' });
-                return;
-            }
-
-            logger.info(`${interaction.member.nickname??interaction.member.user.username}#${interaction.member.user.discriminator} used /${interaction.commandName}`);
-
-            /**
-             * @param {Discord.TextChannel|Discord.ThreadChannel} channel
-             * @param {Bot.Module} module 
-             * @param {any} data 
-             */
-            const interact = (channel, module, data) => {
-                if(!forcePermit && !module.interactionPermitted(interaction, interaction.guild, interaction.member)) {
-                    interaction.reply({ content: 'You are not permitted to use this command.', ephemeral: true }).catch(logger.error);
-                    return;
-                }
-                module.incomingInteraction(interaction, interaction.guild, interaction.member, channel, data).catch(logger.error);
-                return;
-            }
-
-            let forcePermit = false;
-            if(Bot.Util.isMemberAdmin(interaction.member) || interaction.member.id === bot.fullAuthorityOverride) {
-                forcePermit = true;
-            }
-
-            switch(interaction.commandName) {
-                case 'hh':
-                case 'mod_hh': {
-                    interact(interaction.channel, hurtheal, { });
-                    break;
-                }
-                case '4rpl':
-                case 'prpl':
-                case 'crpl': {
-                    interact(interaction.channel, wiki, { });
-                    break;
-                }
-                case 'mod_emote': {
-                    interact(interaction.channel, emotes, { });
-                    break;
-                }
-                case 'chronom': {
-                    interact(interaction.channel, chronom, { kcgmm });
-                    break;
-                }
-                case 'stream':
-                case 'mod_stream': {
-                    interact(interaction.channel, stream, { });
-                    break;
-                }
-                case 'exp':
-                case 'mod_exp': {
-                    interact(interaction.channel, experience, { kcgmm, champion });
-                    break;
-                }
-                case 'c':
-                case 'mod_c':
-                case 'admin_c': {
-                    interact(interaction.channel, competition, { kcgmm, champion, map });
-                    break;
-                }
-                case 'map':
-                case 'score':
-                case 'bestof': {
-                    interact(interaction.channel, map, { kcgmm });
-                    break;
-                }
-            }
-        });
-
-        (async () => {
-            if(bot.client.user == null) return;
-            const clientId = bot.client.user.id;
-
-            const commands = [];
-            commands.push(...wiki.getSlashCommands());
-            commands.push(...emotes.getSlashCommands());
-            commands.push(...chronom.getSlashCommands());
-            commands.push(...stream.getSlashCommands());
-            commands.push(...experience.getSlashCommands());
-            commands.push(...map.getSlashCommands());
-            commands.push(...competition.getSlashCommands());
-            commands.push(...hurtheal.getSlashCommands());
-
-            logger.info('Started refreshing application (/) commands.');
-            const rest = new REST({ version: '9' }).setToken(bot.token);
-            for(const guild of Array.from(bot.client.guilds.cache.values())) {
-                logger.info(`Refreshing commands for ${guild.name}.`);
-
-                await rest.put(
-                    Routes.applicationGuildCommands(clientId, guild.id),
-                    { body: commands },
-                );
-
-                await Bot.Util.Promise.sleep(3000);
-            }
-            logger.info('Successfully reloaded application (/) commands.');
-        })().catch(logger.error);
-
     })().catch(logger.error);
 });
 

@@ -24,11 +24,15 @@ export default class Chronom extends Bot.Module {
      */
     constructor(bot) {
         super(bot);
+        this.commands = ['chronom'];
 
         this.days = 8;
         this.daysRole = 5;
         //for reaching a high place
         this.additionalMastersCount = 5;
+
+        /** @type {KCGameMapManager|null} */
+        this.kcgmm = null;
     }
 
     /** @param {Discord.Guild} guild - Current guild. */
@@ -60,13 +64,17 @@ export default class Chronom extends Bot.Module {
      * @param {Discord.Guild} guild
      * @param {Discord.GuildMember} member
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
-     * @param {{ kcgmm: KCGameMapManager }} data 
      */
-    async incomingInteraction(interaction, guild, member, channel, data) {
+    async incomingInteraction(interaction, guild, member, channel) {
+        if(this.kcgmm == null) {
+            logger.error("Not initialized.");
+            return;
+        };
+
         const commandName = interaction.commandName;
         switch(commandName) {
         case 'chronom': {
-            return this.chronom(interaction, guild, member, data.kcgmm);
+            return this.chronom(interaction, guild, member, this.kcgmm);
         }
         }
     }

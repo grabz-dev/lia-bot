@@ -21,6 +21,7 @@ export default class Map extends Bot.Module {
     /** @param {Core.Entry} bot */
     constructor(bot) {
         super(bot);
+        this.commands = ['map', 'score', 'bestof'];
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS map_cw4_descriptions (
@@ -42,14 +43,6 @@ export default class Map extends Bot.Module {
 
         /** @type {KCGameMapManager|null} */
         this.kcgmm = null;
-    }
-
-    /**
-     * 
-     * @param {KCGameMapManager} kcgmm 
-     */
-    manualInit(kcgmm) {
-        this.kcgmm = kcgmm;
     }
 
     /** @param {Discord.Message} message */
@@ -114,9 +107,13 @@ export default class Map extends Bot.Module {
      * @param {Discord.Guild} guild
      * @param {Discord.GuildMember} member
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
-     * @param {{ kcgmm: KCGameMapManager }} data 
      */
-    async incomingInteraction(interaction, guild, member, channel, data) {
+    async incomingInteraction(interaction, guild, member, channel) {
+        if(this.kcgmm == null) {
+            logger.error("Not initialized.");
+            return;
+        };
+
         const commandName = interaction.commandName;
         const subcommandName = interaction.options.getSubcommand(false);
         switch(commandName) {
@@ -134,7 +131,7 @@ export default class Map extends Bot.Module {
                     return;
                 }
 
-                await this.map(interaction, guild, member, channel, game, data.kcgmm, { id: id, allowTemporaryDelete: false });
+                await this.map(interaction, guild, member, channel, game, this.kcgmm, { id: id, allowTemporaryDelete: false });
                 return;
             }
             case 'title': {
@@ -145,18 +142,18 @@ export default class Map extends Bot.Module {
                     await interaction.reply({ content: 'Title length must be at least three characters.', ephemeral: true });
                     return;
                 }
-                await this.map(interaction, guild, member, channel, game, data.kcgmm, { title: title, author: author??undefined, allowTemporaryDelete: false });
+                await this.map(interaction, guild, member, channel, game, this.kcgmm, { title: title, author: author??undefined, allowTemporaryDelete: false });
                 return;
             }
             case 'random': {
                 let game = interaction.options.getString('game') ?? this.games[Bot.Util.getRandomInt(0, this.games.length)];
-                let mapListByIds = data.kcgmm.getMapListId(game);
+                let mapListByIds = this.kcgmm.getMapListId(game);
                 if(mapListByIds == null) {
                     await interaction.reply(this.bot.locale.category('mapdata', 'err_game_not_supported', KCLocaleManager.getDisplayNameFromAlias('game', game) + ''));
                     return;
                 }
                 let id = mapListByIds.random()?.id || 1;
-                await this.map(interaction, guild, member, channel, game, data.kcgmm, { id: id, allowTemporaryDelete: false });
+                await this.map(interaction, guild, member, channel, game, this.kcgmm, { id: id, allowTemporaryDelete: false });
                 return;
             }
             }
@@ -165,13 +162,13 @@ export default class Map extends Bot.Module {
             let game = interaction.options.getString('game', true);
             let parameters = interaction.options.getString('parameters', true);
 
-            const _data = data.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
+            const _data = this.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
             if(_data.err) {
                 await interaction.reply({ content: _data.err });
                 return;
             }
 
-            await this.score(interaction, guild, _data.data, data.kcgmm);
+            await this.score(interaction, guild, _data.data, this.kcgmm);
             return;
         }
         case 'bestof': {
@@ -182,8 +179,8 @@ export default class Map extends Bot.Module {
                 await interaction.reply({ content: this.bot.locale.category("mapdata", "err_date_invalid") });
                 return;
             }
-            let date = data.kcgmm.getDateFlooredToMonth(new Date(timestamp));
-            let maps = data.kcgmm.getMapListMonth(game, date.getTime());
+            let date = this.kcgmm.getDateFlooredToMonth(new Date(timestamp));
+            let maps = this.kcgmm.getMapListMonth(game, date.getTime());
             if(maps == null) {
                 await interaction.reply({ content: this.bot.locale.category('mapdata', 'err_bestof_not_supported', KCLocaleManager.getDisplayNameFromAlias('game', game)) });
                 return;

@@ -13,6 +13,7 @@ export default class Emotes extends Bot.Module {
     /** @param {Core.Entry} bot */
     constructor(bot) {
         super(bot);
+        this.commands = ['mod_emote'];
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS emotes_game (
@@ -55,9 +56,8 @@ export default class Emotes extends Bot.Module {
      * @param {Discord.Guild} guild
      * @param {Discord.GuildMember} member
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
-     * @param {{}} data 
      */
-    async incomingInteraction(interaction, guild, member, channel, data) {
+    async incomingInteraction(interaction, guild, member, channel) {
         const commandName = interaction.commandName;
         switch(commandName) {
         case 'mod_emote': {
