@@ -458,7 +458,7 @@ export default class Experience extends Bot.Module {
 
                 let embed = await getLeaderboardEmbed.call(this, query, kcgmm, mapListId, guild, game);
                 embed.footer = {
-                    text: '!exp'
+                    text: '/exp'
                 }
                 message.edit({ embeds: [embed] }).catch(logger.error);
 
