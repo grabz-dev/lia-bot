@@ -230,8 +230,12 @@ export default class Experience extends Bot.Module {
             }
             case 'new': {
                 let game = interaction.options.getString('game', true);
+                let maps = interaction.options.getInteger('maps');
                 let dm = interaction.options.getBoolean('dm');
-                return this.newMaps(interaction, guild, member, game, this.kcgmm, dm??false);
+                maps = maps ?? 6;
+                if(maps > 6) maps = 6;
+                if(maps < 1) maps = 1;
+                return this.newMaps(interaction, guild, member, game, this.kcgmm, maps, dm??false);
             }
             case 'rename': {
                 let game = interaction.options.getString('game', true);
@@ -329,6 +333,9 @@ export default class Experience extends Bot.Module {
                             .setDescription('The game to claim and get new maps from.')
                             .setRequired(true)
                             .addChoices(...KCUtil.slashChoices.game)
+                    ).addIntegerOption(option =>
+                        option.setName('maps')
+                            .setDescription('The maximum number of custom maps to generate for the next round, between 1 and 6. Default is 6.')
                     ).addBooleanOption(option =>
                         option.setName('dm')
                             .setDescription('Set to True if you want a copy of the message to be sent to you in DM\'s.')
@@ -765,9 +772,10 @@ export default class Experience extends Bot.Module {
      * @param {Discord.GuildMember} member
      * @param {string} game
      * @param {KCGameMapManager} kcgmm
+     * @param {number} customMapCount
      * @param {boolean} dm
      */
-    newMaps(interaction, guild, member, game, kcgmm, dm) {
+    newMaps(interaction, guild, member, game, kcgmm, customMapCount, dm) {
         this.bot.sql.transaction(async query => {
             await interaction.deferReply();
 
@@ -805,7 +813,7 @@ export default class Experience extends Bot.Module {
             _selected += data_campaign.newSelectedMaps.finished.length + data_campaign.newSelectedMaps.unfinished.length;
             const data_markv = await this.managers.markv.newMaps(query, kcgmm, resultUsers, now);
             _selected += data_markv.newSelectedMaps.finished.length + data_markv.newSelectedMaps.unfinished.length;
-            const data_custom = await this.managers.custom.newMaps(query, kcgmm, resultUsers, now, mapListArray, mapListId, _selected);
+            const data_custom = await this.managers.custom.newMaps(query, kcgmm, resultUsers, now, mapListArray, mapListId, _selected, customMapCount);
 
             let totalCompletedOld = 0;
             totalCompletedOld += data_custom.countOldTotalCompleted;

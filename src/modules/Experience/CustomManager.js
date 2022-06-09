@@ -55,9 +55,10 @@ export class CustomManager {
      * @param {KCGameMapManager.MapData[]} mapListArray
      * @param {Discord.Collection<number, KCGameMapManager.MapData>} mapListId
      * @param {number} alreadySelectedCount
+     * @param {number} customMapCount
      * @returns {Promise<NewMapsData>}
      */
-    async newMaps(query, kcgmm, resultUsers, timestamp, mapListArray, mapListId, alreadySelectedCount) {
+    async newMaps(query, kcgmm, resultUsers, timestamp, mapListArray, mapListId, alreadySelectedCount, customMapCount) {
         const mapListsForProcessing = {
             asArray: mapListArray, //mapListArrayModified
             byId: mapListId.clone() //mapListIdModified
@@ -75,12 +76,12 @@ export class CustomManager {
         const selectedIds = [];
         const maxRank = 10;
         const maxMaps = 6;
-        const highRankMapsToSelect = Math.min(maxMaps - alreadySelectedCount, 3);
+        const highRankMapsToSelect = Math.min(3, Math.min(maxMaps - alreadySelectedCount, customMapCount));
         for(let i = 1; i <= maxRank; i++) {
             if(selectedIds.length >= highRankMapsToSelect) break;
             selectRandomMaps(selectedIds, kcgmm.getHighestRankedMonthlyMaps(resultUsers.game, Infinity, i, allMapsCompleted), allMapsCompleted, oldMapsParsedFromDb.ignored, highRankMapsToSelect);
         }
-        selectRandomMaps(selectedIds, mapListsForProcessing.asArray, allMapsCompleted, oldMapsParsedFromDb.ignored, maxMaps - alreadySelectedCount);
+        selectRandomMaps(selectedIds, mapListsForProcessing.asArray, allMapsCompleted, oldMapsParsedFromDb.ignored, Math.min(maxMaps - alreadySelectedCount, customMapCount));
         selectedIds.sort((a, b) => this.getExpFromMap(b, kcgmm, countNewTotalCompleted) - this.getExpFromMap(a, kcgmm, countNewTotalCompleted));
 
         await query(`UPDATE experience_maps_custom SET state = 3 WHERE state = 0 AND id_experience_users = ?`, [resultUsers.id]);

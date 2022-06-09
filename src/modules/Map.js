@@ -389,11 +389,12 @@ export default class Map extends Bot.Module {
         if(mapQueryData.game === 'cw4' && mapQueryData.type !== 'chronom') {
             groupName = 'specialevent';
         }
+        let isUserFilterPF = mapQueryData.game === 'pf' && userName != null;
 
         if(mapQueryData.id)
             field.name += `: #${mapQueryData.id}`;
         else if(mapQueryData.type === 'code')
-            field.name += `: \`${mapQueryData.name}\` S:${mapQueryData.size} C:${mapQueryData.complexity}`;
+            field.name += `: \`${mapQueryData.name}\``;
 
         let max = 15;
         let leaderboard = await kcgmm.getMapScores(mapQueryData, userName, groupName);
@@ -409,7 +410,9 @@ export default class Map extends Bot.Module {
         for(let i = 0; i < Math.min(max, entries.length); i++) {
             const entry = entries[i];
             if(i > 0) field.value += '\n';
-            field.value += Bot.Util.String.fixedWidth(`#${entry.rank}`, 3, ' ') + ' ';
+            if(isUserFilterPF && entry.user.toLowerCase() === userName?.toLowerCase()) field.value += '> ';
+            if(isUserFilterPF) field.value += `#${entry.rank}`;
+            else field.value += Bot.Util.String.fixedWidth(`#${entry.rank}`, isUserFilterPF ? 6 : 3, ' ') + ' ';
             if(entry.time != null) field.value += Bot.Util.String.fixedWidth(KCUtil.getFormattedTimeFromFrames(entry.time), 9, ' ') + ' ';
             else if(entry.score != null) field.value += Bot.Util.String.fixedWidth(entry.score+'', 9, ' ') + ' ';
             else field.value += Bot.Util.String.fixedWidth('', 9, ' ') + ' ';
@@ -418,6 +421,8 @@ export default class Map extends Bot.Module {
         field.value = '```\n' + (field.value.length === 0 ? 'No scores' : field.value);
         field.value += '\n```';
 
+        if(mapQueryData.size != null) field.value = `Size: ${KCLocaleManager.getDisplayNameFromAlias('cw2_code_map_size', mapQueryData.size+'')}\n` + field.value;
+        if(mapQueryData.complexity != null) field.value = `Complexity: ${KCLocaleManager.getDisplayNameFromAlias('cw2_code_map_complexity', mapQueryData.complexity+'')}\n` + field.value;
         if(mapQueryData.gameUID != null) field.value = `GUID: ${mapQueryData.gameUID}\n` + field.value;
         if(mapQueryData.game === 'cw4') field.value = `Objective: ${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapQueryData.objective+'')}\n` + field.value;
         if(userName != null) field.value = `User Filter: ${userName}\n` + field.value;
