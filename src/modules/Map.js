@@ -159,16 +159,24 @@ export default class Map extends Bot.Module {
             }
         }
         case 'score': {
-            let game = interaction.options.getString('game', true);
-            let parameters = interaction.options.getString('parameters', true);
-
-            const _data = this.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
-            if(_data.err) {
-                await interaction.reply({ content: _data.err });
-                return;
+            let type = interaction.options.getString('type', true);
+            let game = interaction.options.getString('game');
+            let id = interaction.options.getInteger('id');
+            let objective = interaction.options.getString('objective');
+            let seed = interaction.options.getString('seed');
+            let date = interaction.options.getString('date');
+            let size = interaction.options.getString('size');
+            let complexity = interaction.options.getString('complexity');
+            let gameUID = interaction.options.getString('gameuid');
+            
+            const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, gameUID);
+            if(data.err != null) {
+                await interaction.reply({ content: data.err });
+            }
+            else {
+                await this.score(interaction, guild, data.data, this.kcgmm);
             }
 
-            await this.score(interaction, guild, _data.data, this.kcgmm);
             return;
         }
         case 'bestof': {
@@ -239,18 +247,9 @@ export default class Map extends Bot.Module {
                             .addChoices(...KCUtil.slashChoices.game)
                     )
             ).toJSON(),
-            new SlashCommandBuilder()
+            KCUtil.fillScoreSlashCommandChoices(new SlashCommandBuilder()
             .setName('score')
             .setDescription('Display scores of a map.')
-            .addStringOption(option =>
-                option.setName('game')
-                    .setDescription('The game the map is from.')
-                    .setRequired(true)
-                    .addChoices(...KCUtil.slashChoices.game)
-            ).addStringOption(option =>
-                option.setName('parameters')
-                    .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
-                    .setRequired(true)
             ).toJSON(),
             new SlashCommandBuilder()
             .setName('bestof')
@@ -283,7 +282,7 @@ export default class Map extends Bot.Module {
     * @param {boolean=} opts.allowTemporaryDelete
     */
     async map(interaction, guild, member, channel, game, kcgmm, opts) {
-        if(interaction) await interaction.deferReply();
+        if(interaction && !interaction.deferred) await interaction.deferReply();
         const emote = await SQLUtil.getEmote(this.bot.sql, guild.id, game) ?? ':game_die:';
 
         /** @type {KCGameMapManager.MapData|KCGameMapManager.MapData[]|null} */
@@ -386,9 +385,8 @@ export default class Map extends Bot.Module {
 
         let max = 15;
         let leaderboard = await kcgmm.getMapScores(mapQueryData, undefined, groupName);
-        /** @type {KCGameMapManager.MapLeaderboardEntry[]|null} */
-        let entries = leaderboard.entries[mapQueryData.objective??0];
-        if(entries == null) throw new Error("No leaderboards");
+        /** @type {KCGameMapManager.MapLeaderboardEntry[]} */
+        let entries = leaderboard.entries[mapQueryData.objective??0]??[];
 
         let longest = 0;
         for(let i = 0; i < Math.min(max, entries.length); i++) {
@@ -405,9 +403,10 @@ export default class Map extends Bot.Module {
             else field.value += Bot.Util.String.fixedWidth('', 9, ' ') + ' ';
             field.value += Bot.Util.String.fixedWidth(entry.user, longest, ' ', true);
         }
-        field.value = '```\n' + field.value;
+        field.value = '```\n' + (field.value.length === 0 ? 'No scores' : field.value);
         field.value += '\n```';
 
+        if(mapQueryData.gameUID != null) field.value = `GUID: ${mapQueryData.gameUID}\n` + field.value;
         if(mapQueryData.game === 'cw4') field.value = `Objective: ${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapQueryData.objective+'')}\n` + field.value;
         if(groupName != null) field.value = `Group Filter: ${groupName}\n` + field.value;
         if(mapQueryData.game === 'cw4' && mapQueryData.type === 'markv') {

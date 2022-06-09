@@ -428,113 +428,191 @@ export function KCGameMapManager(options, locale) {
     }
 
     /**
-     * Retrieve a map query object from command arguments.
-     * @param {string[]} args
-     * @returns {{data: MapScoreQueryData, err: string|null}}
+     * 
+     * @param {string} type 
+     * @param {string|null} game 
+     * @param {number|null} id 
+     * @param {string|null} objective 
+     * @param {string|null} seed 
+     * @param {string|null} date 
+     * @param {string|null} size 
+     * @param {string|null} complexity 
+     * @param {string|null} gameUID 
+     * @returns {{data: MapScoreQueryData, err: null}|{data: null, err: string}}
      */
-    this.getMapQueryObjectFromCommandParameters = function(args) {
-        args = args.slice();
+    this.getMapQueryObjectFromCommandParameters = function(type, game, id, objective, seed, date, size, complexity, gameUID) {
+        /** @type {MapScoreQueryData|null} */
+        let msqd = null;
+        /** @type {{[id: string]: string}} */
+        let errors = {};
 
-        /** @type {Object.<string, any>} */
-        const obj = {};
-
-        /** @type {string|null} */
-        let err = null;
-
-        (() => {
-            //Provide game name
-            if(args[0] == null) {err = "no_game"; return;}
-            //Is game name valid
-            var game = KCLocaleManager.getPrimaryAliasFromAlias('game', args[0]);
-            if(game == null) {err = "bad_game"; return;}
-            obj.game = game;
-            args.splice(0, 1);
-
-            //Provide map type
-            if(args[0] == null) {err = "no_type"; return;}
-            if(["custom", "dmd", "code", "chronom", "markv"].includes(args[0])) { obj.type = args[0]; args.splice(0, 1); }
-            else {
-                if(game === 'cw2' && args.length >= 3) obj.type = 'code';
-                else obj.type = 'custom';
+        /** @type {number|null} */
+        let objectiveNumber = null;
+        if(type === 'cw4_chronom' || type === 'cw4_markv' || game === 'cw4') {
+            if(objective != null) {
+                objective = KCLocaleManager.getPrimaryAliasFromAlias("cw4_objectives", objective);
+                if(objective == null) errors.objective = 'CW4 Objective is incorrect';
+                else objectiveNumber = +objective;
             }
+        }
 
-            if(obj.type === "dmd" && obj.game !== "cw3") {err = "bad_type"; return;}
+        switch(type) {
+        case 'gameuid': {
+            if(game == null || gameUID == null || (game == 'cw4' && objectiveNumber == null)) {
+                if(game == null) errors.game = 'Game missing';
+                if(gameUID == null) errors.gameUID = 'GameUID missing';
+                if(game == 'cw4' && objectiveNumber == null && errors.objective == null) errors.objective = 'CW4 Objective missing';
+                break;
+            }
             
-            if(obj.type === "code") {
-                if(obj.game !== "cw2") {err = "bad_type"; return;}
-
-                if(args[0] == null) {err = "no_cw2_code_size"; return;}
-                const size = KCLocaleManager.getPrimaryAliasFromAlias("cw2_code_map_size", args[0]);
-                if(size == null) {err = "bad_cw2_code_size"; return;};
-                obj.size = Number(size);
-                if(![0,1,2].includes(obj.size)) {err = "bad_cw2_code_size"; return;}
-                args.splice(0, 1);
-                
-                if(args[0] == null) {err = "no_cw2_code_complexity"; return;}
-                const complexity = KCLocaleManager.getPrimaryAliasFromAlias("cw2_code_map_complexity", args[0]);
-                if(complexity == null) {err = "bad_cw2_code_complexity"; return;};
-                obj.complexity = Number(complexity);
-                if(![0,1,2].includes(obj.complexity)) {err = "bad_cw2_code_complexity"; return;}
-                args.splice(0, 1);
-                
-                let name = "";
-                for(let i = 0; i < args.length; i++) {
-                    name += args[i];
-                    if(i + 1 < args.length)
-                        name += " ";
-                }
-
-                if(name.length === 0) {err = "no_cw2_code_name"; return;}
-                obj.name = name;
+            if(Object.keys(errors).length > 0) break;
+            msqd = {
+                game: game,
+                type: 'misc',
+                gameUID: gameUID,
+                objective: objectiveNumber??undefined
             }
-            else if(obj.type === "chronom") {
-                if(obj.game !== "cw4") {err = "bad_type"; return;}
-
-                //TODO KISS
-                if(args[0] == null) {err = "no_objective"; return;}
-                obj.objective = KCLocaleManager.getPrimaryAliasFromAlias("cw4_objectives", args[0]);
-                if(obj.objective == null) {err = "bad_objective"; return;}
-                obj.objective = +obj.objective;
-                args.splice(0, 1);
-
-                let timestamp = Date.parse(args.join(' '));
-                if(Number.isNaN(timestamp)) {err = "bad_chronom_date"; return;}
-                obj.timestamp = timestamp;
+            break;
+        }
+        case 'custom': {
+            if(game == null || id == null) {
+                if(game == null) errors.game = 'Game missing';
+                if(id == null) errors.id = 'Map ID missing';
+                if(game == 'cw4' && objectiveNumber == null && errors.objective == null) errors.objective = 'CW4 Objective missing';
+                break;
             }
-            else if(obj.type === "markv") {
-                if(obj.game !== "cw4") {err = "bad_type"; return;}
 
-                if(args[0] == null) {err = "no_objective"; return;}
-                obj.objective = KCLocaleManager.getPrimaryAliasFromAlias("cw4_objectives", args[0]);
-                if(obj.objective == null) {err = "bad_objective"; return;}
-                obj.objective = +obj.objective;
-                args.splice(0, 1);
-                
-                if(args[0] == null) {err = "no_markv"; return;}
-                let temp = args.join(" ").split("#");
-                if(temp[1] == null) {err = "no_markv_params"; return;}
-                temp[1] = temp[1].replaceAll(" ", "");
-                obj.name = `${temp[0]}#${temp[1]}`;
+            if(Object.keys(errors).length > 0) break;
+            msqd = {
+                game: game,
+                type: 'custom',
+                id: id,
+                objective: objectiveNumber??undefined
             }
-            else {
-                if(args[0] == null) {err = "no_id"; return;}
-                obj.id = Math.floor(+args[0]);
-                if(Number.isNaN(obj.id) || !Number.isFinite(obj.id) || obj.id <= 0) {err = "bad_id"; return;}
-                args.splice(0, 1);
+            break;
+        }
+        case 'cw3_dmd': {
+            if(id == null) {
+                if(id == null) errors.id = 'Map ID missing';
+                break;
+            }
 
-                if(obj.game === "cw4") {
-                    //TODO KISS
-                    if(args[0] == null) {err = "no_objective"; return;}
-                    obj.objective = KCLocaleManager.getPrimaryAliasFromAlias("cw4_objectives", args[0]);
-                    if(obj.objective == null) {err = "bad_objective"; return;}
-                    obj.objective = +obj.objective;
-                    args.splice(0, 1);
+            if(Object.keys(errors).length > 0) break;
+            msqd = {
+                game: 'cw3',
+                type: 'dmd',
+                id: id
+            }
+            break;
+        }
+        case 'cw4_markv': {
+            /** @type {string|null} */
+            let validSeed = null;
+            if(seed != null) {
+                let [name, params] = seed.split('#');
+                if(params == null) errors.seed = 'Mark V seed is missing parameters';
+                else {
+                    if(params.length > 5 ||
+                       !['1','2','3','4'].includes(params[0]) ||
+                       !['1','2','3','4'].includes(params[1]) ||
+                       !['1','2','3','4'].includes(params[2]) ||
+                       !['1','2','3','4'].includes(params[3]) ||
+                       (params[4] !== '$' && params[4] != null)) {
+                            errors.seed = 'Mark V seed parameters are invalid';
+                       }
+                    else {
+                        validSeed = seed;
+                    }
                 }
             }
-        })();
 
-        // @ts-ignore
-        return {data: obj, err: err == null ? null : locale.category("kcgmm", err)};
+            if(validSeed == null || objectiveNumber == null) {
+                if(validSeed == null && errors.seed == null) errors.seed = 'Mark V seed is missing';
+                if(objectiveNumber == null && errors.objective == null) errors.objective = 'CW4 Objective is missing'
+                break;
+            }
+
+            if(Object.keys(errors).length > 0) break;
+            msqd = {
+                game: 'cw4',
+                type: 'markv',
+                name: validSeed,
+                objective: objectiveNumber
+            }
+            break;
+        }
+        case 'cw4_chronom': {
+            /** @type {number|null} */
+            let dateTimestamp = null;
+            if(date != null) {
+                let _dateTimestamp = Date.parse(date);
+                if(Number.isNaN(_dateTimestamp) || _dateTimestamp <= 0) errors.date = 'CW4 Chronom Date is incorrect';
+                else dateTimestamp = _dateTimestamp;
+            }
+
+            if(dateTimestamp == null || objectiveNumber == null) {
+                if(dateTimestamp == null && errors.date == null) errors.date = 'CW4 Chronom Date is missing';
+                if(objectiveNumber == null && errors.objective == null) errors.objective = 'CW4 Objective is missing'
+                break;
+            }
+
+            if(Object.keys(errors).length > 0) break;
+            msqd = {
+                game: 'cw4',
+                type: 'chronom',
+                timestamp: dateTimestamp,
+                objective: objectiveNumber
+            }
+            break;
+        }
+        case 'cw2_code': {
+            /** @type {number|null} */
+            let sizeNumber = null;
+            /** @type {number|null} */
+            let complexityNumber = null;
+
+            if(size != null) {
+                size = KCLocaleManager.getPrimaryAliasFromAlias("cw2_code_map_size", size);
+                if(size == null) errors.size = 'Code Map Size is incorrect';
+                else {
+                    let _sizeNumber = +size;
+                    if(![0,1,2].includes(_sizeNumber)) errors.size = 'Code Map Size is incorrect';
+                    else sizeNumber = _sizeNumber;
+                }
+            }
+            if(complexity != null) {
+                complexity = KCLocaleManager.getPrimaryAliasFromAlias("cw2_code_map_complexity", complexity);
+                if(complexity == null) errors.complexity = 'Code Map Complexity is incorrect';
+                else {
+                    let _complexityNumber = +complexity;
+                    if(![0,1,2].includes(_complexityNumber)) errors.complexity = 'Code Map Complexity is incorrect';
+                    else complexityNumber = _complexityNumber;
+                }
+            }
+            if(seed == null || sizeNumber == null || complexityNumber == null) {
+                if(seed == null && errors.seed == null) errors.seed = 'Code Map Seed is missing';
+                if(sizeNumber == null && errors.size == null) errors.size = 'Code Map Size is missing';
+                if(complexityNumber == null && errors.complexity == null) errors.complexity = 'Code Map Complexity is missing';
+                break;
+            }
+
+            if(Object.keys(errors).length > 0) break;
+            msqd = {
+                game: 'cw2',
+                type: 'code',
+                name: seed,
+                size: sizeNumber,
+                complexity: complexityNumber
+            }
+            break;
+        }
+        }
+
+        if(msqd == null || Object.keys(errors).length > 0) {
+            return { err: `The following parameters are missing from your query: ${Object.values(errors).join(', ')}`, data: null }
+        }
+
+        return { data: msqd, err: null };
     }
 
     /**

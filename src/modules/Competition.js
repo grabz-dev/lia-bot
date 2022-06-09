@@ -236,7 +236,8 @@ export default class Competition extends Bot.Module {
         case 'unregister':
         case 'add_map':
         case 'remove_map':
-        case 'map': {
+        case 'check':
+        case 'random': {
             const roleId = this.bot.getRoleId(guild.id, "EVENT_MOD");
             if(roleId == null) return false;
             if(member.roles.cache.has(roleId)) return true;
@@ -325,39 +326,54 @@ export default class Competition extends Bot.Module {
         }
         case 'addmap':
         case 'removemap': {
-            let game = interaction.options.getString('game', true);
-            let parameters = interaction.options.getString('parameters', true);
+            let type = interaction.options.getString('type', true);
+            let game = interaction.options.getString('game');
+            let id = interaction.options.getInteger('id');
+            let objective = interaction.options.getString('objective');
+            let seed = interaction.options.getString('seed');
+            let date = interaction.options.getString('date');
+            let size = interaction.options.getString('size');
+            let complexity = interaction.options.getString('complexity');
+            let gameUID = interaction.options.getString('gameuid');
 
-            const _data = this.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
-            if(_data.err) {
-                await interaction.reply({ content: _data.err });
-                return;
-            }
-
-            const mapQueryData = _data.data;
-            if(mapQueryData.game === 'cw1' && mapQueryData.gameUID != null) {
-                await interaction.reply({ content: 'This action is not supported.' });
-                return;
-            }
-
-            return this.addMap(interaction, guild, commandName, game, mapQueryData, this.kcgmm);
-        }
-        case 'map': {
-            let game = interaction.options.getString('game', true);
-            let parameters = interaction.options.getString('parameters');
-
-            if(parameters != null) {
-                const _data = this.kcgmm.getMapQueryObjectFromCommandParameters([game].concat(...parameters.split(' ')));
-                if(_data.err) {
-                    await interaction.reply({ content: _data.err });
-                    return;
-                }
-                const mapQueryData = _data.data;
-                return this.mapCmd(interaction, guild, member, channel, this.kcgmm, game, this.map, mapQueryData);
+            const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, gameUID);
+            if(data.err != null) {
+                await interaction.reply({ content: data.err });
             }
             else {
-                return this.mapCmd(interaction, guild, member, channel, this.kcgmm, game, this.map);
+                const mapQueryData = data.data;
+                if(mapQueryData.game === 'cw1' && mapQueryData.gameUID != null) {
+                    await interaction.reply({ content: 'This action is not supported.' });
+                    return;
+                }
+
+                return this.addMap(interaction, guild, commandName, mapQueryData.game, mapQueryData, this.kcgmm);
             }
+        }
+        case 'check': {
+            let type = interaction.options.getString('type', true);
+            let game = interaction.options.getString('game');
+            let id = interaction.options.getInteger('id');
+            let objective = interaction.options.getString('objective');
+            let seed = interaction.options.getString('seed');
+            let date = interaction.options.getString('date');
+            let size = interaction.options.getString('size');
+            let complexity = interaction.options.getString('complexity');
+            let gameUID = interaction.options.getString('gameuid');
+
+            const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, gameUID);
+            if(data.err != null) {
+                await interaction.reply({ content: data.err });
+                return;
+            }
+            else {
+                let mapQueryData = data.data;
+                return this.mapCmd(interaction, guild, member, channel, this.kcgmm, mapQueryData.game, this.map, mapQueryData);
+            }
+        }
+        case 'random': {
+            let game = interaction.options.getString('game', true);
+            return this.mapCmd(interaction, guild, member, channel, this.kcgmm, game, this.map);
         }
         }
     }
@@ -423,45 +439,35 @@ export default class Competition extends Bot.Module {
                     subcommand.setName('destroy')
                         .setDescription('[Mod] Erase the current Competition as if it never happened.')
                 ).addSubcommand(subcommand =>
-                    subcommand.setName('addmap')
-                        .setDescription('[Mod] Add a map to the current Competition.')
-                        .addStringOption(option =>
-                            option.setName('game')
-                                .setDescription('The game to add the map from.')
-                                .setRequired(true)
-                                .addChoices(...KCUtil.slashChoices.game)    
-                        ).addStringOption(option =>
-                            option.setName('parameters')
-                                .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
-                                .setRequired(true)
-                        )
+                    KCUtil.fillScoreSlashCommandChoices(subcommand
+                    .setName('addmap')
+                    .setDescription('[Mod] Add a map to the current Competition.')
+                    ),
                 ).addSubcommand(subcommand =>
-                    subcommand.setName('removemap')
-                        .setDescription('[Mod] Remove a map from the current Competition.')
-                        .addStringOption(option =>
-                            option.setName('game')
-                                .setDescription('The game of the map.')
-                                .setRequired(true)
-                                .addChoices(...KCUtil.slashChoices.game)    
-                        ).addStringOption(option =>
-                            option.setName('parameters')
-                                .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
-                                .setRequired(true)
-                        )
+                    KCUtil.fillScoreSlashCommandChoices(subcommand
+                    .setName('removemap')
+                    .setDescription('[Mod] Remove a map from the current Competition.')
+                    ),
                 ).addSubcommand(subcommand =>
                     subcommand.setName('end')
                         .setDescription('[Mod] End the current Competition early, before the schedule.')
-                ).addSubcommand(subcommand =>
-                    subcommand.setName('map')
+                ).addSubcommandGroup(subcommandGroup =>
+                    subcommandGroup.setName('map')
                         .setDescription('[Mod] Check if a map was already featured before, or pick a map at random.')
-                        .addStringOption(option =>
-                            option.setName('game')
-                                .setDescription('The game to find the map from.')
-                                .setRequired(true)
-                                .addChoices(...KCUtil.slashChoices.game)    
-                        ).addStringOption(option =>
-                            option.setName('parameters')
-                                .setDescription('Examples: "7 totems" "dmd 34" "code small medium abc" "markv nullify abc#1444"')
+                        .addSubcommand(subcommand => 
+                            KCUtil.fillScoreSlashCommandChoices(subcommand
+                            .setName('check')
+                            .setDescription('[Mod] Check if a map was already featured in Competition before.')
+                            ),
+                        ).addSubcommand(subcommand => 
+                            subcommand.setName('random')
+                                .setDescription('[Mod] Pick a map at random that wasn\'t featured in a previous Competition.')
+                                .addStringOption(option =>
+                                    option.setName('game')
+                                        .setDescription('The game to pick a random map from.')
+                                        .setRequired(true)
+                                        .addChoices(...KCUtil.slashChoices.game)
+                                )
                         )
                 ).addSubcommand(subcommand =>
                     subcommand.setName('intro')
@@ -865,7 +871,7 @@ export default class Competition extends Bot.Module {
      */
     mapCmd(interaction, guild, member, channel, kcgmm, game, map, msqd) {
         this.bot.sql.transaction(async query => {
-            await interaction.deferReply();
+            if(!interaction.deferred) await interaction.deferReply();
             if(msqd != null) {
                 if(await getMapAlreadyFeaturedInPreviousCompetition(query, guild, game, msqd)) {
                     await interaction.editReply('❌ This map was already featured in a previous competition.');

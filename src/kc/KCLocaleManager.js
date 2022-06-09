@@ -72,22 +72,26 @@ const config = {
         },
         "cw4_objectives" : {
             "0": { "display": "Nullify", "aliases": ["nullify", "n", "0"] },
-            "1": { "display": "Totems", "aliases": ["totems", "t", "1"] },
+            "1": { "display": "Totems", "aliases": ["totems", "totem", "t", "1"] },
             "2": { "display": "Reclaim", "aliases": ["reclaim", "r", "2"] },
-            "3": { "display": "Hold", "aliases": ["hold", "h", "3"] },
-            "4": { "display": "Collect", "aliases": ["collect", "c", "4"] },
-            "5": { "display": "Custom", "aliases": ["custom", "c", "5"] }
+            "3": { "display": "Hold", "aliases": ["hold", "survive", "h", "3"] },
+            "4": { "display": "Collect", "aliases": ["collect", "4"] },
+            "5": { "display": "Custom", "aliases": ["custom", "5"] }
         },
         "map_mode_custom" : {
             "cw1_custom" : { "display": "Custom" },
             "cw2_custom" : { "display": "Custom" },
+            "cw1_misc": { "display": "GUID" },
             "cw2_code": { "display": "Code" },
+            "cw2_misc": { "display": "GUID" },
             "cw3_custom" : { "display": "Colonial Space" },
             "cw3_dmd" : { "display": "DMD" },
+            "cw3_misc": { "display": "GUID" },
             "pf_custom" : { "display": "Exchange" },
             "cw4_custom" : { "display": "Farsite Colonies" },
             "cw4_chronom" : { "display": "Chronom" },
-            "cw4_markv" : { "display": "Mark V" }
+            "cw4_markv" : { "display": "Mark V" },
+            "cw4_misc": { "display": "GUID" },
         }
     },
 }

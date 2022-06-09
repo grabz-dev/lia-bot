@@ -1,6 +1,7 @@
 'use strict';
 
 import Discord from 'discord.js';
+import { SlashCommandBuilder, SlashCommandSubcommandBuilder } from '@discordjs/builders';
 import { mkdir } from 'fs';
 
 const months = ["January", "February", "March", "April", "May", "June",
@@ -30,6 +31,52 @@ export const KCUtil = Object.freeze({
             Object.freeze({ name: 'Creeper World 1', value: 'cw1' })
         ]
     }),
+
+    /**
+     * @param {SlashCommandBuilder|SlashCommandSubcommandBuilder} scb 
+     * @returns {any}
+     */
+    fillScoreSlashCommandChoices: (scb) => {
+        return scb.addStringOption(option =>
+            option.setName('type')
+                .setDescription('Choose the map type to query.')
+                .setRequired(true)
+                .addChoices(...[
+                    { name: 'Custom Map', value: 'custom' },
+                    { name: 'GUID Map', value: 'gameuid' },
+                    { name: 'CW4 Mark V Map', value: 'cw4_markv' },
+                    { name: 'CW4 Chronom Map', value: 'cw4_chronom' },
+                    { name: 'CW3 DMD Map', value: 'cw3_dmd' },
+                    { name: 'CW2 Code Map', value: 'cw2_code' }
+                ])    
+        ).addStringOption(option =>
+            option.setName('game')
+                .setDescription('[Custom, GUID] The game the map is from.')
+                .setRequired(false)
+                .addChoices(...KCUtil.slashChoices.game)
+        ).addIntegerOption(option =>
+            option.setName('id')
+                .setDescription('[Custom, CW3 DMD] The ID of the map.')
+        ).addStringOption(option =>
+            option.setName('objective')
+                .setDescription('[CW4] The map objective.')
+        ).addStringOption(option =>
+            option.setName('seed')
+                .setDescription('[CW4 Mark V, CW2 Code] The map seed.')
+        ).addStringOption(option =>
+            option.setName('date')
+                .setDescription('[Chronom] The map date. e.g. 2022-06-09')
+        ).addStringOption(option =>
+            option.setName('size')
+                .setDescription('[CW2 Code] The map size.')
+        ).addStringOption(option =>
+            option.setName('complexity')
+                .setDescription('[CW2 Code] The map complexity.')
+        ).addStringOption(option =>
+            option.setName('gameuid')
+                .setDescription('[GUID] The map GUID.')
+        )
+    },
 
     /**
      * Get formatted time elapsed from number of frames
@@ -107,5 +154,5 @@ export const KCUtil = Object.freeze({
         if(Object.keys(obj1).length !== Object.keys(obj2).length)
             return false;
         return Object.keys(obj1).every(key => obj2.hasOwnProperty(key) && obj1[key] === obj2[key]);
-    } 
+    },
 });
