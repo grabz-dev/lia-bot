@@ -475,7 +475,7 @@ export function KCGameMapManager(options, locale) {
             break;
         }
         case 'custom': {
-            if(game == null || id == null) {
+            if(game == null || id == null || (game == 'cw4' && objectiveNumber == null)) {
                 if(game == null) errors.game = 'Game missing';
                 if(id == null) errors.id = 'Map ID missing';
                 if(game == 'cw4' && objectiveNumber == null && errors.objective == null) errors.objective = 'CW4 Objective missing';

@@ -168,13 +168,15 @@ export default class Map extends Bot.Module {
             let size = interaction.options.getString('size');
             let complexity = interaction.options.getString('complexity');
             let gameUID = interaction.options.getString('gameuid');
+            let userfilter = interaction.options.getString('userfilter');
+            let groupfilter = interaction.options.getString('groupfilter');
             
             const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, gameUID);
             if(data.err != null) {
                 await interaction.reply({ content: data.err });
             }
             else {
-                await this.score(interaction, guild, data.data, this.kcgmm);
+                await this.score(interaction, guild, data.data, this.kcgmm, userfilter??undefined, groupfilter??undefined);
             }
 
             return;
@@ -247,9 +249,15 @@ export default class Map extends Bot.Module {
                             .addChoices(...KCUtil.slashChoices.game)
                     )
             ).toJSON(),
-            KCUtil.fillScoreSlashCommandChoices(new SlashCommandBuilder()
+            /** @type {SlashCommandBuilder} */(KCUtil.fillScoreSlashCommandChoices(new SlashCommandBuilder()
             .setName('score')
             .setDescription('Display scores of a map.')
+            )).addStringOption(option =>
+                option.setName('userfilter')
+                    .setDescription('Filter by user name. Leave empty to not filter by user name.')
+            ).addStringOption(option =>
+                option.setName('groupfilter')
+                    .setDescription('Filter by group. Leave empty to not filter by group. We often use the specialevent group name.')
             ).toJSON(),
             new SlashCommandBuilder()
             .setName('bestof')
@@ -363,8 +371,10 @@ export default class Map extends Bot.Module {
     * @param {Discord.Guild} guild
     * @param {KCGameMapManager.MapScoreQueryData} mapQueryData 
     * @param {KCGameMapManager} kcgmm
+    * @param {string=} userName
+    * @param {string=} groupName
     */
-    async score(interaction, guild, mapQueryData, kcgmm) {
+    async score(interaction, guild, mapQueryData, kcgmm, userName, groupName) {
         await interaction.deferReply();
         let emote = await SQLUtil.getEmote(this.bot.sql, guild.id, mapQueryData.game);
 
@@ -376,7 +386,9 @@ export default class Map extends Bot.Module {
             inline: false,
         }
 
-        const groupName = mapQueryData.game === 'cw4' ? 'specialevent' : undefined;
+        if(mapQueryData.game === 'cw4' && mapQueryData.type !== 'chronom') {
+            groupName = 'specialevent';
+        }
 
         if(mapQueryData.id)
             field.name += `: #${mapQueryData.id}`;
@@ -384,7 +396,7 @@ export default class Map extends Bot.Module {
             field.name += `: \`${mapQueryData.name}\` S:${mapQueryData.size} C:${mapQueryData.complexity}`;
 
         let max = 15;
-        let leaderboard = await kcgmm.getMapScores(mapQueryData, undefined, groupName);
+        let leaderboard = await kcgmm.getMapScores(mapQueryData, userName, groupName);
         /** @type {KCGameMapManager.MapLeaderboardEntry[]} */
         let entries = leaderboard.entries[mapQueryData.objective??0]??[];
 
@@ -408,6 +420,7 @@ export default class Map extends Bot.Module {
 
         if(mapQueryData.gameUID != null) field.value = `GUID: ${mapQueryData.gameUID}\n` + field.value;
         if(mapQueryData.game === 'cw4') field.value = `Objective: ${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapQueryData.objective+'')}\n` + field.value;
+        if(userName != null) field.value = `User Filter: ${userName}\n` + field.value;
         if(groupName != null) field.value = `Group Filter: ${groupName}\n` + field.value;
         if(mapQueryData.game === 'cw4' && mapQueryData.type === 'markv') {
             field.value = mapQueryData.name + '\n' + field.value;

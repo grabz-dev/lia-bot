@@ -43,11 +43,11 @@ export const KCUtil = Object.freeze({
                 .setRequired(true)
                 .addChoices(...[
                     { name: 'Custom Map', value: 'custom' },
-                    { name: 'GUID Map', value: 'gameuid' },
                     { name: 'CW4 Mark V Map', value: 'cw4_markv' },
                     { name: 'CW4 Chronom Map', value: 'cw4_chronom' },
                     { name: 'CW3 DMD Map', value: 'cw3_dmd' },
-                    { name: 'CW2 Code Map', value: 'cw2_code' }
+                    { name: 'CW2 Code Map', value: 'cw2_code' },
+                    { name: 'GUID Map', value: 'gameuid' }
                 ])    
         ).addStringOption(option =>
             option.setName('game')
@@ -60,6 +60,14 @@ export const KCUtil = Object.freeze({
         ).addStringOption(option =>
             option.setName('objective')
                 .setDescription('[CW4] The map objective.')
+                .addChoices(...[
+                    { name: 'Nullify', value: 'nullify' },
+                    { name: 'Totems', value: 'totems' },
+                    { name: 'Reclaim', value: 'reclaim' },
+                    { name: 'Hold', value: 'hold' },
+                    { name: 'Collect', value: 'collect' },
+                    { name: 'Custom', value: 'custom' },
+                ])
         ).addStringOption(option =>
             option.setName('seed')
                 .setDescription('[CW4 Mark V, CW2 Code] The map seed.')
@@ -69,9 +77,19 @@ export const KCUtil = Object.freeze({
         ).addStringOption(option =>
             option.setName('size')
                 .setDescription('[CW2 Code] The map size.')
+                .addChoices(...[
+                    { name: 'Small', value: '0' },
+                    { name: 'Medium', value: '1' },
+                    { name: 'Large', value: '2' },
+                ])
         ).addStringOption(option =>
             option.setName('complexity')
                 .setDescription('[CW2 Code] The map complexity.')
+                .addChoices(...[
+                    { name: 'Low', value: '0' },
+                    { name: 'Medium', value: '1' },
+                    { name: 'High', value: '2' },
+                ])
         ).addStringOption(option =>
             option.setName('gameuid')
                 .setDescription('[GUID] The map GUID.')

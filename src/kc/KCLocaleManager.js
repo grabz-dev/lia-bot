@@ -81,17 +81,18 @@ const config = {
         "map_mode_custom" : {
             "cw1_custom" : { "display": "Custom" },
             "cw2_custom" : { "display": "Custom" },
-            "cw1_misc": { "display": "GUID" },
+            "cw1_misc": { "display": "" },
             "cw2_code": { "display": "Code" },
-            "cw2_misc": { "display": "GUID" },
+            "cw2_misc": { "display": "" },
             "cw3_custom" : { "display": "Colonial Space" },
             "cw3_dmd" : { "display": "DMD" },
-            "cw3_misc": { "display": "GUID" },
+            "cw3_misc": { "display": "" },
             "pf_custom" : { "display": "Exchange" },
+            "pf_misc": { "display": "" },
             "cw4_custom" : { "display": "Farsite Colonies" },
             "cw4_chronom" : { "display": "Chronom" },
             "cw4_markv" : { "display": "Mark V" },
-            "cw4_misc": { "display": "GUID" },
+            "cw4_misc": { "display": "" },
         }
     },
 }
