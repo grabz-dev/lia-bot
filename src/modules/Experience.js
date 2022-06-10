@@ -226,16 +226,19 @@ export default class Experience extends Bot.Module {
             case 'profile': {
                 let game = interaction.options.getString('game', true);
                 let dm = interaction.options.getBoolean('dm');
-                return this.profile(interaction, guild, member, game, this.kcgmm, dm??false);
+                let noinstructions = interaction.options.getBoolean('noinstructions');
+                return this.profile(interaction, guild, member, game, this.kcgmm, dm??false, noinstructions??false);
             }
             case 'new': {
                 let game = interaction.options.getString('game', true);
                 let maps = interaction.options.getInteger('maps');
                 let dm = interaction.options.getBoolean('dm');
+                let noinstructions = interaction.options.getBoolean('noinstructions');
+
                 maps = maps ?? 6;
                 if(maps > 6) maps = 6;
                 if(maps < 1) maps = 1;
-                return this.newMaps(interaction, guild, member, game, this.kcgmm, maps, dm??false);
+                return this.newMaps(interaction, guild, member, game, this.kcgmm, maps, dm??false, noinstructions??false);
             }
             case 'rename': {
                 let game = interaction.options.getString('game', true);
@@ -324,6 +327,9 @@ export default class Experience extends Bot.Module {
                     ).addBooleanOption(option =>
                         option.setName('dm')
                             .setDescription('Set to True if you want a copy of the message to be sent to you in DM\'s.')
+                    ).addBooleanOption(option =>
+                        option.setName('noinstructions')
+                            .setDescription('Set to True if the instruction section of the message should be omitted.')
                     )
             ).addSubcommand(subcommand =>
                 subcommand.setName('new')
@@ -339,6 +345,9 @@ export default class Experience extends Bot.Module {
                     ).addBooleanOption(option =>
                         option.setName('dm')
                             .setDescription('Set to True if you want a copy of the message to be sent to you in DM\'s.')
+                    ).addBooleanOption(option =>
+                        option.setName('noinstructions')
+                            .setDescription('Set to True if the instruction section of the message should be omitted.')
                     )
             ).addSubcommand(subcommand =>
                 subcommand.setName('info')
@@ -635,8 +644,9 @@ export default class Experience extends Bot.Module {
      * @param {string} game
      * @param {KCGameMapManager} kcgmm
      * @param {boolean} dm
+     * @param {boolean} noinstructions
      */
-    profile(interaction, guild, member, game, kcgmm, dm) {
+    profile(interaction, guild, member, game, kcgmm, dm, noinstructions) {
         let embed = getEmbedTemplate(member);
 
         this.bot.sql.transaction(async query => {
@@ -753,9 +763,7 @@ export default class Experience extends Bot.Module {
                 value: this.bot.locale.category('experience', 'embed_instructions_value', game == null ? '[game]' : game),
                 inline: false,
             }
-
-            embed.fields.push(fieldInstructions);
-
+            if(!noinstructions) embed.fields.push(fieldInstructions);
             await interaction.editReply({ embeds:[embed] });
             if(dm) {
                 fieldInstructions.value = `${this.bot.locale.category('experience', 'embed_dm_value')}\n${fieldInstructions.value}`;
@@ -774,8 +782,9 @@ export default class Experience extends Bot.Module {
      * @param {KCGameMapManager} kcgmm
      * @param {number} customMapCount
      * @param {boolean} dm
+     * @param {boolean} noinstructions
      */
-    newMaps(interaction, guild, member, game, kcgmm, customMapCount, dm) {
+    newMaps(interaction, guild, member, game, kcgmm, customMapCount, dm, noinstructions) {
         this.bot.sql.transaction(async query => {
             await interaction.deferReply();
 
@@ -925,7 +934,7 @@ export default class Experience extends Bot.Module {
                 fieldReferences.value = `Bonus XP for being highest rated from maps uploaded in the same month:\n${fieldReferencesValueArr.join(' | ')}`;
                 embed.fields.push(fieldReferences);
             }
-            embed.fields.push(fieldInstructions);
+            if(!noinstructions) embed.fields.push(fieldInstructions);
 
             await interaction.editReply({ embeds:[embed] });
             if(dm) {
