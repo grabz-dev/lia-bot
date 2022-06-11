@@ -233,12 +233,13 @@ export default class Experience extends Bot.Module {
                 let game = interaction.options.getString('game', true);
                 let maps = interaction.options.getInteger('maps');
                 let dm = interaction.options.getBoolean('dm');
+                let nopriority = interaction.options.getBoolean('nopriority');
                 let noinstructions = interaction.options.getBoolean('noinstructions');
 
                 maps = maps ?? 6;
                 if(maps > 6) maps = 6;
                 if(maps < 1) maps = 1;
-                return this.newMaps(interaction, guild, member, game, this.kcgmm, maps, dm??false, noinstructions??false);
+                return this.newMaps(interaction, guild, member, game, this.kcgmm, maps, dm??false, noinstructions??false, nopriority??false);
             }
             case 'rename': {
                 let game = interaction.options.getString('game', true);
@@ -345,6 +346,9 @@ export default class Experience extends Bot.Module {
                     ).addBooleanOption(option =>
                         option.setName('dm')
                             .setDescription('Set to True if you want a copy of the message to be sent to you in DM\'s.')
+                    ).addBooleanOption(option =>
+                        option.setName('nopriority')
+                            .setDescription('Set to True to disable priority of highly rated maps. This will give only truly random picks.')
                     ).addBooleanOption(option =>
                         option.setName('noinstructions')
                             .setDescription('Set to True if the instruction section of the message should be omitted.')
@@ -783,8 +787,9 @@ export default class Experience extends Bot.Module {
      * @param {number} customMapCount
      * @param {boolean} dm
      * @param {boolean} noinstructions
+     * @param {boolean} nopriority
      */
-    newMaps(interaction, guild, member, game, kcgmm, customMapCount, dm, noinstructions) {
+    newMaps(interaction, guild, member, game, kcgmm, customMapCount, dm, noinstructions, nopriority) {
         this.bot.sql.transaction(async query => {
             await interaction.deferReply();
 
@@ -822,7 +827,7 @@ export default class Experience extends Bot.Module {
             _selected += data_campaign.newSelectedMaps.finished.length + data_campaign.newSelectedMaps.unfinished.length;
             const data_markv = await this.managers.markv.newMaps(query, kcgmm, resultUsers, now);
             _selected += data_markv.newSelectedMaps.finished.length + data_markv.newSelectedMaps.unfinished.length;
-            const data_custom = await this.managers.custom.newMaps(query, kcgmm, resultUsers, now, mapListArray, mapListId, _selected, customMapCount);
+            const data_custom = await this.managers.custom.newMaps(query, kcgmm, resultUsers, now, mapListArray, mapListId, _selected, customMapCount, nopriority);
 
             let totalCompletedOld = 0;
             totalCompletedOld += data_custom.countOldTotalCompleted;
@@ -1215,8 +1220,7 @@ function getExpDataFromTotalExp(exp) {
  */
 function getEmbedTemplate(member) {
     let embed = new Discord.MessageEmbed({
-        color: 5559447,
-        timestamp: new Date(),
+        color: 5559447
     });
     if(member) {
         embed.author = {
@@ -1299,19 +1303,11 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
     for(let i = 0; i < Math.min(9, leaders.length); i++) {
         let leader = leaders[i];
         let leaderMember = guild.members.resolve(leader.resultUser.user_id);
-        if(i === 0) this.cache.set(guild.id, `champion_${game}`, leader.resultUser.user_id);
+        if(i === 0 && leaders.length > 2) this.cache.set(guild.id, `champion_${game}`, leader.resultUser.user_id);
 
         if(member) {
-            switch(i) {
-                case 0: {
-                    msgStr += '🏆 ';
-                    break;
-                }
-                default: {
-                    msgStr += '🔹 ';
-                    break;
-                }
-            }
+            if(i === 0 && leaders.length > 2) msgStr += '🏆 ';
+            else msgStr += '🔹 ';
             msgStr += `\`#${i+1}\``;
             msgStr += getFormattedXPBarString.call(this, '', leader.total, this.expBarLeadersLength, true);
             msgStr += ` ${leaderMember ? leaderMember.nickname ?? leaderMember.user.username : leader.resultUser.user_name}\n`;
@@ -1416,7 +1412,7 @@ async function getProfileInfoString(totalCompletedNew, resultUsers, query, kcgmm
             if(index === 0) {
                 const roleId = this.bot.getRoleId(guild.id, 'CHAMPION_OF_KC');
                 if(roleId) {
-                    str += `\nYou are a <@&${roleId}>`;
+                    str += `. You are a <@&${roleId}>`;
                 }
             }
             else {
@@ -1424,11 +1420,11 @@ async function getProfileInfoString(totalCompletedNew, resultUsers, query, kcgmm
                 const playerAbove = leaders[playerAboveIndex];
                 const lvlDifferential = playerAbove.total.currentLevel - leader.total.currentLevel;
                 if(lvlDifferential > 0) {
-                    str += `\nYou're ${lvlDifferential} level${lvlDifferential === 1 ? '' : 's'} away from rank #${playerAboveIndex + 1}`;
+                    str += `, ${lvlDifferential} level${lvlDifferential === 1 ? '' : 's'} away from #${playerAboveIndex + 1}`;
                 }
                 else {
                     const xpDifferential = playerAbove.total.currentXP - leader.total.currentXP;
-                    str += `\nYou're 0 levels and ${xpDifferential} XP away from rank #${playerAboveIndex + 1}`;
+                    str += `, ${xpDifferential} XP away from #${playerAboveIndex + 1}`;
                 }
             }
         }

@@ -421,7 +421,7 @@ export default class HurtHeal extends Bot.Module {
      * @param {object} options
      * @param {'current'|'last'} options.mode
      * @param {Item[]} options.things
-     * @param {(Db.hurtheal_games|number)=} options.game
+     * @param {(Db.hurtheal_games)=} options.game
      * @param {(Db.hurtheal_actions[])=} options.allActions
      * @param {('hurt'|'heal'|'decay')=} options.action - If undefined, no action was taken
      * @param {boolean=} options.gameOver - Is the game over
@@ -439,7 +439,7 @@ export default class HurtHeal extends Bot.Module {
             color: 14211288,
             timestamp: Date.now(),
             footer: {
-                text: `\`/hh rules\` for help${game != null ? ` • Game ${typeof game === 'number' ? `${game}` : `${game.id}`}` : ''}`
+                text: `\`/hh rules\` for help${game != null ? ` • Game ${game.id}` : ''}`
             }
         });
         if(action == 'hurt') embed.color = 16731994;
@@ -578,6 +578,7 @@ export default class HurtHeal extends Bot.Module {
         case 'start': {
             let health = interaction.options.getInteger('health', true);
             let items = interaction.options.getString('items', true);
+            let theme = interaction.options.getString('theme', true);
 
             items = items.replace(/\s\s+/g, ' '); //Reduce all multi spaces, newlines etc. to single space
             let argsThings = items.split(',');
@@ -603,7 +604,7 @@ export default class HurtHeal extends Bot.Module {
                 indexer[name] = true;
             }
 
-            this.start(interaction, guild, things);
+            this.start(interaction, guild, things, theme);
             break;
         }
         case 'hurt':
@@ -637,38 +638,6 @@ export default class HurtHeal extends Bot.Module {
      */
     getSlashCommands() {
         return [
-            new SlashCommandBuilder()
-            .setName('hh')
-            .setDescription('Collection of Hurt or Heal related commands.')
-            .addSubcommand(subcommand =>
-                subcommand.setName('rules')
-                    .setDescription('View the rules of Hurt or Heal.')
-            ).addSubcommand(subcommand =>
-                subcommand.setName('hurt')
-                    .setDescription('Hurt an item.')
-                    .addStringOption(option =>
-                        option.setName('item')
-                            .setDescription('The item to hurt. Type the item ID, or the name of the item.')
-                            .setRequired(true)
-                    ).addStringOption(option =>
-                        option.setName('reason')
-                            .setDescription('The reason why you would hurt this item.')
-                    )
-            ).addSubcommand(subcommand =>
-                subcommand.setName('heal')
-                    .setDescription('Heal an item.')
-                    .addStringOption(option =>
-                        option.setName('item')
-                            .setDescription('The item to heal. Type the item ID, or the name of the item.')
-                            .setRequired(true)
-                    ).addStringOption(option =>
-                        option.setName('reason')
-                            .setDescription('The reason why you would heal this item.')
-                    )
-            ).addSubcommand(subcommand =>
-                subcommand.setName('show')
-                    .setDescription('Display the current standings, without performing an action.')
-            ).toJSON(),
             new SlashCommandBuilder()
             .setName('mod_hh')
             .setDescription('[Mod] Collection of Hurt or Heal related commands.')
@@ -709,9 +678,81 @@ export default class HurtHeal extends Bot.Module {
                         option.setName('items')
                             .setDescription('A comma delimited list of all the items that will appear in this game.')
                             .setRequired(true)    
+                    ).addStringOption(option =>
+                        option.setName('theme')
+                            .setDescription('The theme of this game.')
+                            .setRequired(true)  
                     )
             ).toJSON(),
         ]
+    }
+
+    /**
+     * @param {Discord.Guild} guild
+     * @returns {Promise<RESTPostAPIApplicationCommandsJSONBody[]>}
+     */
+    async getSlashCommandsAsync(guild) {
+        return await this.bot.sql.transaction(async query => {
+            /** @type {Db.hurtheal_games|null} */
+            let game = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE AND guild_id = ?`, [guild.id])).results[0];
+            /** @type {Db.hurtheal_things[]|null} */
+            let resultsThings = null;
+
+            if(game != null) resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ? ORDER BY id ASC`, [game.id])).results;
+
+            console.log(resultsThings);
+
+            let builder = new SlashCommandBuilder()
+            .setName('hh')
+            .setDescription('Collection of Hurt or Heal related commands.')
+            .addSubcommand(subcommand =>
+                subcommand.setName('rules')
+                    .setDescription('View the rules of Hurt or Heal.')
+            ).addSubcommand(subcommand =>
+                subcommand.setName('show')
+                    .setDescription('Display the current standings, without performing an action.')
+            )
+
+            if(resultsThings != null && resultsThings.length > 0) {
+                /** @type {{name: string, value: string}[]} */
+                let choices = [];
+                for(const thing of getItemsFromDb(resultsThings)) {
+                    if(thing.death_order == null) {
+                        choices.push( { name: thing.name, value: thing.orderId+'' } );
+                    }
+                }
+
+                if(choices.length > 0) {
+                    builder.addSubcommand(subcommand =>
+                        subcommand.setName('hurt')
+                            .setDescription('Hurt an item.')
+                            .addStringOption(option =>
+                                option.setName('item')
+                                    .setDescription('The item to hurt.')
+                                    .setRequired(true)
+                                    .addChoices(...choices)
+                            ).addStringOption(option =>
+                                option.setName('reason')
+                                    .setDescription('The reason why you would hurt this item.')
+                            )
+                    ).addSubcommand(subcommand =>
+                        subcommand.setName('heal')
+                            .setDescription('Heal an item.')
+                            .addStringOption(option =>
+                                option.setName('item')
+                                    .setDescription('The item to heal.')
+                                    .setRequired(true)
+                                    .addChoices(...choices)
+                            ).addStringOption(option =>
+                                option.setName('reason')
+                                    .setDescription('The reason why you would heal this item.')
+                            )
+                    );
+                }
+            }
+
+            return [builder.toJSON()];
+        });
     }
 
     /**
@@ -794,6 +835,8 @@ export default class HurtHeal extends Bot.Module {
 
             await query(`UPDATE hurtheal_games SET finished = TRUE`);
             await this.handleHHMessage(query, interaction, guild, 'Previous game ended.', false);
+        }).then(() => {
+            this.bot.refreshGuildSlashCommands(guild);
         }).catch(logger.error);
     }
 
@@ -801,8 +844,9 @@ export default class HurtHeal extends Bot.Module {
      * @param {Discord.CommandInteraction<"cached">} interaction
      * @param {Discord.Guild} guild
      * @param {{name: string, health: number}[]} things
+     * @param {string} theme
      */
-    start(interaction, guild, things) {
+    start(interaction, guild, things, theme) {
         this.bot.sql.transaction(async (query, mysql) => {
             await interaction.deferReply();
             let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE AND guild_id = ? FOR UPDATE`, [guild.id])).results[0];
@@ -813,7 +857,10 @@ export default class HurtHeal extends Bot.Module {
 
             /** @type {number} */
             const now = Date.now();
-            let insertId = (await query(`INSERT INTO hurtheal_games (guild_id, timestamp, finished, last_decay_timestamp) VALUES (?, ?, FALSE, ?)`, [guild.id, now, now])).results.insertId;
+            /** @type {number} */
+            let insertId = (await query(`INSERT INTO hurtheal_games (guild_id, timestamp, finished, last_decay_timestamp, theme) VALUES (?, ?, FALSE, ?, ?)`, [guild.id, now, now, theme])).results.insertId;
+            /** @type {Db.hurtheal_games} */
+            let game = (await query(`SELECT * FROM hurtheal_games WHERE id = ?`, [insertId])).results[0];
 
             for(let thing of things) {
                 await query(`INSERT INTO hurtheal_things (id_hurtheal_games, name, health_cur, health_max) VALUES (?, ?, ?, ?)`, [insertId, thing.name, thing.health, thing.health]);
@@ -823,7 +870,9 @@ export default class HurtHeal extends Bot.Module {
             let resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ? ORDER BY id ASC`, [insertId])).results;
             let items = getItemsFromDb(resultsThings);
 
-            await this.handleHHMessage(query, interaction, guild, { content: 'New game started!', embeds: [await this.getGameStandingsEmbed(guild, {mode: 'current', things: items, game: insertId})] }, false);
+            await this.handleHHMessage(query, interaction, guild, { content: 'New game started!', embeds: [await this.getGameStandingsEmbed(guild, {mode: 'current', things: items, game})] }, false);
+        }).then(() => {
+            this.bot.refreshGuildSlashCommands(guild);
         }).catch(logger.error);
     }
 
@@ -840,6 +889,7 @@ export default class HurtHeal extends Bot.Module {
         await this.bot.sql.transaction(async (query, mysql) => {
             if(interaction instanceof Discord.CommandInteraction) await interaction.deferReply();
             const now = Date.now();
+            let itemsKnockedOut = false;
 
             /** @type {Db.hurtheal_games=} */ let resultGames = (await query(`SELECT * FROM hurtheal_games WHERE finished = FALSE AND guild_id = ? FOR UPDATE`, [guild.id])).results[0];
             /** @type {'current'|'last'} */ let mode = 'current';
@@ -960,8 +1010,10 @@ export default class HurtHeal extends Bot.Module {
 
                 if(item.health_cur <= 0) {
                     //Give out placement
-                    if(item.death_order == null)
+                    if(item.death_order == null) {
                         item.death_order = newDeathOrder;
+                        itemsKnockedOut = true;
+                    }
                     
                     itemsAlive.splice(i, 1);
                     i--;
@@ -977,6 +1029,7 @@ export default class HurtHeal extends Bot.Module {
                 let winnerThing = items.find((v => v.health_cur > 0));
                 if(winnerThing) {
                     winnerThing.death_order = items.reduce(highestDeathOrderThingInGame, 0) + 1;
+                    itemsKnockedOut = true;
                     await query(`UPDATE hurtheal_things SET death_order = ? WHERE id_hurtheal_games = ? AND id = ?`, [winnerThing.death_order, resultGames.id, winnerThing.id]);
                 }
             }
@@ -1016,7 +1069,10 @@ export default class HurtHeal extends Bot.Module {
 
             //Send final message
             await this.sendNewGameMessage(interaction, guild, query, await this.getGameStandingsEmbed(guild, {mode, things: items, game: resultGames, allActions: resultsActions, action: type, gameOver: isGameOver}), isGameOver, isGameOver ? resultGames : undefined);
-        });
+            return itemsKnockedOut;
+        }).then(itemsKnockedOut => {
+            if(itemsKnockedOut) this.bot.refreshGuildSlashCommands(guild).catch(logger.error);
+        }).catch(logger.error);
     }
 
     /**

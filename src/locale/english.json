@@ -71,8 +71,8 @@
             "already_ignoring_map": "You are already ignoring %0.",
             "already_completed_map": "You have already completed %0.",
             "not_ignoring_map": "%0 is/are not in your ignore list.",
-            "map_ignored": "%0 will no longer show up for %2. To unignore, see `/exp unignore`. To see all ignored maps, see `/exp ignorelist`.",
-            "map_unignored": "%0 will now show up again for %2. To see all ignored maps, see `/exp ignorelist`.",
+            "map_ignored": "%0 will no longer show up for you for %2. To unignore, see `/exp unignore`. To see all maps you ignored, see `/exp ignorelist`.",
+            "map_unignored": "%0 will now show up again for you for %2. To see all maps you ignored, see `/exp ignorelist`.",
             "maps_ignored": "The following maps are on your ignore list:"
         },
         "mapdata": {
