@@ -346,7 +346,7 @@ export default class HurtHeal extends Bot.Module {
         }).then(data => {
             if(data == null || data.message.member == null) return;
             
-            this.action(data.message, guild, data.message.member, 'decay', '');
+            this.action(data.message, guild, data.message.member, data.channel, 'decay', '');
         }).catch(logger.error);
     }
 
@@ -454,7 +454,7 @@ export default class HurtHeal extends Bot.Module {
         let space = things.length >= 10 ? ' ' : '';
 
         for(let thing of things) {
-            embed.description += `\`${getHealthBar.call(this, thing, Math.min(this.barLength, things.reduce((p, v) => Math.max(p, v.health_max), 0)))}\` \`${space && thing.orderId < 10 ? ' ':''}#${thing.orderId}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
+            embed.description += `\`${getHealthBar.call(this, thing, Math.min(this.barLength, things.reduce((p, v) => Math.max(p, v.health_max), 0)))}\` **${thing.name}** ${getThingPlace(thing, things)}\n`;
         }
 
         embed.description += '\n';
@@ -613,10 +613,10 @@ export default class HurtHeal extends Bot.Module {
             if(subcommandName === 'hurt' || subcommandName === 'heal') {
                 let item = interaction.options.getString('item', true);
                 let reason = interaction.options.getString('reason');
-                await this.action(interaction, guild, member, subcommandName, item, reason??"");
+                await this.action(interaction, guild, member, channel, subcommandName, item, reason??"");
             }
             else {
-                await this.action(interaction, guild, member, subcommandName, "", "");
+                await this.action(interaction, guild, member, channel, subcommandName, "", "");
             }
             break;
         }
@@ -718,7 +718,7 @@ export default class HurtHeal extends Bot.Module {
                 let choices = [];
                 for(const thing of getItemsFromDb(resultsThings)) {
                     if(thing.death_order == null) {
-                        choices.push( { name: thing.name, value: thing.orderId+'' } );
+                        choices.push( { name: thing.name, value: thing.name } );
                     }
                 }
 
@@ -749,6 +749,31 @@ export default class HurtHeal extends Bot.Module {
                             )
                     );
                 }
+            }
+            else {
+                builder.addSubcommand(subcommand =>
+                    subcommand.setName('hurt')
+                        .setDescription('Hurt an item.')
+                        .addStringOption(option =>
+                            option.setName('item')
+                                .setDescription('The item to hurt.')
+                                .setRequired(true)
+                        ).addStringOption(option =>
+                            option.setName('reason')
+                                .setDescription('The reason why you would hurt this item.')
+                        )
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('heal')
+                        .setDescription('Heal an item.')
+                        .addStringOption(option =>
+                            option.setName('item')
+                                .setDescription('The item to heal.')
+                                .setRequired(true)
+                        ).addStringOption(option =>
+                            option.setName('reason')
+                                .setDescription('The reason why you would heal this item.')
+                        )
+                );
             }
 
             return [builder.toJSON()];
@@ -881,11 +906,12 @@ export default class HurtHeal extends Bot.Module {
      * @param {Discord.CommandInteraction<"cached">|Discord.Message} interaction
      * @param {Discord.Guild} guild
      * @param {Discord.GuildMember} member
+     * @param {Discord.TextChannel|Discord.ThreadChannel} channel
      * @param {'hurt'|'heal'|'show'|'decay'} type
      * @param {string} item
      * @param {string=} reason
      */
-    async action(interaction, guild, member, type, item, reason) {
+    async action(interaction, guild, member, channel, type, item, reason) {
         await this.bot.sql.transaction(async (query, mysql) => {
             if(interaction instanceof Discord.CommandInteraction) await interaction.deferReply();
             const now = Date.now();
@@ -946,15 +972,7 @@ export default class HurtHeal extends Bot.Module {
                 currentItem = items.find(v => `${v.orderId}` === item || `#${v.orderId}` === item);
 
                 if(currentItem == null) {
-                    let wordArgs = [];
-                    for(let spaceArgs of item.split(' ')) {
-                        wordArgs.push(spaceArgs);
-                    }
-
-                    for(let i = wordArgs.length; i > 0; i--) {
-                        let assembledName = wordArgs.slice(0, i).join(' ');
-                        currentItem = items.find(v => simplifyForTest(v.name) === simplifyForTest(assembledName));
-                    }
+                    currentItem = items.find(v => simplifyForTest(v.name) === simplifyForTest(item))
                 }
             }
             
@@ -1057,15 +1075,14 @@ export default class HurtHeal extends Bot.Module {
             sortThings(items);
 
             //Delete user's message and post our own
-            /*if(type !== 'decay' && currentItem != null) {
-                m.message.delete().catch(() => {});
-                await m.channel.send({
-                    content: `${m.member.nickname??m.member.user.username} ${this.dictionary[type]} **${currentItem.name}** ${reason.trim()}`,
+            if(type !== 'decay' && currentItem != null) {
+                await channel.send({
+                    content: `${member.nickname??member.user.username} ${this.dictionary[type]} **${currentItem.name}** ${(reason??'').trim()}`,
                     allowedMentions: {
                         parse: ["users"]
                     }
                 });
-            }*/
+            }
 
             //Send final message
             await this.sendNewGameMessage(interaction, guild, query, await this.getGameStandingsEmbed(guild, {mode, things: items, game: resultGames, allActions: resultsActions, action: type, gameOver: isGameOver}), isGameOver, isGameOver ? resultGames : undefined);
