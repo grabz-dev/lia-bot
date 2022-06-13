@@ -587,7 +587,7 @@ export default class Experience extends Bot.Module {
             });
 
             collector.on('end', async () => {
-                await message.delete();
+                await message.reactions.removeAll();
             });
 
             await message.react('✅');

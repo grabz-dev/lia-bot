@@ -278,7 +278,7 @@ export default class HurtHeal extends Bot.Module {
 
         this.barLength = 20;
         this.lastActionsCounted = 2;
-        this.lastActionsShown = 8;
+        this.lastActionsShown = 2;
 
         this.dictionary = {
             'hurt': 'hurt',

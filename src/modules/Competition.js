@@ -397,7 +397,7 @@ export default class Competition extends Bot.Module {
                         option.setName('game')
                             .setDescription('The game you wish to register your in-game name for.')
                             .setRequired(true)
-                            .addChoices(...KCUtil.slashChoices.game)
+                            .addChoices({ name: 'All Games', value: 'all' }, ...KCUtil.slashChoices.game)
                     ).addStringOption(option =>
                         option.setName('username')
                             .setDescription('The name you use on the in-game leaderboards. Case sensitive!')
@@ -499,32 +499,39 @@ export default class Competition extends Bot.Module {
         this.bot.sql.transaction(async query => {
             await interaction.deferReply();
 
-            let gameName = KCLocaleManager.getDisplayNameFromAlias("game", game) || "unknown";
-    
-            /** @type {Db.competition_register} */
-            var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [guild.id, member.id, game, name])).results[0];
-            if(resultRegister) {
-                await interaction.editReply(this.bot.locale.category("competition", "already_registered_with_this_name", name, gameName));
-                return;
+            let games = game === 'all' ? this.games : [game];
+            let str = '';
+
+            for(let game of games) {
+                let gameName = KCLocaleManager.getDisplayNameFromAlias("game", game) || "unknown";
+        
+                /** @type {Db.competition_register} */
+                var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [guild.id, member.id, game, name])).results[0];
+                if(resultRegister) {
+                    str += `${this.bot.locale.category("competition", "already_registered_with_this_name", name, gameName)}\n`;
+                    continue;
+                }
+        
+                /** @type {Db.competition_register} */
+                var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [guild.id, game, name])).results[0];
+                if(resultRegister) {
+                    str += `${this.bot.locale.category("competition", "name_taken", name, gameName)}\n`;
+                    continue;
+                }
+        
+                /** @type {Db.competition_register} */
+                var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? FOR UPDATE`, [guild.id, member.id, game])).results[0];
+                if(resultRegister) {
+                    await query(`UPDATE competition_register SET user_name = ? WHERE guild_id = ? AND user_id = ? AND game = ?`, [name, guild.id, member.id, game]);
+                    str += `${this.bot.locale.category("competition", "register_name_changed", resultRegister.user_name, name, gameName)}\n`;
+                }
+                else {
+                    await query(`INSERT INTO competition_register (guild_id, user_id, game, user_name) VALUES (?, ?, ?, ?)`, [guild.id, member.id, game, name]);
+                    str += `${this.bot.locale.category("competition", "register_success", name, gameName)}\n`
+                }
             }
-    
-            /** @type {Db.competition_register} */
-            var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND game = ? AND user_name = ? FOR UPDATE`, [guild.id, game, name])).results[0];
-            if(resultRegister) {
-                await interaction.editReply(this.bot.locale.category("competition", "name_taken", name, gameName));
-                return;
-            }
-    
-            /** @type {Db.competition_register} */
-            var resultRegister = (await query(`SELECT * FROM competition_register WHERE guild_id = ? AND user_id = ? AND game = ? FOR UPDATE`, [guild.id, member.id, game])).results[0];
-            if(resultRegister) {
-                await query(`UPDATE competition_register SET user_name = ? WHERE guild_id = ? AND user_id = ? AND game = ?`, [name, guild.id, member.id, game]);
-                await interaction.editReply(this.bot.locale.category("competition", "register_name_changed", resultRegister.user_name, name, gameName));
-            }
-            else {
-                await query(`INSERT INTO competition_register (guild_id, user_id, game, user_name) VALUES (?, ?, ?, ?)`, [guild.id, member.id, game, name]);
-                await interaction.editReply(this.bot.locale.category("competition", "register_success", name, gameName));
-            }
+
+            await interaction.editReply(str);
         }).catch(logger.error);
     }
     
