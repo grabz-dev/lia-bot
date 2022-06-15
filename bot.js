@@ -104,14 +104,18 @@ core.on('ready', bot => {
         const emotes = await core.getModule((await import('./src/modules/Emotes.js')).default);
         /** @type {import('./src/modules/Farkle.js').default} */
         const farkle = await core.getModule((await import('./src/modules/Farkle.js')).default);
+        /** @type {import('./src/modules/DMD.js').default} */
+        const dmd = await core.getModule((await import('./src/modules/DMD.js')).default);
 
         map.kcgmm = kcgmm;
+        map.dmd = dmd;
         chronom.kcgmm = kcgmm;
         experience.kcgmm = kcgmm;
         experience.champion = champion;
         competition.kcgmm = kcgmm;
         competition.champion = champion;
         competition.map = map;
+        competition.dmd = dmd;
 
         setTimeout(() => {
             core.addLoop(1000 * 60 * 48, guild => { experience.loop(guild, kcgmm, champion); });

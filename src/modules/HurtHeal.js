@@ -700,8 +700,6 @@ export default class HurtHeal extends Bot.Module {
 
             if(game != null) resultsThings = (await query(`SELECT * FROM hurtheal_things WHERE id_hurtheal_games = ? ORDER BY id ASC`, [game.id])).results;
 
-            console.log(resultsThings);
-
             let builder = new SlashCommandBuilder()
             .setName('hh')
             .setDescription('Collection of Hurt or Heal related commands.')

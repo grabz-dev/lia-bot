@@ -47,11 +47,11 @@ export const KCUtil = Object.freeze({
                     { name: 'CW4 Chronom Map', value: 'cw4_chronom' },
                     { name: 'CW3 DMD Map', value: 'cw3_dmd' },
                     { name: 'CW2 Code Map', value: 'cw2_code' },
-                    { name: 'GUID Map', value: 'gameuid' }
+                    { name: 'Campaign Map', value: 'campaign' }
                 ])    
         ).addStringOption(option =>
             option.setName('game')
-                .setDescription('[Custom, GUID] The game the map is from.')
+                .setDescription('[Custom, Campaign] The game the map is from.')
                 .setRequired(false)
                 .addChoices(...KCUtil.slashChoices.game)
         ).addIntegerOption(option =>
@@ -91,8 +91,8 @@ export const KCUtil = Object.freeze({
                     { name: 'High', value: '2' },
                 ])
         ).addStringOption(option =>
-            option.setName('gameuid')
-                .setDescription('[GUID] The map GUID.')
+            option.setName('campaign')
+                .setDescription('[Campaign] The name of the campaign map.')
         )
     },
 

@@ -43,6 +43,9 @@ export default class Map extends Bot.Module {
 
         /** @type {KCGameMapManager|null} */
         this.kcgmm = null;
+
+        /** @type {import('./DMD.js').default|null} */
+        this.dmd = null;
     }
 
     /** @param {Discord.Message} message */
@@ -167,11 +170,11 @@ export default class Map extends Bot.Module {
             let date = interaction.options.getString('date');
             let size = interaction.options.getString('size');
             let complexity = interaction.options.getString('complexity');
-            let gameUID = interaction.options.getString('gameuid');
+            let campaign = interaction.options.getString('campaign');
             let userfilter = interaction.options.getString('userfilter');
             let groupfilter = interaction.options.getString('groupfilter');
             
-            const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, gameUID);
+            const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, campaign);
             if(data.err != null) {
                 await interaction.reply({ content: data.err });
             }
@@ -423,7 +426,11 @@ export default class Map extends Bot.Module {
 
         if(mapQueryData.size != null) field.value = `Size: ${KCLocaleManager.getDisplayNameFromAlias('cw2_code_map_size', mapQueryData.size+'')}\n` + field.value;
         if(mapQueryData.complexity != null) field.value = `Complexity: ${KCLocaleManager.getDisplayNameFromAlias('cw2_code_map_complexity', mapQueryData.complexity+'')}\n` + field.value;
-        if(mapQueryData.gameUID != null) field.value = `GUID: ${mapQueryData.gameUID}\n` + field.value;
+        if(mapQueryData.gameUID != null) {
+            let name = kcgmm.getCampaignMapNameFromGUID(mapQueryData.game, mapQueryData.gameUID);
+            if(name == null) field.value = `GUID: ${mapQueryData.gameUID}\n` + field.value;
+            else field.name = name;
+        }
         if(mapQueryData.game === 'cw4') field.value = `Objective: ${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapQueryData.objective+'')}\n` + field.value;
         if(userName != null) field.value = `User Filter: ${userName}\n` + field.value;
         if(groupName != null) field.value = `Group Filter: ${groupName}\n` + field.value;
@@ -438,6 +445,12 @@ export default class Map extends Bot.Module {
             const map = kcgmm.getMapById(mapQueryData.game, mapQueryData.id);
             if(map != null) {
                 field.value = `${map.title} __by ${map.author}__\n` + field.value;
+            }
+        }
+        if(this.dmd != null && mapQueryData.type === 'dmd' && mapQueryData.id) {
+            let dmdMap = await this.dmd.getDMDMapInfo(mapQueryData.id);
+            if(dmdMap != null) {
+                field.value = `${dmdMap.name} __by ${dmdMap.owner}__\n` + field.value;
             }
         }
 

@@ -78,6 +78,7 @@ import { CW4NBTReader, TagCompound } from './CW4NBTReader.js';
 
 import { fetchMapsDefault } from './KCGameMapManager/fetch-maps-default.js';
 import { fetchMaps, readCache } from './KCGameMapManager/fetch-maps-cw2.js';
+import { campaign } from '../kc/CampaignConfig.js';
 
 const chronom_months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
 "JULY", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -141,7 +142,6 @@ export function KCGameMapManager(options, locale) {
 
             const game = mapScoreQueryData.game;
             const xml = await HttpRequest.get(url);
-            
             let data = await xml2js.parseStringPromise(xml);
 
             if(game === 'cw4') {
@@ -170,6 +170,50 @@ export function KCGameMapManager(options, locale) {
                 return { entries: [entries] };
             }
         }
+    }
+
+    /**
+     * @param {string} game
+     * @param {string} str
+     * @returns {string|null} 
+     */
+    this.resolveCampaignMapGUIDFromInputString = function(game, str) {
+        let gameConfig = campaign[/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'} */(game)];
+        let id = +str;
+        //attempt to resolve by matching name
+        if(!Number.isFinite(id) || id < 1) {
+            for(let campaign of gameConfig) {
+                for(let map of campaign.maps) {
+                    if(map.name.replaceAll(' ', '').toLowerCase().includes(str.replaceAll(' ', '').toLowerCase())) {
+                        return map.gameUID;
+                    }
+                }
+            }
+            return null;
+        }
+        //attempt to resolve by matching ID
+        else {
+            let campaignConfig = gameConfig.find(v => v.primary === true);
+            //no primary campaigns detected, so we exit
+            if(campaignConfig == null) return null;
+
+            return campaignConfig.maps[id]?.gameUID??null;
+        }
+    }
+
+    /**
+     * @param {string} game
+     * @param {string} guid
+     * @returns {string|null} 
+     */
+    this.getCampaignMapNameFromGUID = function(game, guid) {
+        let gameConfig = campaign[/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'} */(game)];
+        for(let campaign of gameConfig) {
+            for(let map of campaign.maps) {
+                if(map.gameUID === guid) return map.name;
+            }
+        }
+        return null;
     }
 
     /**
@@ -437,10 +481,10 @@ export function KCGameMapManager(options, locale) {
      * @param {string|null} date 
      * @param {string|null} size 
      * @param {string|null} complexity 
-     * @param {string|null} gameUID 
+     * @param {string|null} campaign 
      * @returns {{data: MapScoreQueryData, err: null}|{data: null, err: string}}
      */
-    this.getMapQueryObjectFromCommandParameters = function(type, game, id, objective, seed, date, size, complexity, gameUID) {
+    this.getMapQueryObjectFromCommandParameters = function(type, game, id, objective, seed, date, size, complexity, campaign) {
         /** @type {MapScoreQueryData|null} */
         let msqd = null;
         /** @type {{[id: string]: string}} */
@@ -457,19 +501,25 @@ export function KCGameMapManager(options, locale) {
         }
 
         switch(type) {
-        case 'gameuid': {
-            if(game == null || gameUID == null || (game == 'cw4' && objectiveNumber == null)) {
+        case 'campaign': {
+            if(game == null || campaign == null || (game == 'cw4' && objectiveNumber == null)) {
                 if(game == null) errors.game = 'Game missing';
-                if(gameUID == null) errors.gameUID = 'GameUID missing';
                 if(game == 'cw4' && objectiveNumber == null && errors.objective == null) errors.objective = 'CW4 Objective missing';
+                if(campaign == null) errors.campaign = 'Campaign Name missing';
                 break;
             }
-            
+
+            let guid = this.resolveCampaignMapGUIDFromInputString(/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'} */(game), campaign);
+            if(guid == null) {
+                errors.campaign = 'Campaign Name not resolved to any mission';
+                break;
+            }
+
             if(Object.keys(errors).length > 0) break;
             msqd = {
                 game: game,
                 type: 'misc',
-                gameUID: gameUID,
+                gameUID: guid,
                 objective: objectiveNumber??undefined
             }
             break;
@@ -509,9 +559,11 @@ export function KCGameMapManager(options, locale) {
             /** @type {string|null} */
             let validSeed = null;
             if(seed != null) {
-                let [name, params] = seed.split('#');
-                if(params == null) errors.seed = 'Mark V seed is missing parameters';
+                let arr = seed.split('#');
+                if(arr.length <= 1) errors.seed = 'Mark V seed is missing parameters';
                 else {
+                    let name = arr.slice(0, arr.length - 1).join('#');
+                    let params = arr[arr.length - 1];
                     if(params.length > 5 ||
                        !['1','2','3','4'].includes(params[0]) ||
                        !['1','2','3','4'].includes(params[1]) ||

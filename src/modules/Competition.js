@@ -122,6 +122,8 @@ export default class Competition extends Bot.Module {
         this.champion = null;
         /** @type {import('./Map.js').default|null} */
         this.map = null;
+        /** @type {import('./DMD.js').default|null} */
+        this.dmd = null;
 
         this.bot.sql.transaction(async query => {
             await query(`CREATE TABLE IF NOT EXISTS competition_main (
@@ -339,6 +341,7 @@ export default class Competition extends Bot.Module {
             const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, gameUID);
             if(data.err != null) {
                 await interaction.reply({ content: data.err });
+                return;
             }
             else {
                 const mapQueryData = data.data;
@@ -359,9 +362,9 @@ export default class Competition extends Bot.Module {
             let date = interaction.options.getString('date');
             let size = interaction.options.getString('size');
             let complexity = interaction.options.getString('complexity');
-            let gameUID = interaction.options.getString('gameuid');
+            let campaign = interaction.options.getString('campaign');
 
-            const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, gameUID);
+            const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, campaign);
             if(data.err != null) {
                 await interaction.reply({ content: data.err });
                 return;
@@ -1459,8 +1462,14 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
             value += "Size: " + (KCLocaleManager.getDisplayNameFromAlias("cw2_code_map_size", mapScoreQueryData.size+"") || mapScoreQueryData.size) + "\n";
             value += "Complexity: " + (KCLocaleManager.getDisplayNameFromAlias("cw2_code_map_complexity", mapScoreQueryData.complexity+"") || mapScoreQueryData.complexity) + "\n";
             break;
-        case "dmd":
+        case "dmd": 
             name += `: #${mapScoreQueryData.id}`;
+            if(this.dmd != null && mapScoreQueryData.id != null) {
+                let dmdMap = await this.dmd.getDMDMapInfo(mapScoreQueryData.id);
+                if(dmdMap != null) {
+                    value = `${dmdMap.name} __by ${dmdMap.owner}__\n`;
+                }
+            }
             break;
         case "markv":
             value = "Seed: `" + mapScoreQueryData.name + "`\n";
