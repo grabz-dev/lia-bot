@@ -162,7 +162,7 @@ export default class Chronom extends Bot.Module {
             const additionalMasters = {};
             let k = 0;
             loop:
-            for(let i = 1; i < 10; i++) {
+            for(let i = 1; i < 100; i++) {
                 for(const map of arr2) {
                     for(let j = 0; j < map.leaderboardScores.entries.length; j++) {
                         const leaderboards = map.leaderboardScores.entries[j];

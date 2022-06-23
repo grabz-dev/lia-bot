@@ -1431,7 +1431,7 @@ async function getChartFromGame(query, game, type) {
     }
     else if(type === 'time') {
         chart.data.labels = (() => {
-            let arr = [];
+            let arr = [game.timestamp];
             for(let action of actionsCollapsed) arr.push(action.timestamp);
             return arr;
         })();

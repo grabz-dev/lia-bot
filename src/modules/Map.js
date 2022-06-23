@@ -305,6 +305,11 @@ export default class Map extends Bot.Module {
             mapData = kcgmm.getMapById(game, opts.id);
             //If the map is not found, fetch, and look for it again
             if(mapData == null) {
+                let mapArr = kcgmm.getMapListArray(game);
+                if(mapArr != null && opts.id < mapArr.reduce((p, c) => p = c.id > p ? c.id : p, 0)) {
+                    if(interaction) await interaction.editReply({ content: `Map #${opts.id} was deleted.` })
+                    return;
+                }
                 if(game !== 'cw2') {
                     try {
                         await kcgmm.fetch(game);

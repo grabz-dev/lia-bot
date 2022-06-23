@@ -32,8 +32,7 @@ export const SQLUtil = Object.freeze({
     /**
      * Get all game emotes for specified guild, usable immediately in a message
      * @param {Bot.SQLWrapper} sql
-     * @param {Discord.Snowflake} guildId 
-     * @param {string} game 
+     * @param {Discord.Snowflake} guildId
      * @returns {Promise<EmoteObject|null>}
      */
     async getEmotes(sql, guildId) {
