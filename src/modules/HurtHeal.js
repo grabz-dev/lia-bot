@@ -548,7 +548,7 @@ export default class HurtHeal extends Bot.Module {
     async incomingInteraction(interaction, guild, member, channel) {
         const subcommandName = interaction.options.getSubcommand();
 
-        if(subcommandName != 'setchannel') {
+        if(subcommandName != 'setchannel' && subcommandName != 'chart' && subcommandName != 'list') {
             let hhChannelId = this.cache.get(guild.id, 'hhChannelId');
             if(channel.id !== hhChannelId) {
                 await interaction.reply({ content: `You can only use this command in the ${hhChannelId == null ? 'Hurt or Heal' : `<#${hhChannelId}>`} channel.`, ephemeral: true });

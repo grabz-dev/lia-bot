@@ -1145,7 +1145,18 @@ export default class Farkle extends Bot.Module {
                 embed.description += `\n  • Players: ${members.join(", ")}\n`;
                 embed.description += `\nType \`ready\` or \`r\` if you want to play.\nType \`reject\` to cancel the match.`;
                 
-                if(channels[i]) await channels[i].send({ embeds: [embed] });
+                try {
+                    if(channels[i]) await channels[i].send({ embeds: [embed] });
+                }
+                catch(e) {
+                    if(otherPlayers.length === 0) {
+                        await interaction.editReply("Your DM's must be open to play Farkle.");
+                    }
+                    else {
+                        await interaction.editReply("One or more players in this match have DM's closed.");
+                    }
+                    throw e;
+                }
                 const isBot = members[i].id === botId;
 
                 /** @type {Db.farkle_current_players} */
