@@ -2428,9 +2428,10 @@ async function roll(client, action, docCG, docCPs, docVs, docCPVs, query, state)
 
             if(docCG.last_turn_victory_user_id != null) {
                 const pointsNeeded = docCPs.slice().sort((a, b) => b.total_points_banked - a.total_points_banked)[0]?.total_points_banked??0;
+                const pointsNeededUserId = docCPs.slice().sort((a, b) => b.total_points_banked - a.total_points_banked)[0]?.user_id??null;
                 const pointsLeft = pointsNeeded - docCG.current_player_points - playerCurrent.total_points_banked + 50;
 
-                embed.description += `${attendee.user_id === docCG.last_turn_victory_user_id ? "You have" : `<@${docCG.last_turn_victory_user_id}> has`} reached the goal! This is ${attendee.user_id === docCG.current_player_user_id ? "your" : `<@${docCG.current_player_user_id}>'s`} last chance to finish with more than ${pointsNeeded} points in the bank for a chance to win.\n${pointsLeft > 0 ? `${attendee.user_id === docCG.current_player_user_id ? "You have" : `<@${docCG.current_player_user_id}> has`} ${pointsLeft} points left to go.` : `${attendee.user_id === docCG.current_player_user_id ? "You have" : `<@${docCG.current_player_user_id}> has`} enough points, with ${-pointsLeft} points ahead.`}\n\n`;
+                embed.description += `${attendee.user_id === docCG.last_turn_victory_user_id ? "You have" : `<@${docCG.last_turn_victory_user_id}> has`} reached the goal! This is ${attendee.user_id === docCG.current_player_user_id ? "your" : `<@${docCG.current_player_user_id}>'s`} last chance to finish with more than ${pointsNeeded} points in the bank for a chance to win.\n${pointsLeft > 0 ? `${attendee.user_id === docCG.current_player_user_id ? "You have" : `<@${docCG.current_player_user_id}> has`} ${pointsLeft} points left to go to beat <@${pointsNeededUserId}>.` : `${attendee.user_id === docCG.current_player_user_id ? "You have" : `<@${docCG.current_player_user_id}> has`} enough points, with ${-pointsLeft} points ahead.`}\n\n`;
             }
 
             //${attendee.user_id === docCG.current_player_user_id ? "You" : `<@${docCG.last_turn_victory_user_id}>'s`}

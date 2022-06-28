@@ -71,7 +71,8 @@ core.on('ready', bot => {
                 await kcgmm.fetch('pf').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw3').catch(logger.error);
-            }, 1000 * 60 * 60 * 6);
+                core.call(guild => { autopost.loop(guild); });
+            }, 1000 * 60 * 60 * 3);
             setInterval(async () => {
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw2').catch(logger.error);
@@ -106,6 +107,8 @@ core.on('ready', bot => {
         const farkle = await core.getModule((await import('./src/modules/Farkle.js')).default);
         /** @type {import('./src/modules/DMD.js').default} */
         const dmd = await core.getModule((await import('./src/modules/DMD.js')).default);
+        /** @type {import('./src/modules/AutoPost.js').default} */
+        const autopost = await core.getModule((await import('./src/modules/AutoPost.js')).default);
 
         map.kcgmm = kcgmm;
         map.dmd = dmd;
@@ -116,6 +119,10 @@ core.on('ready', bot => {
         competition.champion = champion;
         competition.map = map;
         competition.dmd = dmd;
+        autopost.map = map;
+        autopost.kcgmm = kcgmm;
+
+        core.call(guild => { autopost.loop(guild); });
 
         setTimeout(() => {
             core.addLoop(1000 * 60 * 48, guild => { experience.loop(guild, kcgmm, champion); });

@@ -282,7 +282,7 @@ export default class Map extends Bot.Module {
     /**
     * @param {Discord.CommandInteraction<"cached">|null} interaction 
     * @param {Discord.Guild} guild
-    * @param {Discord.GuildMember} member
+    * @param {Discord.GuildMember|null} member
     * @param {Discord.TextChannel|Discord.ThreadChannel} channel
     * @param {string} game
     * @param {KCGameMapManager} kcgmm
@@ -291,6 +291,8 @@ export default class Map extends Bot.Module {
     * @param {string=} opts.title
     * @param {string=} opts.author
     * @param {boolean=} opts.allowTemporaryDelete
+    * @param {boolean=} opts.permanentOnly
+    * @returns {Promise<Discord.Message|undefined>}
     */
     async map(interaction, guild, member, channel, game, kcgmm, opts) {
         if(interaction && !interaction.deferred) await interaction.deferReply();
@@ -358,20 +360,22 @@ export default class Map extends Bot.Module {
         const embed = mapData instanceof Array ?
             await getMultipleMapsMessageEmbed.call(this, mapData, emote, guild, game, kcgmm)
             :
-            await getMapMessageEmbed.call(this, mapData, emote, guild, game, kcgmm);
+            await getMapMessageEmbed.call(this, mapData, emote, guild, game, kcgmm, {permanentOnly: opts.permanentOnly});
 
+        /** @type {Discord.Message=} */
+        let message;
         //Edit the interaction if this is an interaction
         if(interaction) {
-            await interaction.editReply({ embeds:[embed] }).then(message => {
-                if(opts.allowTemporaryDelete) userDeletionHandler(member, message, embed);
-            });
+            message = await interaction.editReply({ embeds:[embed] });
+            if(opts.allowTemporaryDelete && member) userDeletionHandler(member, message, embed);
         }
         //Otherwise send as regular message
         else {
-            await channel.send({ embeds:[embed] }).then(message => {
-                if(opts.allowTemporaryDelete) userDeletionHandler(member, message, embed);
-            });
+            message = await channel.send({ embeds:[embed] });
+            if(opts.allowTemporaryDelete && member) userDeletionHandler(member, message, embed);
         }
+
+        return message;
     }
 
     /**
@@ -556,16 +560,18 @@ async function getMultipleMapsMessageEmbed(maps, emoteStr, guild, game, kcgmm) {
  * @param {Discord.Guild} guild 
  * @param {string} game 
  * @param {KCGameMapManager} kcgmm
+ * @param {object} opts
+ * @param {boolean=} opts.permanentOnly //Only display permanent information, so exclude ratings/forum comment count
  * @returns {Promise<Discord.MessageEmbed>}
  */
-async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
+async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm, opts) {
     let emoteId = Bot.Util.getSnowflakeFromDiscordPing(emoteStr);
     let emote = emoteId ? guild.emojis.resolve(emoteId) : null;
 
     /** @type {number|null} */
     let forumMessagesCount = null;
 
-    if(mapData.game === 'cw4' && mapData.guid != null) {
+    if(mapData.game === 'cw4' && mapData.guid != null && !opts.permanentOnly) {
         var xml = await HttpRequest.get(`https://knucklecracker.com/creeperworld4/queryMapDetail.php?guid=${mapData.guid}`).catch(() => {});
         if(xml != null) {
             let data = await xml2js.parseStringPromise(xml).catch(() => {});
@@ -622,15 +628,17 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
     }
 
     //Rating/Upvotes/Downvotes
-    if(game === 'cw2')
-        str += `Rating: **${mapData.upvotes}**👍  **${mapData.downvotes}**👎`;
-    else if(game === 'cw4')
-        str += `Rating: **${mapData.upvotes}**👍`;
-    else if(game === 'cw1')
-        str += `Rating: **${mapData.rating}/5** (${mapData.ratings} ratings)`;
-    else
-        str += `Rating: **${mapData.rating}** (${mapData.ratings} ratings)`;
-    str += '\n';
+    if(!opts.permanentOnly) {
+        if(game === 'cw2')
+            str += `Rating: **${mapData.upvotes}**👍  **${mapData.downvotes}**👎`;
+        else if(game === 'cw4')
+            str += `Rating: **${mapData.upvotes}**👍`;
+        else if(game === 'cw1')
+            str += `Rating: **${mapData.rating}/5** (${mapData.ratings} ratings)`;
+        else
+            str += `Rating: **${mapData.rating}** (${mapData.ratings} ratings)`;
+        str += '\n';
+    }
 
     //Tags
     if(mapData.tags) {
@@ -653,7 +661,7 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm) {
     if(mapData.desc != null && mapData.desc.length > 0) {
         embed.fields.push({
             name: ':envelope: Description',
-            value: mapData.desc,
+            value: mapData.desc.replaceAll('https://', '').replaceAll('http://', ''),
             inline: false
         });
     }

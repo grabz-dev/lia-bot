@@ -69,37 +69,4 @@ export default class DMD extends Bot.Module {
             return null;
         });
     }
-
-    /**
-     * @param {Discord.CommandInteraction<"cached">} interaction 
-     * @param {Discord.Guild} guild
-     * @param {string} game
-     * @param {string} emote
-     * @param {string} id
-     */
-    emote(interaction, guild, game, emote, id) {
-        this.bot.sql.transaction(async query => {
-            await interaction.deferReply();
-            let emoji = guild.emojis.resolve(id);
-            if(!emoji) {
-                interaction.editReply(this.bot.locale.category('emotes', 'err_emote_not_on_server')).catch(logger.error);
-                return;
-            }
-
-            /** @type {any[]} */
-            let results = (await query(`SELECT game, emote FROM emotes_game
-                                        WHERE guild_id = '${guild.id}' AND game = '${game}'
-                                        FOR UPDATE`)).results;
-            if(results.length > 0) {
-                await query(`UPDATE emotes_game SET emote = '${emote}'
-                             WHERE guild_id = '${guild.id}' AND game = '${game}'`);
-            }
-            else {
-                await query(`INSERT INTO emotes_game (guild_id, game, emote)
-                             VALUES ('${guild.id}', '${game}', '${emote}')`);
-            }
-
-            await interaction.editReply(this.bot.locale.category("emotes", "success")).catch(logger.error);
-        }).catch(logger.error);
-    }
 }
