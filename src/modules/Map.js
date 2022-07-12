@@ -398,9 +398,9 @@ export default class Map extends Bot.Module {
             inline: false,
         }
 
-        if(mapQueryData.game === 'cw4' && mapQueryData.type !== 'chronom') {
-            groupName = 'specialevent';
-        }
+        //if(mapQueryData.game === 'cw4' && mapQueryData.type !== 'chronom') {
+        //    groupName = 'specialevent';
+        //}
         let isUserFilterPF = mapQueryData.game === 'pf' && userName != null;
 
         if(mapQueryData.id)

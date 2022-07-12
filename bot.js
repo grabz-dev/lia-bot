@@ -49,7 +49,7 @@ core.on('ready', bot => {
             await kcgmm.readCacheCW2().catch(async e => {
                 logger.error(e);
                 await Bot.Util.Promise.sleep(1000);
-                await kcgmm.fetch('cw2').catch(logger.error);
+                //await kcgmm.fetch('cw2').catch(logger.error);
             });
             await Bot.Util.Promise.sleep(1000);
             await cwMaps.start(kcgmm, 'cw2').catch(logger.error);
@@ -58,7 +58,7 @@ core.on('ready', bot => {
             await kcgmm.readCacheCW1().catch(async e => {
                 logger.error(e);
                 await Bot.Util.Promise.sleep(1000);
-                await kcgmm.fetch('cw1').catch(logger.error);
+                //await kcgmm.fetch('cw1').catch(logger.error);
             });
             await Bot.Util.Promise.sleep(1000);
             await cwMaps.start(kcgmm, 'cw1').catch(logger.error);
@@ -72,8 +72,8 @@ core.on('ready', bot => {
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw3').catch(logger.error);
                 core.call(guild => { autopost.loop(guild); });
-            }, 1000 * 60 * 60 * 3);
-            setInterval(async () => {
+            }, 1000 * 60 * 60 * 6);
+            /*setInterval(async () => {
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw2').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
@@ -82,7 +82,7 @@ core.on('ready', bot => {
                 await kcgmm.fetch('cw1').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
                 await cwMaps.start(kcgmm, 'cw1').catch(logger.error);
-            }, 1000 * 60 * 60 * 96);
+            }, 1000 * 60 * 60 * 24);*/
         })();
 
         /** @type {import('./src/modules/Map.js').default} */
@@ -122,7 +122,7 @@ core.on('ready', bot => {
         autopost.map = map;
         autopost.kcgmm = kcgmm;
 
-        core.call(guild => { autopost.loop(guild); });
+        /* core.call(guild => { autopost.loop(guild); }); */
 
         setTimeout(() => {
             core.addLoop(1000 * 60 * 48, guild => { experience.loop(guild, kcgmm, champion); });

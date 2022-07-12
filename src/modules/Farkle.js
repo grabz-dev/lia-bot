@@ -802,7 +802,7 @@ export default class Farkle extends Bot.Module {
                         .setDescription('Start a solo Farkle game against me!')
                         .addIntegerOption(option =>
                             option.setName('goal')
-                                .setDescription('The match goal, between 1000 and 50000.')
+                                .setDescription('The match goal, between 1000 and 50000. 4000 is a good average game length.')
                                 .setRequired(true)
                         )
                 ).addSubcommand(subcommand =>
@@ -823,7 +823,7 @@ export default class Farkle extends Bot.Module {
                         .setDescription('If you\'re hosting a Farkle pre-game lobby, this will begin the game!')
                         .addIntegerOption(option =>
                             option.setName('goal')
-                                .setDescription('The match goal, between 1000 and 50000.')
+                                .setDescription('The match goal, between 1000 and 50000. 4000 is a good average game length.')
                                 .setRequired(true)
                         ).addIntegerOption(option =>
                             option.setName('opening_threshold')
