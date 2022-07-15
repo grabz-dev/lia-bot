@@ -33,13 +33,12 @@ export default class MessageLinker extends Bot.Module {
         const channelId = split[1];
         const messageId = split[2];
         message.guild.channels.fetch(channelId).then(channel => {
-            if(channel instanceof Discord.TextChannel) {
-                channel.messages.fetch(messageId).then(m => {
-                    if(!m.member || !m.guild) return;
-                    let embed = getEmbed(m, m.member, m.guild, `https://discord.com/channels/${split[0]}/${split[1]}/${split[2]}`);
-                    message.reply({ embeds: [embed] }).catch(logger.error);
-                }).catch(logger.error)
-            }
+            if(channel == null) return;
+            /** @type {Discord.TextChannel} */(channel)?.messages?.fetch(messageId).then(m => {
+                if(!m.member || !m.guild) return;
+                let embed = getEmbed(m, m.member, m.guild, `https://discord.com/channels/${split[0]}/${split[1]}/${split[2]}`);
+                message.reply({ embeds: [embed] }).catch(logger.error);
+            }).catch(logger.error)
         }).catch(logger.error);
     }
 }
