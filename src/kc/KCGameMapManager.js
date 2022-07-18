@@ -39,6 +39,7 @@
  * @property {number=} objectives - CW4 only. Objectives available on this map, as a byte.
  * @property {number=} timestamp - CW3, PF, CW4 only. Map upload unix timestamp. CW2 check for undefined.
  * @property {number=} version - CW4 only
+ * @property {string=} discordId - CW4 only for some maps. Discord thread ID
  */
 
 /**

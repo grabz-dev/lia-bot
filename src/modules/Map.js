@@ -646,7 +646,10 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm, opts) {
     }
     
     //Forum link
-    if(mapData.forumId != null) {
+    if(mapData.discordId != null && mapData.discordId.length > 0) {
+        str += `[Discord Thread](https://discord.com/channels/192420539204239361/${mapData.discordId}/)\n`;
+    }
+    else if(mapData.forumId != null) {
         str += `[Forum Thread ${forumMessagesCount != null ? `(${forumMessagesCount} comment${forumMessagesCount != 1 ? 's':''})` : ''}](https://knucklecracker.com/forums/index.php?topic=${mapData.forumId})\n`;
     }
 
