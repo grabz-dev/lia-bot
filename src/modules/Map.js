@@ -647,7 +647,14 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm, opts) {
     
     //Forum link
     if(mapData.discordId != null && mapData.discordId.length > 0) {
-        str += `[Discord Thread](https://discord.com/channels/192420539204239361/${mapData.discordId}/)\n`;
+        /** @type {string|null} */
+        let messageCount = null;
+        const thread = /** @type {any} */(await guild.channels.fetch(mapData.discordId));
+        if(thread instanceof Discord.ThreadChannel) {
+            if(thread.messageCount == null) messageCount = '0';
+            else messageCount = thread.messageCount >= 50 ? '50+' : `${thread.messageCount}`;
+        }
+        str += `[Discord Thread ${messageCount != null ? `(${messageCount} comment${messageCount != '1' ? 's':''})` : ''}](https://discord.com/channels/192420539204239361/${mapData.discordId}/)\n`;
     }
     else if(mapData.forumId != null) {
         str += `[Forum Thread ${forumMessagesCount != null ? `(${forumMessagesCount} comment${forumMessagesCount != 1 ? 's':''})` : ''}](https://knucklecracker.com/forums/index.php?topic=${mapData.forumId})\n`;
