@@ -489,20 +489,13 @@ export default class Map extends Bot.Module {
             let str = '';
             let map = maps[i];
 
-            switch(i) {
-            case 0: str += ':first_place:'; break;
-            case 1: str += ':second_place:'; break;
-            case 2: str += ':third_place:'; break;
-            case 3: str += ':chocolate_bar:'; break;
-            case 4: str += ':lollipop:'; break;
-            default: str += ':candy:'; break;
-            }
+            str += `${i + 1}: `;
 
             str += ` **#${map.id}**: ${map.title} __by ${map.author}__. `;
             switch(game) {
             case 'cw3':
             case 'pf': str += `**${map.rating}** rating (${map.ratings})`; break;
-            case 'cw4': str += `**${map.upvotes}** thumbsup`
+            case 'cw4': str += `**${map.upvotes}** 👍`
             }
 
             str += '\n';
@@ -510,6 +503,7 @@ export default class Map extends Bot.Module {
         }
 
         if(maps.length <= 0) field.value = 'Nothing to see here.';
+        else field.value += `\nList chosen from ${maps.length} maps.`;
 
         embed.fields.push(field);
 

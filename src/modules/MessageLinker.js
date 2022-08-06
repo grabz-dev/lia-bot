@@ -70,5 +70,20 @@ function getEmbed(message, member, guild, url) {
         text: `Message posted on ${Bot.Util.getFormattedDate(message.createdTimestamp, true)}`
     }
 
+
+    let imageAttachment = '';
+    for(const att of message.attachments.values()) {
+        if(att.contentType?.includes('image')) {
+            imageAttachment = att.proxyURL;
+            break;
+        }
+    }
+
+    if(imageAttachment.length > 0)
+        embed.image = {
+            url: imageAttachment,
+            proxyURL: imageAttachment
+        }
+
     return embed;
 }
