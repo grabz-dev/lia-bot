@@ -35,8 +35,7 @@ export default class MessageLinker extends Bot.Module {
         message.guild.channels.fetch(channelId).then(channel => {
             if(channel == null) return;
             /** @type {Discord.TextChannel} */(channel)?.messages?.fetch(messageId).then(m => {
-                if(!m.member || !m.guild) return;
-                let embed = getEmbed(m, m.member, m.guild, `https://discord.com/channels/${split[0]}/${split[1]}/${split[2]}`);
+                let embed = getEmbed(m, m.member, m.author, `https://discord.com/channels/${split[0]}/${split[1]}/${split[2]}`);
                 message.reply({ embeds: [embed] }).catch(logger.error);
             }).catch(logger.error)
         }).catch(logger.error);
@@ -46,19 +45,19 @@ export default class MessageLinker extends Bot.Module {
 /**
  * 
  * @param {Discord.Message} message 
- * @param {Discord.GuildMember} member
- * @param {Discord.Guild} guild
+ * @param {Discord.GuildMember|null} member
+ * @param {Discord.User} user
  * @param {string} url
  * @returns {Discord.MessageEmbed}
  */
-function getEmbed(message, member, guild, url) {
+function getEmbed(message, member, user, url) {
     let embed = new Discord.MessageEmbed({
         
     });
 
     embed.author = {
-        name: `${(member.nickname??member.user.username)}#${member.user.discriminator} said:`,
-        iconURL: member.user.avatarURL() || member.user.defaultAvatarURL
+        name: `${(member?.nickname??user.username)}#${user.discriminator} said:`,
+        iconURL: user.avatarURL() || user.defaultAvatarURL
     }
     embed.description = message.content;
     embed.fields = [{
