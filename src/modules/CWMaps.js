@@ -28,6 +28,8 @@ import { HttpRequest } from '../utils/HttpRequest.js';
 import jsdom from 'jsdom';
 const { JSDOM } = jsdom;
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+
 const URLs = {
     cw2: "https://knucklecracker.com/forums/index.php?topic=",
     cw1: "https://knucklecracker.com/creeperworld/mapcomments.php?id="
@@ -198,9 +200,11 @@ export default class CWMaps extends Bot.Module {
             }
 
             if(game === 'cw2') {
-                const dateStr = document.querySelector('.time_posted')?.childNodes[1]?.textContent?.trim();
-                if(dateStr == null) { await exit(`Failed to find date in page at ${url}`); continue; }
+                let dateStr = document.querySelector('.time_posted')?.childNodes[1]?.textContent?.trim();
+                console.log(dateStr);
+                if(dateStr == null) { await exit(`Failed to find date in page at ${url}, ${dateStr}`); continue; }
                 const date = new Date(dateStr);
+                if(!Number.isFinite(+date.getTime())) { await exit(`Failed to find date in page at ${url}, ${dateStr}`); continue; }
                 await query(`INSERT INTO cw2_maps (id, timestamp) VALUES (?, ?)`, [map.id, date.getTime()]);
                 log(`New CW2 map upload date inserted. ID: ${map.id}, date: ${date}`);
             }

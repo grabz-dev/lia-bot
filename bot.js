@@ -71,9 +71,9 @@ core.on('ready', bot => {
                 await kcgmm.fetch('pf').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw3').catch(logger.error);
-                core.call(guild => { autopost.loop(guild); });
+                /* core.call(guild => { autopost.loop(guild); }); */
             }, 1000 * 60 * 60 * 6);
-            /*setInterval(async () => {
+            setInterval(async () => {
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw2').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
@@ -82,7 +82,7 @@ core.on('ready', bot => {
                 await kcgmm.fetch('cw1').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
                 await cwMaps.start(kcgmm, 'cw1').catch(logger.error);
-            }, 1000 * 60 * 60 * 24);*/
+            }, 1000 * 60 * 60 * 24 * 7);
         })();
 
         /** @type {import('./src/modules/Map.js').default} */
