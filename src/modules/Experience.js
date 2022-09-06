@@ -888,7 +888,7 @@ export default class Experience extends Bot.Module {
             fieldXp.value += `\`\`\`${expBarNew}\`\`\``;
 
             let fieldNewMaps = {
-                name: emote + ' ' + this.bot.locale.category('experience', 'embed_results_title_2', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown', KCLocaleManager.getDisplayNameFromAlias('map_mode_custom', `${game}_custom`)),
+                name: emote + ' ' + this.bot.locale.category('experience', 'embed_results_title_2', KCLocaleManager.getDisplayNameFromAlias('game', game) || 'unknown'),
                 value: '',
                 inline: false
             };

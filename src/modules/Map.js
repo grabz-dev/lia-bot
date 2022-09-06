@@ -367,13 +367,21 @@ export default class Map extends Bot.Module {
         //Edit the interaction if this is an interaction
         if(interaction) {
             message = await interaction.editReply({ embeds:[embed] });
-            if(opts.allowTemporaryDelete && member) userDeletionHandler(member, message, embed);
         }
         //Otherwise send as regular message
         else {
             message = await channel.send({ embeds:[embed] });
-            if(opts.allowTemporaryDelete && member) userDeletionHandler(member, message, embed);
         }
+
+        /** @type {Discord.Message=} */
+        let forumMessage;
+        if(!(mapData instanceof Array) && mapData.discordId != null && this.autoMap[channel.name] != null) {
+            let forumChannel = await message.guild?.channels.fetch(mapData.discordId).catch(() => undefined);
+            if(forumChannel != null)
+                forumMessage = await /** @type {Discord.TextChannel} */(forumChannel)?.send(`This map was mentioned here: https://discord.com/channels/${channel.guildId}/${channel.id}/${message.id}`).catch(() => undefined);
+        }
+
+        if(opts.allowTemporaryDelete && member) userDeletionHandler(member, message, embed, forumMessage);
 
         return message;
     }
@@ -703,8 +711,9 @@ function getEmbedTemplate(game, emote, thumbnail, thumbnailURL) {
  * @param {Discord.GuildMember} member
  * @param {Discord.Message} message
  * @param {Discord.MessageEmbed} embed
+ * @param {Discord.Message=} forumMessage
  */
-function userDeletionHandler(member, message, embed) {
+function userDeletionHandler(member, message, embed, forumMessage) {
     const collector = message.createReactionCollector({
         time: 1000 * 60 * 1,
     })
@@ -718,6 +727,7 @@ function userDeletionHandler(member, message, embed) {
             switch(reaction.emoji.name) {
             case '❌':
                 message.delete().catch(logger.error);
+                if(forumMessage != null) forumMessage.delete().catch(logger.error); 
                 break;
             }
         }
