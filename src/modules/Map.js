@@ -67,6 +67,13 @@ export default class Map extends Bot.Module {
             var count = 0;
             //Go through all the splits, ignoring the first one which is either empty or meaningless.
             for(let i = 1; i < arr.length; i++) {
+                //Discard entries not beginning with a space if not at the beginning of the message
+                const leadingChar = arr[i - 1].slice(-1);
+                if(i - 1 === 0) {
+                    if(leadingChar !== '' && leadingChar !== ' ') continue;
+                }
+                else if(leadingChar !== ' ') continue;
+
                 //Discard all non alphanumeric characters from this split.
                 const id = +arr[i].split(/[^a-zA-Z0-9]/)[0];
                 //If the result is not a number, discard this split.
