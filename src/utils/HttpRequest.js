@@ -30,10 +30,10 @@ HttpRequest.get = function(url, isXml) {
             });
 
             response.on('error', err => {
-                reject(err);
+                reject(new Error(err+''));
             });
         }).on('error', err => {
-            reject(err);
+            reject(new Error(err+''));
         });
     });
 }
@@ -60,7 +60,7 @@ HttpRequest.getGzipped = function(url) {
             }).on('end', () => {
                 //response and decompression complete, join the buffer and return
                 resolve(buffer.join(''));
-            }).on('error', err => reject(err));
-        }).on('error', err => reject(err));
+            }).on('error', err => reject(new Error(err+'')));
+        }).on('error', err => reject(new Error(err+'')));
     });
 }

@@ -425,6 +425,10 @@ export default class Map extends Bot.Module {
 
         let max = 15;
         let leaderboard = await kcgmm.getMapScores(mapQueryData, userName, groupName);
+        if(leaderboard == null) {
+            await interaction.editReply({ content: "Failed to get map scores." });
+            return;
+        }
         /** @type {KCGameMapManager.MapLeaderboardEntry[]} */
         let entries = leaderboard.entries[mapQueryData.objective??0]??[];
 

@@ -113,7 +113,7 @@ export default class Chronom extends Bot.Module {
                 return;
             };
 
-            /** @type {({timestamp: number, leaderboard: Promise<KCGameMapManager.MapLeaderboard>, leaderboardScores: Promise<KCGameMapManager.MapLeaderboard>})[]} */
+            /** @type {({timestamp: number, leaderboard: Promise<KCGameMapManager.MapLeaderboard|null>, leaderboardScores: Promise<KCGameMapManager.MapLeaderboard|null>})[]} */
             let arr = [];
             for(let i = 0; i < this.days; i++) {
                 let timestamp = now - (1000 * 60 * 60 * 24 * i);
@@ -122,6 +122,7 @@ export default class Chronom extends Bot.Module {
                     type: 'chronom',
                     timestamp: timestamp
                 }
+                
                 arr[i] = {
                     timestamp: timestamp,
                     leaderboard: kcgmm.getMapScores(msqd, undefined, 'specialevent', { removeMverseTag: true }),
@@ -132,10 +133,18 @@ export default class Chronom extends Bot.Module {
             /** @type {({timestamp: number, leaderboard: KCGameMapManager.MapLeaderboard, leaderboardScores: KCGameMapManager.MapLeaderboard})[]} */
             let arr2 = [];
             for(let i = 0; i < this.days; i++) {
+                const leaderboard = await arr[i].leaderboard;
+                const leaderboardScores = await arr[i].leaderboardScores;
+
+                if(leaderboard == null || leaderboardScores == null) {
+                    if(m?.interaction) await m.interaction.editReply('Failed to get map scores.');
+                    throw new Error("Failed to get map scores.");
+                }
+
                 arr2[i] = {
                     timestamp: arr[i].timestamp,
-                    leaderboard: await arr[i].leaderboard,
-                    leaderboardScores: await arr[i].leaderboardScores
+                    leaderboard,
+                    leaderboardScores
                 }
             }
 

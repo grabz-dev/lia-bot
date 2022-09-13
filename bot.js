@@ -126,7 +126,7 @@ core.on('ready', bot => {
 
         setTimeout(() => {
             core.addLoop(1000 * 60 * 48, guild => { experience.loop(guild, kcgmm, champion); });
-        }, 9000);
+        }, 12000);
         setTimeout(() => {
             core.addLoop(1000 * 60 * 5, guild => { hurtheal.loop(guild); });
         }, 20000);
@@ -135,7 +135,7 @@ core.on('ready', bot => {
         }, 5000);
         setTimeout(() => {
             core.addLoop(1000 * 60 * 14, guild => { competition.loop(guild, kcgmm, champion); });
-        }, 5000);
+        }, 8000);
 
 
         (() => {

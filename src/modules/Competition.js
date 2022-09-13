@@ -822,6 +822,10 @@ export default class Competition extends Bot.Module {
                 let map = getMapScoreQueryDataFromDatabase(resultMaps);
 
                 const fullMapLeaderboard = await kcgmm.getMapScores(map, undefined, "specialevent");
+                if(fullMapLeaderboard == null) {
+                    if(interaction) await interaction.editReply("Failed to end competition.");
+                    throw new Error("Failed to get map scores.");
+                }
                 const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(query, guild, map.game, fullMapLeaderboard);
                 
                 maps.set(resultMaps, registeredMapLeaderboard);
@@ -1098,6 +1102,9 @@ export default class Competition extends Bot.Module {
                 let map = getMapScoreQueryDataFromDatabase(resultMaps);
 
                 const fullMapLeaderboard = await kcgmm.getMapScores(map, undefined, "specialevent");
+                if(fullMapLeaderboard == null) {
+                    throw new Error("Failed to get map scores.");
+                }
                 const registeredMapLeaderboard = await getMapLeaderboardWithOnlyRegisteredUsers.bind(this)(query, guild, map.game, fullMapLeaderboard);
 
                 const emote = (emotes && map.game && emotes[map.game]) ? emotes[map.game] : ":map:";

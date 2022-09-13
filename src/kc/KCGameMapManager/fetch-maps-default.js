@@ -23,16 +23,14 @@ export async function fetchMapsDefault(game) {
 
     let url = `https://knucklecracker.com/${urlStr}/queryMaps.php?query=maplist`;
 
-    while(true) {
-        try {
-            var xml = await HttpRequest.getGzipped(url);
-            break;
-        }
-        catch(err) {
-            logger.error(err);
-            continue;
-        }
+
+    try {
+        var xml = await HttpRequest.getGzipped(url);
     }
+    catch(err) {
+        throw err;
+    }
+
     
     let data = await xml2js.parseStringPromise(xml);
 

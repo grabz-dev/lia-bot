@@ -129,7 +129,7 @@ export function KCGameMapManager(options, locale) {
      * @param {string=} userName
      * @param {string=} groupName
      * @param {{removeMverseTag?: boolean}=} options
-     * @returns {Promise<MapLeaderboard>} 
+     * @returns {Promise<MapLeaderboard|null>} 
      */
     this.getMapScores = async function(mapScoreQueryData, userName, groupName, options) {
         if(mapScoreQueryData.game === 'cw1') {
@@ -142,8 +142,16 @@ export function KCGameMapManager(options, locale) {
                 throw "Invalid score query data " + JSON.stringify(mapScoreQueryData);
 
             const game = mapScoreQueryData.game;
-            const xml = await HttpRequest.get(url);
-            let data = await xml2js.parseStringPromise(xml);
+
+            let xml;
+            let data;
+            try {
+                xml = await HttpRequest.get(url);
+                data = await xml2js.parseStringPromise(xml);
+            } catch(e) {
+                logger.warn(`Could not get map scores. xml: ${(xml+'').replaceAll('\n','')}, data: ${data+''}`);
+                return null;
+            }
 
             if(game === 'cw4') {
                 /** @type {Array<MapLeaderboardEntry[]>} */
@@ -248,6 +256,7 @@ export function KCGameMapManager(options, locale) {
      */
     this.getMapCompleted = async function(mapScoreQueryData, name, groupName, options) {
         let leaderboard = await this.getMapScores(mapScoreQueryData, name, groupName, options);
+        if(leaderboard == null) return false;
 
         for(let scores of leaderboard.entries)
             if(scores && scores.find(entry => entry.user === name)) return true;

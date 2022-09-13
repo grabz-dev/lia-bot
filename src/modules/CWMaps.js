@@ -201,7 +201,6 @@ export default class CWMaps extends Bot.Module {
 
             if(game === 'cw2') {
                 let dateStr = document.querySelector('.time_posted')?.childNodes[1]?.textContent?.trim();
-                console.log(dateStr);
                 if(dateStr == null) { await exit(`Failed to find date in page at ${url}, ${dateStr}`); continue; }
                 const date = new Date(dateStr);
                 if(!Number.isFinite(+date.getTime())) { await exit(`Failed to find date in page at ${url}, ${dateStr}`); continue; }
