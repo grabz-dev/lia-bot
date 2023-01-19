@@ -232,7 +232,7 @@ export default class Competition extends Bot.Module {
         case 'pinmania':
         case 'setchannel':
         case 'destroy':
-        case 'build_tally':
+        case 'buildtally':
         case 'end':
         case 'intro':
         case 'unregister':
@@ -280,7 +280,7 @@ export default class Competition extends Bot.Module {
             return this.destroy(interaction, guild);
         case 'update':
             return this.update(interaction, guild, this.kcgmm);
-        case 'build_tally':
+        case 'buildtally':
             return this.buildTally(interaction, guild, channel, this.champion);
         case 'end':
             return this.end(interaction, guild, this.kcgmm, this.champion);
@@ -441,6 +441,9 @@ export default class Competition extends Bot.Module {
                 ).addSubcommand(subcommand =>
                     subcommand.setName('destroy')
                         .setDescription('[Mod] Erase the current Competition as if it never happened.')
+                ).addSubcommand(subcommand =>
+                    subcommand.setName('buildtally')
+                        .setDescription('[Mod] Rebuild the last competition point tally.')
                 ).addSubcommand(subcommand =>
                     KCUtil.fillScoreSlashCommandChoices(subcommand
                     .setName('addmap')
@@ -1220,7 +1223,7 @@ async function buildScoreTally(guild, channel, query, champion) {
                     champions.set(resultScores.user_id, true);
                 }
                 else {
-                    players.set(resultScores.user_id, { points: points, champion: false, weeks: Math.max(0, player?.weeks??0) });
+                    players.set(resultScores.user_id, { points: points, champion: player?.champion??false, weeks: Math.max(0, player?.weeks??0) });
                 }
             }
         }

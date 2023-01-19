@@ -384,7 +384,8 @@ export default class Map extends Bot.Module {
         let forumMessage;
         if(!(mapData instanceof Array) && mapData.discordId != null && this.autoMap[channel.name] != null) {
             let forumChannel = await message.guild?.channels.fetch(mapData.discordId).catch(() => undefined);
-            if(forumChannel != null)
+            // @ts-ignore
+            if(forumChannel != null && forumChannel.send != null)
                 forumMessage = await /** @type {Discord.TextChannel} */(forumChannel)?.send(`This map was mentioned here: https://discord.com/channels/${channel.guildId}/${channel.id}/${message.id}`).catch(() => undefined);
         }
 
@@ -664,7 +665,7 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm, opts) {
         let messageCount = null;
         const thread = /** @type {any} */(await guild.channels.fetch(mapData.discordId));
         if(thread instanceof Discord.ThreadChannel) {
-            if(thread.messageCount == null) messageCount = '0';
+            if(thread.messageCount == null) messageCount = null;
             else messageCount = thread.messageCount >= 50 ? '50+' : `${thread.messageCount}`;
         }
         str += `[Discord Thread ${messageCount != null ? `(${messageCount} comment${messageCount != '1' ? 's':''})` : ''}](https://discord.com/channels/192420539204239361/${mapData.discordId}/)\n`;

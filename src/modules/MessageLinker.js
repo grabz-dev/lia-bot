@@ -62,13 +62,9 @@ function getEmbed(message, member, user, url) {
     embed.description = message.content;
     embed.fields = [{
         name: 'Source',
-        value: `[Jump to message](${url}) in <#${message.channel.id}>`,
+        value: `[Jump to message](${url}) posted on <t:${Math.trunc(message.createdTimestamp/1000)}:f> in <#${message.channel.id}>`,
         inline: false
     }];
-    embed.footer = {
-        text: `Message posted on ${Bot.Util.getFormattedDate(message.createdTimestamp, true)}`
-    }
-
 
     let imageAttachment = '';
     for(const att of message.attachments.values()) {
