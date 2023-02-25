@@ -3,7 +3,6 @@
 /** @typedef {import('discord-bot-core/src/structures/SQLWrapper').Query} SQLWrapper.Query */
 
 /** @typedef {import('../modules/Competition').Db.competition_history_competitions} Db.competition_history_competitions */
-/** @typedef {import('../modules/Competition').Db.competition_history_maps} Db.competition_history_maps */
 /** @typedef {import('../modules/Competition').Db.competition_history_scores} Db.competition_history_scores */
 
 import Discord from 'discord.js';

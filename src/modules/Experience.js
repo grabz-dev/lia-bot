@@ -720,7 +720,7 @@ export default class Experience extends Bot.Module {
                 totalExp += this.managers.campaign.getExpFromMaps(data_campaign.mapsTotalCompleted, totalCompleted);
                 totalExp += this.managers.markv.getExpFromMaps(data_markv.mapsTotalCompleted, totalCompleted);
 
-                embed.description = await getProfileInfoString.call(this, totalCompleted, resultUsers, query, kcgmm, mapListId, guild, member, game);
+                embed.description = await getProfileInfoString.call(this, {totalCompletedNew: totalCompleted}, resultUsers, query, kcgmm, mapListId, guild, member, game);
 
                 let expData = getExpDataFromTotalExp(totalExp);
 
@@ -861,7 +861,7 @@ export default class Experience extends Bot.Module {
             
             let embed = getEmbedTemplate(member);
             embed.color = KCUtil.gameEmbedColors[game];
-            embed.description = await getProfileInfoString.call(this, totalCompletedNew, resultUsers, query, kcgmm, mapListId, guild, member, game);
+            embed.description = await getProfileInfoString.call(this, {totalCompletedOld, totalCompletedNew: totalCompletedNew}, resultUsers, query, kcgmm, mapListId, guild, member, game);
 
             embed.fields = [];
             
@@ -1248,7 +1248,7 @@ async function getLeaderboard(query, kcgmm, mapListId, guild, game) {
     /** @type {{resultUser: Db.experience_users, total: ExpData}[]} */
     let leaders = [];
     for(let resultUser of resultsUsers) {
-        if(!guild.members.cache.get(resultUser.user_id)) continue;
+        //if(!guild.members.cache.get(resultUser.user_id)) continue;
 
         const data_custom = await this.managers.custom.leaderboard(query, resultUser, mapListId);
         const data_campaign = await this.managers.campaign.leaderboard(query, resultUser);
@@ -1389,7 +1389,7 @@ function getMapListArray(kcgmm, game) {
 
 /**
  * @this {Experience}
- * @param {number} totalCompletedNew
+ * @param {{totalCompletedNew: number, totalCompletedOld?: number}} totals
  * @param {Db.experience_users} resultUsers
  * @param {SQLWrapper.Query} query
  * @param {KCGameMapManager} kcgmm 
@@ -1399,9 +1399,10 @@ function getMapListArray(kcgmm, game) {
  * @param {string} game
  * @returns {Promise<string>}
  */
-async function getProfileInfoString(totalCompletedNew, resultUsers, query, kcgmm, mapListId, guild, member, game) {
-    const xpMult = Math.ceil(this.getExpMultiplier(totalCompletedNew) * 100)/100;
-    let str = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed **${totalCompletedNew}** maps (XP mult: **${xpMult >= 1000 ? this.prettify(xpMult) : xpMult}x**)`;
+async function getProfileInfoString(totals, resultUsers, query, kcgmm, mapListId, guild, member, game) {
+    const xpMultNew = Math.ceil(this.getExpMultiplier(totals.totalCompletedNew) * 100)/100;
+    const xpMultOld = totals.totalCompletedOld == null ? null : Math.ceil(this.getExpMultiplier(totals.totalCompletedOld) * 100)/100;
+    let str = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed ${totals.totalCompletedOld != null ? `${totals.totalCompletedOld} -> ` : ''}**${totals.totalCompletedNew}** maps (XP mult: ${xpMultOld != null ? `${xpMultOld >= 1000 ? this.prettify(xpMultOld) : xpMultOld}x -> ` : ''}**${xpMultNew >= 1000 ? this.prettify(xpMultNew) : xpMultNew}x**)`;
     
     const leaders = await getLeaderboard.call(this, query, kcgmm, mapListId, guild, game);
     const leader = leaders.find(v => v.resultUser.user_id === member.id);

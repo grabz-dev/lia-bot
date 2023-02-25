@@ -16,6 +16,7 @@ import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
 import { SQLUtil } from '../kc/SQLUtil.js';
 import mysql from 'mysql';
+import { campaign } from '../kc/CampaignConfig.js';
 
 /**
  * @typedef {object} Db.competition_main
@@ -45,6 +46,7 @@ import mysql from 'mysql';
  * @property {string|null} name - CW2 code map/CW4 markv name.
  * @property {number|null} objective - CW4 objective
  * @property {number|null} timestamp - CW4 chronom timestamp
+ * @property {string|null} guid - map guid for campaign maps
  */
 
  /**
@@ -66,6 +68,7 @@ import mysql from 'mysql';
  * @property {string|null} name - CW2 code map/CW4 markv name.
  * @property {number|null} objective - CW4 objective
  * @property {number|null} timestamp - CW4 chronom timestamp
+ * @property {string|null} guid - map guid for campaign maps
  */
 
  /**
@@ -158,7 +161,8 @@ export default class Competition extends Bot.Module {
                 complexity TINYINT UNSIGNED,
                 name VARCHAR(128) BINARY,
                 objective TINYINT UNSIGNED,
-                timestamp BIGINT UNSIGNED
+                timestamp BIGINT UNSIGNED,
+                guid VARCHAR(64)
              )`);
 
             await query(`CREATE TABLE IF NOT EXISTS competition_history_competitions (
@@ -177,7 +181,8 @@ export default class Competition extends Bot.Module {
                 complexity TINYINT UNSIGNED,
                 name VARCHAR(128) BINARY,
                 objective TINYINT UNSIGNED,
-                timestamp BIGINT UNSIGNED
+                timestamp BIGINT UNSIGNED,
+                guid VARCHAR(64)
              )`);
 
             await query(`CREATE TABLE IF NOT EXISTS competition_history_scores (
@@ -209,6 +214,9 @@ export default class Competition extends Bot.Module {
             await query(`ALTER TABLE competition_main ADD COLUMN chronom_intro_message_id VARCHAR(64)`).catch(() => {});
             await query(`ALTER TABLE competition_main ADD COLUMN champion_intro_message_id VARCHAR(64)`).catch(() => {});
             await query(`ALTER TABLE competition_main ADD COLUMN chronom_leaders_message_id VARCHAR(64)`).catch(() => {});
+
+            await query(`ALTER TABLE competition_maps ADD COLUMN guid VARCHAR(64)`).catch(() => {});
+            await query(`ALTER TABLE competition_history_maps ADD COLUMN guid VARCHAR(64)`).catch(() => {});
         }).catch(logger.error);
     }
 
@@ -337,8 +345,9 @@ export default class Competition extends Bot.Module {
             let size = interaction.options.getString('size');
             let complexity = interaction.options.getString('complexity');
             let gameUID = interaction.options.getString('gameuid');
+            let campaign = interaction.options.getString('campaign');
 
-            const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, gameUID);
+            const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, campaign);
             if(data.err != null) {
                 await interaction.reply({ content: data.err });
                 return;
@@ -698,7 +707,8 @@ export default class Competition extends Bot.Module {
             AND complexity ${msqd.complexity == null ? 'IS NULL' : `= ${mysql.escape(msqd.complexity)}`}
             AND name ${msqd.name == null ? 'IS NULL' : `= ${mysql.escape(msqd.name)}`}
             AND objective ${msqd.objective == null ? 'IS NULL' : `= ${mysql.escape(msqd.objective)}`}
-            AND timestamp ${msqd.timestamp == null ? 'IS NULL' : `= ${mysql.escape(msqd.timestamp)}`}`;
+            AND timestamp ${msqd.timestamp == null ? 'IS NULL' : `= ${mysql.escape(msqd.timestamp)}`}
+            AND guid ${msqd.gameUID == null ? 'IS NULL' : `= ${mysql.escape(msqd.gameUID)}`}`;
 
             switch(type) {
             case "removemap":
@@ -728,8 +738,8 @@ export default class Competition extends Bot.Module {
                     return;
                 }
 
-                await query(`INSERT INTO competition_maps (guild_id, game, type, map_id, size, complexity, name, objective, timestamp)
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`, [guild.id, game, msqd.type, msqd.id, msqd.size, msqd.complexity, msqd.name, msqd.objective, msqd.timestamp]);
+                await query(`INSERT INTO competition_maps (guild_id, game, type, map_id, size, complexity, name, objective, timestamp, guid)
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [guild.id, game, msqd.type, msqd.id, msqd.size, msqd.complexity, msqd.name, msqd.objective, msqd.timestamp, msqd.gameUID]);
 
                 await interaction.editReply(this.bot.locale.category("competition", "addmap_success"));
                 break;
@@ -852,8 +862,8 @@ export default class Competition extends Bot.Module {
                 VALUES ('${guild.id}', '${now}')`)).results;
 
             for(let map of maps.keys()) {
-                let insertMaps = (await query(`INSERT INTO competition_history_maps (id_competition_history_competitions, game, type, map_id, size, complexity, name, objective, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [insertComps.insertId, map.game, map.type, map.map_id, map.size, map.complexity, map.name, map.objective, map.timestamp])).results;
+                let insertMaps = (await query(`INSERT INTO competition_history_maps (id_competition_history_competitions, game, type, map_id, size, complexity, name, objective, timestamp, guid)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [insertComps.insertId, map.game, map.type, map.map_id, map.size, map.complexity, map.name, map.objective, map.timestamp, map.guid])).results;
 
                 let leaderboard = /** @type {KCGameMapManager.MapLeaderboard} */(maps.get(map));
                 let entries = leaderboard.entries[map.objective == null ? 0 : map.objective];
@@ -1491,6 +1501,25 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
             value += `Objective: **${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapScoreQueryData.objective+'')}**`;
             break;
         }
+        case 'misc': {
+            let stories = campaign[/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'}  */(mapScoreQueryData.game)]
+
+            let category = '';
+            let mapName = '';
+            for(const story of stories) {
+                let map = story.maps.find(v => v.gameUID === mapScoreQueryData.gameUID)
+                if(map != null) {
+                    mapName = map.name;
+                    category = map.categoryOverride ?? story.name;
+                    break;
+                }
+            }
+            if(category.length > 0 && mapName.length > 0) {
+                name = `${emoteStr} ${category}`;
+                value += `${mapName}\nObjective: **${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapScoreQueryData.objective+'')}**`;
+                break;
+            }
+        }
         default:
             if(!mapData) {
                 name = ":warning: Uh oh";
@@ -1665,7 +1694,8 @@ function getMapScoreQueryDataFromDatabase(resultMaps) {
         complexity: resultMaps.complexity ?? undefined,
         name: resultMaps.name ?? undefined,
         objective: resultMaps.objective ?? undefined,
-        timestamp: resultMaps.timestamp ?? undefined, 
+        timestamp: resultMaps.timestamp ?? undefined,
+        gameUID: resultMaps.guid ?? undefined,
     }
 }
 
@@ -1732,7 +1762,8 @@ async function getMapAlreadyFeaturedInPreviousCompetition(query, guild, game, ms
         AND chm.complexity ${msqd.complexity == null ? 'IS NULL' : `= ${mysql.escape(msqd.complexity)}`}
         AND chm.name ${msqd.name == null ? 'IS NULL' : `= ${mysql.escape(msqd.name)}`}
         AND chm.objective ${msqd.objective == null ? 'IS NULL' : `= ${mysql.escape(msqd.objective)}`}
-        AND chm.timestamp ${msqd.timestamp == null ? 'IS NULL' : `= ${mysql.escape(msqd.timestamp)}`}`)).results;
+        AND chm.timestamp ${msqd.timestamp == null ? 'IS NULL' : `= ${mysql.escape(msqd.timestamp)}`}
+        AND chm.guid ${msqd.gameUID == null ? 'IS NULL' : `= ${mysql.escape(msqd.gameUID)}`}`)).results;
     if(resultsHistoryMaps.length > 0) return true;
     return false;
 }
