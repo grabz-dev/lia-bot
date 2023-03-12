@@ -354,7 +354,7 @@ export default class HurtHeal extends Bot.Module {
      * @param {SQLWrapper.Query} query
      * @param {Discord.CommandInteraction<"cached">|Discord.Message} interaction
      * @param {Discord.Guild} guild
-     * @param {string | Discord.MessagePayload | Discord.MessageOptions} botMessage
+     * @param {string | Discord.MessagePayload | Discord.MessageCreateOptions} botMessage
      * @param {boolean} botMessageDelete
      * @returns {Promise<Discord.Message>}
      */
@@ -381,7 +381,7 @@ export default class HurtHeal extends Bot.Module {
      * @param {Discord.CommandInteraction<"cached">|Discord.Message} interaction
      * @param {SQLWrapper.Query} query 
      * @param {Discord.Guild} guild
-     * @param {Discord.MessageEmbed} embed
+     * @param {Discord.APIEmbed} embed
      * @param {boolean=} noRegister - Don't register this message as one that should be deleted later
      * @param {Db.hurtheal_games=} game - Database game ID. Only include this if you want the message to include the image chart of the game
      */
@@ -425,7 +425,7 @@ export default class HurtHeal extends Bot.Module {
      * @param {(Db.hurtheal_actions[])=} options.allActions
      * @param {('hurt'|'heal'|'decay')=} options.action - If undefined, no action was taken
      * @param {boolean=} options.gameOver - Is the game over
-     * @returns {Promise<Discord.MessageEmbed>}
+     * @returns {Promise<Discord.APIEmbed>}
      */
     async getGameStandingsEmbed(guild, options) {
         const game = options.game;
@@ -435,13 +435,14 @@ export default class HurtHeal extends Bot.Module {
         const things = options.things;
         const gameOver = options.gameOver;
 
-        var embed = new Discord.MessageEmbed({
+        /** @type {Discord.APIEmbed} */
+        var embed = {
             color: 14211288,
-            timestamp: Date.now(),
+            timestamp: new Date().toISOString(),
             footer: {
                 text: `\`/hh rules\` for help${game != null ? ` • Game ${game.id}` : ''}`
             }
-        });
+        };
         if(action == 'hurt') embed.color = 16731994;
         else if(action == 'heal') embed.color = 6214143;
         else if(action == 'decay') embed.color = 16153855;
@@ -471,7 +472,7 @@ export default class HurtHeal extends Bot.Module {
                 
                 let str = (() => {
                     if(action.action === 'decay') return `<@${action.user_id}> reduced the health of all items by 1 due to daily decay.`;
-                    return `${missing ? 'Missing user' : `<@${action.user_id}>`} ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${missing ? '' : ` ${action.reason ? Discord.Util.escapeMarkdown(action.reason) : ''}`}`;
+                    return `${missing ? 'Missing user' : `<@${action.user_id}>`} ${this.dictionary[action.action]} ${thing ? `**${thing.name}**` : 'unknown'} ${missing ? '' : ` ${action.reason ? Discord.escapeMarkdown(action.reason) : ''}`}`;
                 })();
                 if(i < this.lastActionsCounted) str = `\\> ${str}`;
                 embed.description += `${str}\n`;
@@ -515,6 +516,8 @@ export default class HurtHeal extends Bot.Module {
      * @returns {boolean}
      */
     interactionPermitted(interaction, guild, member) {
+        if(!interaction.isChatInputCommand()) return false;
+
         const subcommandName = interaction.options.getSubcommand();
         switch(subcommandName) {
         case 'rules':
@@ -546,6 +549,8 @@ export default class HurtHeal extends Bot.Module {
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
      */
     async incomingInteraction(interaction, guild, member, channel) {
+        if(!interaction.isChatInputCommand()) return;
+
         const subcommandName = interaction.options.getSubcommand();
 
         if(subcommandName != 'setchannel' && subcommandName != 'chart' && subcommandName != 'list') {
@@ -806,11 +811,12 @@ export default class HurtHeal extends Bot.Module {
      * @param {Discord.Guild} guild
      */
     rules(interaction, guild) {
-        let embed = new Discord.MessageEmbed({
+        /** @type {Discord.APIEmbed} */
+        let embed = {
             color: 14211288,
             title: 'Hurt or Heal',
             description: `Rules:\n  • Each item is assigned an amount of health at the start.\n  • Each player can either hurt an item - removing 2 health from it, or heal an item - adding 1 health to it, if it isn't at max health.\n  • A player cannot play again until two other players have performed an action.\n  • More than 2 actions cannot be performed consecutively on a single item.\n  • Feel free to add a comment to the end of each command to indicate why you chose to hurt or heal a specific item. In fact, many people may find it interesting.`
-        });
+        }
         embed.fields = [];
         embed.fields.push({
             name: ':information_source: Instructions',
@@ -994,7 +1000,7 @@ export default class HurtHeal extends Bot.Module {
                     await this.handleHHMessage(query, interaction, guild, `**${currentItem.name}** is already at max health.`, true);
                     return;
                 }
-                if(reason && Discord.Util.escapeMarkdown(reason).length > 255) {
+                if(reason && Discord.escapeMarkdown(reason).length > 255) {
                     await this.handleHHMessage(query, interaction, guild, `The given reason is too long. The character limit is 255 characters (formatting characters contribute to the character limit).`, true);
                     return;
                 }
@@ -1187,14 +1193,15 @@ export default class HurtHeal extends Bot.Module {
  * @param {Db.hurtheal_games[]} resultsGame
  * @param {number} page
  * @param {boolean} end
- * @returns {Discord.MessageEmbed|null}
+ * @returns {Discord.APIEmbed|null}
  */
 function getListEmbed(resultsGame, page, end) {
-    var embed = new Discord.MessageEmbed({
+    /** @type {Discord.APIEmbed} */
+    var embed = {
         color: 14211288,
-        timestamp: Date.now(),
+        timestamp: new Date().toISOString(),
         description: '**Hurt or Heal**\n\n',
-    });
+    };
 
     embed.description += `Page ${page}\n\n`
 

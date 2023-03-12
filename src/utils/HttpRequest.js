@@ -5,7 +5,9 @@ import fetch from 'node-fetch';
 
 export function HttpRequest() {}
 
-HttpRequest.fetch = fetch;
+HttpRequest.fetch = function(/** @type {string} */ str) {
+    return fetch(str, undefined);
+}
 
 /**
  * Send a HTTP GET request

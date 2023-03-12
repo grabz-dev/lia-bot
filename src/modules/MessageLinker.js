@@ -48,16 +48,17 @@ export default class MessageLinker extends Bot.Module {
  * @param {Discord.GuildMember|null} member
  * @param {Discord.User} user
  * @param {string} url
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbed(message, member, user, url) {
-    let embed = new Discord.MessageEmbed({
+    /** @type {Discord.APIEmbed} */
+    let embed = {
         
-    });
+    };
 
     embed.author = {
         name: `${(member?.nickname??user.username)}#${user.discriminator} said:`,
-        iconURL: user.avatarURL() || user.defaultAvatarURL
+        icon_url: user.avatarURL() || user.defaultAvatarURL
     }
     embed.description = message.content;
     embed.fields = [{
@@ -77,7 +78,7 @@ function getEmbed(message, member, user, url) {
     if(imageAttachment.length > 0)
         embed.image = {
             url: imageAttachment,
-            proxyURL: imageAttachment
+            proxy_url: imageAttachment
         }
 
     return embed;

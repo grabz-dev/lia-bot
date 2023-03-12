@@ -312,16 +312,17 @@ export default class Chronom extends Bot.Module {
 /**
  * 
  * @param {Discord.GuildMember} member 
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbedChronom(member) {
-    let embed = new Discord.MessageEmbed({
+    /** @type {Discord.APIEmbed} */
+    let embed = {
         color: KCUtil.gameEmbedColors['cw4'],
-    });
+    }
 
     embed.author = {
         name: member.user.username + '#' + member.user.discriminator,
-        iconURL: member.user.avatarURL() || member.user.defaultAvatarURL
+        icon_url: member.user.avatarURL() || member.user.defaultAvatarURL
     }
     return embed;
 }
@@ -334,9 +335,10 @@ function getEmbedChronom(member) {
  * @param {Discord.Message} message
  */
 function getAdditionalMastersEmbed(additionalMasters, masters, message, emote) {
-    let embed = new Discord.MessageEmbed({
+    /** @type {Discord.APIEmbed} */
+    let embed = {
         color: KCUtil.gameEmbedColors['cw4'],
-    });
+    }
     
     embed.title = `${emote} Masters of Chronom`;
 

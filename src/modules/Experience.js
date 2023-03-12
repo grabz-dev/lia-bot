@@ -159,6 +159,8 @@ export default class Experience extends Bot.Module {
      * @returns {boolean}
      */
     interactionPermitted(interaction, guild, member) {
+        if(!interaction.isChatInputCommand()) return false;
+
         const subcommandName = interaction.options.getSubcommand();
         switch(subcommandName) {
             case 'register':
@@ -191,6 +193,8 @@ export default class Experience extends Bot.Module {
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
      */
     async incomingInteraction(interaction, guild, member, channel) {
+        if(!interaction.isChatInputCommand()) return;
+        
         if(this.kcgmm == null || this.champion == null) {
             logger.error("Not initialized.");
             return;
@@ -1216,16 +1220,17 @@ function getExpDataFromTotalExp(exp) {
 /**
  * 
  * @param {Discord.GuildMember=} member 
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbedTemplate(member) {
-    let embed = new Discord.MessageEmbed({
+    /** @type {Discord.APIEmbed} */
+    let embed = {
         color: 5559447
-    });
+    }
     if(member) {
         embed.author = {
             name: member.user.username + '#' + member.user.discriminator,
-            iconURL: member.user.avatarURL() || member.user.defaultAvatarURL
+            icon_url: member.user.avatarURL() || member.user.defaultAvatarURL
         }
     }
     return embed;
@@ -1283,7 +1288,7 @@ async function getLeaderboard(query, kcgmm, mapListId, guild, game) {
  * @param {Discord.Guild} guild
  * @param {string} game 
  * @param {Discord.GuildMember=} member
- * @returns {Promise<Discord.MessageEmbed>}
+ * @returns {Promise<Discord.APIEmbed>}
  */
 async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member) {
     const leaders = await getLeaderboard.call(this, query, kcgmm, mapListId, guild, game);

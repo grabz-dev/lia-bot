@@ -35,6 +35,7 @@ export default class Map extends Bot.Module {
         /** @type {Object.<string, string>} */
         this.autoMap = {
             'creeperworld4': 'cw4',
+            'colonies-custom-maps': 'cw4',
             'particlefleet': 'pf',
             'creeperworld3': 'cw3',
             'creeperworld2': 'cw2',
@@ -54,7 +55,19 @@ export default class Map extends Bot.Module {
         if(!(channel instanceof Discord.TextChannel || channel instanceof Discord.ThreadChannel)) return;
 
         //If the channel name this message was sent in doesn't match our dictionary, don't do anything.
-        const game = this.autoMap[channel.name];
+
+        let channelName = ''
+
+        if(channel instanceof Discord.ThreadChannel) {
+            if(channel.parent) {
+                channelName = channel.parent.name;
+            }
+        }
+        else {
+            channelName = channel.name;
+        }
+
+        const game = this.autoMap[channelName];
         if(game == null) return;
 
         //Split the message by all instances of the character #
@@ -119,6 +132,8 @@ export default class Map extends Bot.Module {
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
      */
     async incomingInteraction(interaction, guild, member, channel) {
+        if(!interaction.isChatInputCommand()) return;
+
         if(this.kcgmm == null) {
             logger.error("Not initialized.");
             return;
@@ -525,6 +540,7 @@ export default class Map extends Bot.Module {
         if(maps.length <= 0) field.value = 'Nothing to see here.';
         else field.value += `\nList chosen from ${maps.length} maps.`;
 
+        if(embed.fields == null) embed.fields = [];
         embed.fields.push(field);
 
         await interaction.editReply({embeds: [embed]});
@@ -543,7 +559,7 @@ export default class Map extends Bot.Module {
  * @param {Discord.Guild} guild 
  * @param {string} game 
  * @param {KCGameMapManager} kcgmm
- * @returns {Promise<Discord.MessageEmbed>}
+ * @returns {Promise<Discord.APIEmbed>}
  */
 async function getMultipleMapsMessageEmbed(maps, emoteStr, guild, game, kcgmm) {
     let emoteId = Bot.Util.getSnowflakeFromDiscordPing(emoteStr);
@@ -576,7 +592,7 @@ async function getMultipleMapsMessageEmbed(maps, emoteStr, guild, game, kcgmm) {
  * @param {KCGameMapManager} kcgmm
  * @param {object} opts
  * @param {boolean=} opts.permanentOnly //Only display permanent information, so exclude ratings/forum comment count
- * @returns {Promise<Discord.MessageEmbed>}
+ * @returns {Promise<Discord.APIEmbed>}
  */
 async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm, opts) {
     let emoteId = Bot.Util.getSnowflakeFromDiscordPing(emoteStr);
@@ -705,10 +721,10 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm, opts) {
  * @param {Discord.GuildEmoji|null} emote
  * @param {boolean} thumbnail
  * @param {string=} thumbnailURL
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbedTemplate(game, emote, thumbnail, thumbnailURL) {
-    return new Discord.MessageEmbed({
+    return {
         color: KCUtil.gameEmbedColors[game],
         author: {
             name: KCLocaleManager.getDisplayNameFromAlias('game', game) || '',
@@ -716,13 +732,13 @@ function getEmbedTemplate(game, emote, thumbnail, thumbnailURL) {
         },
         thumbnail: thumbnail ? thumbnailURL != null ? {url: thumbnailURL} : ((emote ? {url: emote.url} : undefined)) : undefined,
         fields: [],
-    });
+    };
 }
 
 /**
  * @param {Discord.GuildMember} member
  * @param {Discord.Message} message
- * @param {Discord.MessageEmbed} embed
+ * @param {Discord.APIEmbed} embed
  * @param {Discord.Message=} forumMessage
  */
 function userDeletionHandler(member, message, embed, forumMessage) {

@@ -235,6 +235,8 @@ export default class Competition extends Bot.Module {
      * @returns {boolean}
      */
     interactionPermitted(interaction, guild, member) {
+        if(!interaction.isChatInputCommand()) return false;
+
         const commandName = interaction.options.getSubcommand();
         switch(commandName) {
         case 'pinmania':
@@ -271,6 +273,8 @@ export default class Competition extends Bot.Module {
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
      */
     async incomingInteraction(interaction, guild, member, channel) {
+        if(!interaction.isChatInputCommand()) return;
+
         if(this.kcgmm == null || this.champion == null || this.map == null) {
             logger.error("Not initialized.");
             return;
@@ -1104,7 +1108,7 @@ export default class Competition extends Bot.Module {
                 if(message != null) messages.set(resultMessages.game, message);
             }
 
-            /** @type {Discord.Collection<string, Discord.MessageEmbed>} */
+            /** @type {Discord.Collection<string, Discord.APIEmbed>} */
             const embeds = new Discord.Collection();
 
             //Ensure proper order of messages.
@@ -1140,8 +1144,8 @@ export default class Competition extends Bot.Module {
                     channel.send({ embeds: [embed] }).catch(logger.error);
                 }
 
+                if(embed.fields == null) embed.fields = []
                 let fields = embed.fields;
-                if(!fields) fields = [];
                 fields.push(field);
 
                 let message = messages.get(map.game);
@@ -1270,7 +1274,8 @@ async function buildScoreTally(guild, channel, query, champion) {
     await champion.refreshCompetitionChampions(query, guild, champions);
 
     (async () => {
-        const embed = new Discord.MessageEmbed({ color: 1482885 });
+        /** @type {Discord.APIEmbed} */
+        const embed = { color: 1482885 };
         const field = {
             name: `Score tally from last ${weeks} competitions`,
             value: "",
@@ -1308,7 +1313,8 @@ async function buildScoreTally(guild, channel, query, champion) {
 
         await query(`UPDATE competition_main SET score_tally_message_id = ? WHERE guild_id = ?`, [(await channel.send({embeds: [embed]})).id, guild.id]);
     })().then(async () => {
-        const embed = new Discord.MessageEmbed({ color: 1482885 });
+        /** @type {Discord.APIEmbed} */
+        const embed = { color: 1482885 };
         const field = {
             name: "Current champions",
             value: "",
@@ -1342,16 +1348,17 @@ async function buildScoreTally(guild, channel, query, champion) {
  * Get the status embed
  * @param {Discord.Guild} guild
  * @param {Db.competition_main|null} resultMain
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbedStatus(guild, resultMain) {
     const locale = this.bot.locale;
 
-    let embed = new Discord.MessageEmbed({
+    /** @type {Discord.APIEmbed} */
+    let embed = {
         color: 1146986,
         title: this.bot.locale.category("competition", "status_title"),
         description: ""
-    });
+    }
     embed.fields = [];
 
     embed.description += "Channel: "; 
@@ -1392,16 +1399,16 @@ function getEmbedStatus(guild, resultMain) {
  * @this Competition
  * Get the info embed
  * @param {Discord.Snowflake} channelId - The competition channel ID
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbedInfo(channelId) {
     const locale = this.bot.locale;
 
-    return new Discord.MessageEmbed({
+    return {
         color: 1146986,
         title: this.bot.locale.category("competition", "info_title"),
         description: this.bot.locale.category("competition", "info_description", "<#" + channelId + ">")
-    });
+    };
 }
 
 /**
@@ -1431,27 +1438,28 @@ function getPointsFromRank(rank) {
 }
 
 /**
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbedTemplate() {
-    return new Discord.MessageEmbed({
+    return {
         color: 1482885,
         description: "",
-    });
+    };
 }
 
 /**
  * @param {number} color
  * @param {number=} timeRemaining - in milliseconds.
  * @param {number=} overtimeRemaining - in milliseconds
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbedScores(color, timeRemaining, overtimeRemaining) {
-    const embed = new Discord.MessageEmbed({
+    /** @type {Discord.APIEmbed} */
+    const embed = {
         color: color,
         description: "",
-        timestamp: new Date(),
-    });
+        timestamp: new Date().toISOString(),
+    }
     if(timeRemaining != null) {
         embed.footer = {
             text: timeRemaining > 0 ? `Time left: ${Bot.Util.getFormattedTimeRemaining(timeRemaining)}` : `OVERTIME (randomly between 0 and ${Bot.Util.getFormattedTimeRemaining(overtimeRemaining??0)} left)`

@@ -39,6 +39,8 @@ export default class Stream extends Bot.Module {
      * @returns {boolean}
      */
     interactionPermitted(interaction, guild, member) {
+        if(!interaction.isChatInputCommand()) return false;
+
         const commandName = interaction.commandName;
         const subcommandName = interaction.options.getSubcommand();
         switch(subcommandName) {
@@ -64,6 +66,8 @@ export default class Stream extends Bot.Module {
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
      */
     async incomingInteraction(interaction, guild, member, channel) {
+        if(!interaction.isChatInputCommand()) return;
+
         const commandName = interaction.commandName;
         const subcommandName = interaction.options.getSubcommand();
         switch(subcommandName) {
@@ -201,16 +205,17 @@ function getValidURL(str) {
 /**
  * 
  * @param {Discord.GuildMember=} member 
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbedTemplate(member) {
-    let embed = new Discord.MessageEmbed({
-        timestamp: new Date(),
-    });
+    /** @type {Discord.APIEmbed} */
+    let embed = {
+        timestamp: new Date().toISOString(),
+    };
     if(member) {
         embed.author = {
             name: member.user.username + '#' + member.user.discriminator,
-            iconURL: member.user.avatarURL() || member.user.defaultAvatarURL
+            icon_url: member.user.avatarURL() || member.user.defaultAvatarURL
         }
     }
     return embed;

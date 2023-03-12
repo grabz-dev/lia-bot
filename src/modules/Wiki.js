@@ -163,6 +163,8 @@ export default class Wiki extends Bot.Module {
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
      */
     async incomingInteraction(interaction, guild, member, channel) {
+        if(!interaction.isChatInputCommand()) return;
+        
         const commandName = interaction.commandName;
         switch(commandName) {
         case 'crpl':
@@ -368,20 +370,18 @@ function shortenDescription(str) {
  * @param {string} name
  * @param {Discord.GuildEmoji|null} emote
  * @param {Discord.GuildMember} initiator
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbedTemplate(rpl, name, emote, initiator) {
     /** @type {string} */
-    return new Discord.MessageEmbed({
+    return {
         color: KCUtil.gameEmbedColors[this.rpl[rpl].game],
         author: {
             name: `${rpl.toUpperCase()}`,
             icon_url: emote ? emote.url : undefined
         },
-        footer: {
-        },
         fields: [],
-    });
+    };
 }
 
 /**

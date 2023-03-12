@@ -682,6 +682,8 @@ export default class Farkle extends Bot.Module {
      * @returns {boolean}
      */
     interactionPermitted(interaction, guild, member) {
+        if(!interaction.isChatInputCommand()) return false;
+
         const subcommandName = interaction.options.getSubcommand();
         switch(subcommandName) {
         case 'solo':
@@ -714,6 +716,8 @@ export default class Farkle extends Bot.Module {
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
      */
     async incomingInteraction(interaction, guild, member, channel) {
+        if(!interaction.isChatInputCommand()) return;
+
         const subcommandName = interaction.options.getSubcommand();
 
         if(subcommandName != 'setchannel') {
@@ -1539,7 +1543,7 @@ export default class Farkle extends Bot.Module {
             embed.title = "Farkle";
             embed.author = {
                 name: interaction.user.username + "#" + interaction.user.discriminator,
-                iconURL: interaction.user.displayAvatarURL()
+                icon_url: interaction.user.displayAvatarURL()
             }
             const lastSeen = await Q.getPlayerLastSeen(member.id, query);
 
@@ -1791,36 +1795,37 @@ function dollarify(method, number) {
 }
 
 /**
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbedBlank() {
-    return new Discord.MessageEmbed({
+    return {
         title: `:game_die: Farkle`,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         description: ""
-    });
+    };
 }
 
 /**
  * @param {Db.farkle_current_games} docCG
  * @param {Db.farkle_current_players[]} docCPs
  * @param {boolean=} totalIsBank
- * @returns {Discord.MessageEmbed}
+ * @returns {Discord.APIEmbed}
  */
 function getEmbedUser(docCG, docCPs, totalIsBank) {
     var docCP = docCPs.find(v => v.user_id === docCG.current_player_user_id);
     const bank = docCP ? docCP.total_points_banked : -1;
     const round = docCG.current_player_points;
 
-    return new Discord.MessageEmbed({
+    /** @type {Discord.APIEmbed} */
+    return {
         title: `:game_die: Farkle`,
         color: docCP ? F.colors[docCP.turn_order] : 0,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         footer: {
             text: `Goal: ${docCG.points_goal} • Bank: ${bank} • Round: ${round} • Total: ${totalIsBank ? bank : bank+round}`
         },
         description: ""
-    });
+    };
 }
 
 /**
@@ -2680,8 +2685,8 @@ const Q = Object.freeze({
  */
 async function postGameEndMessage(client, docCG, thisGameCHPs) {
     var embed = getEmbedBlank();
-    embed.title = null;
-    embed.timestamp = null;
+    embed.title = undefined;
+    embed.timestamp = undefined;
 
     let players = thisGameCHPs.slice().sort((a, b) => b.total_points_banked - a.total_points_banked);
     embed.description = `Game ended between `;
@@ -2713,7 +2718,7 @@ async function postGameEndMessage(client, docCG, thisGameCHPs) {
  * @param {Discord.Client} client 
  * @param {string} user_id
  * @param {Db.farkle_current_players|Db.farkle_viewers} docCPV
- * @param {Discord.MessageEmbed|string} embed
+ * @param {Discord.APIEmbed|string} embed
  */
 async function sendDM(client, user_id, docCPV, embed) {
     if(docCPV.channel_dm_id == null) return;

@@ -66,6 +66,8 @@ export default class AutoPost extends Bot.Module {
      * @param {Discord.TextChannel | Discord.ThreadChannel} channel
      */
     async incomingInteraction(interaction, guild, member, channel) {
+        if(!interaction.isChatInputCommand()) return;
+
         const subcommandName = interaction.options.getSubcommand();
         switch(subcommandName) {
         case 'setchannel': {
@@ -141,7 +143,7 @@ export default class AutoPost extends Bot.Module {
                     if(duplicate) continue;
                     let thread = await channel.threads.create({
                         name: `Map ${map.id} • ${map.title} • by ${map.author}`,
-                        autoArchiveDuration: "MAX"
+                        autoArchiveDuration: Discord.ThreadAutoArchiveDuration.OneWeek
                     });
                     await query(`INSERT INTO autopost_${game} (id, channel_id, thread_id) VALUES (?, ?, ?)`, [map.id, channelId, thread.id]);
 
