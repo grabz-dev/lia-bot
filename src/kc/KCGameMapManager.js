@@ -258,8 +258,14 @@ export function KCGameMapManager(options, locale) {
         let leaderboard = await this.getMapScores(mapScoreQueryData, name, groupName, options);
         if(leaderboard == null) return false;
 
-        for(let scores of leaderboard.entries)
-            if(scores && scores.find(entry => entry.user === name)) return true;
+        for(let scores of leaderboard.entries) {
+            if(mapScoreQueryData.game === 'cw2') {
+                if(scores && scores.find(entry => entry.user.toLowerCase() === name?.toLowerCase())) return true;
+            }
+            else {
+                if(scores && scores.find(entry => entry.user === name)) return true;
+            }
+        }
 
         return false;
     }
