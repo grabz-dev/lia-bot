@@ -321,7 +321,7 @@ function getEmbedChronom(member) {
     }
 
     embed.author = {
-        name: member.user.username + '#' + member.user.discriminator,
+        name: member.nickname ?? member.displayName ?? member.user.username,
         icon_url: member.user.avatarURL() || member.user.defaultAvatarURL
     }
     return embed;

@@ -1542,7 +1542,7 @@ export default class Farkle extends Bot.Module {
             let embed = getEmbedBlank();
             embed.title = "Farkle";
             embed.author = {
-                name: interaction.user.username + "#" + interaction.user.discriminator,
+                name: interaction.user.username,
                 icon_url: interaction.user.displayAvatarURL()
             }
             const lastSeen = await Q.getPlayerLastSeen(member.id, query);

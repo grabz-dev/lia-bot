@@ -56,8 +56,8 @@ function getEmbed(message, member, user, url) {
         
     };
 
-    embed.author = {
-        name: `${(member?.nickname??user.username)}#${user.discriminator} said:`,
+    embed.author = { //member.nickname ?? member.displayName ?? member.user.username,
+        name: `${(member?.nickname??member?.displayName??user.username)} said:`,
         icon_url: user.avatarURL() || user.defaultAvatarURL
     }
     embed.description = message.content;

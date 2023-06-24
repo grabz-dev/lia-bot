@@ -10,6 +10,8 @@
  * @property {number} currentXP
  * @property {number} maxXP
  * @property {number} currentLevel
+ * @property {number} milestone
+ * @property {number} nextMilestoneLevel
  */
 
 /**
@@ -70,8 +72,10 @@ import { CustomManager, getMapsCompleted } from './Experience/CustomManager.js';
 import { CampaignManager } from './Experience/CampaignManager.js';
 import { MarkVManager } from './Experience/MarkVManager.js';
 
-const COOLDOWN_TIME = 1000 * 60;
+const COOLDOWN_TIME = 1000;
 const DEBUG_NO_COOLDOWN = false;
+const XP_TO_NEXT_LEVEL = 600; //2000 XP to level 2.
+const XP_INCREASE_PER_LEVEL = 200;
 
 export default class Experience extends Bot.Module {
     /**
@@ -1196,9 +1200,9 @@ function getFormattedXPBarString(emote, expData, expBarsMax, noXpCur, noXpMax, n
  * @returns {ExpData}
  */
 function getExpDataFromTotalExp(exp) {
-    let level = 1;
-    let xpToNextLevel = 600; //2000 XP to level 2.
-    let xpIncreasePerLevel = 200;
+    let currentLevel = 1;
+    let xpToNextLevel = XP_TO_NEXT_LEVEL;
+    let xpIncreasePerLevel = XP_INCREASE_PER_LEVEL;
     let totalXp = exp;
 
     while(true) {
@@ -1206,14 +1210,75 @@ function getExpDataFromTotalExp(exp) {
             break;
 
         totalXp = totalXp - xpToNextLevel;
+        currentLevel += 1;
+        xpToNextLevel += xpIncreasePerLevel;
+    }
+    
+    if(currentLevel < 100) return {
+        currentXP: totalXp,
+        maxXP: xpToNextLevel,
+        currentLevel: currentLevel,
+        milestone: 0,
+        nextMilestoneLevel: 100,
+    }
+
+
+    //milestone code begins
+    
+    //1 for 100-999, 4 for 1000-9999, 7 for 10000-99999 etc.
+    let milestone = (Math.floor(Math.log10(currentLevel)) - 2) * 3 + 1;
+    //3819 becomes 1000, 48201 becomes 10000, 281 becomes 100 etc.
+    let lvlStart = Math.pow(10, Math.floor(Math.log10(currentLevel)));
+    let lvlEnd = 0;
+
+    //milestone brackets are 100, 200, 500, 1000, 2000, 5000, 10000, etc.
+    //i separate them into groups of three then determine the one we're in below
+    let firstLevelDigit = +(currentLevel+'')[0];
+    if(firstLevelDigit >= 5) {
+        milestone += 2;
+        lvlEnd = lvlStart * 10;
+        lvlStart *= 5;
+    }
+    else if(firstLevelDigit >= 2) {
+        milestone += 1;
+        lvlEnd = lvlStart * 5;
+        lvlStart *= 2;
+    }
+    else {
+        lvlEnd = lvlStart * 2;
+    }
+
+
+    //calculate our current total XP from milestone level start to our current level
+    let level = 1;
+    xpToNextLevel = XP_TO_NEXT_LEVEL;
+    xpIncreasePerLevel = XP_INCREASE_PER_LEVEL;
+    let expCur = 0;
+    while(true) {
+        if(level >= currentLevel) break;
+        if(level >= lvlStart) expCur += xpToNextLevel;
+        level += 1;
+        xpToNextLevel += xpIncreasePerLevel;
+    }
+
+    //calculate our required total XP from milestone level start to milestone level end
+    level = 1;
+    xpToNextLevel = XP_TO_NEXT_LEVEL;
+    xpIncreasePerLevel = XP_INCREASE_PER_LEVEL;
+    let expEnd = 0;
+    while(true) {
+        if(level >= lvlEnd) break;
+        if(level >= lvlStart) expEnd += xpToNextLevel;
         level += 1;
         xpToNextLevel += xpIncreasePerLevel;
     }
 
     return {
-        currentXP: totalXp,
-        maxXP: xpToNextLevel,
-        currentLevel: level
+        currentXP: expCur,
+        maxXP: expEnd,
+        currentLevel: currentLevel,
+        milestone,
+        nextMilestoneLevel: lvlEnd
     }
 }
 
@@ -1229,7 +1294,7 @@ function getEmbedTemplate(member) {
     }
     if(member) {
         embed.author = {
-            name: member.user.username + '#' + member.user.discriminator,
+            name: member.nickname ?? member.displayName ?? member.user.username,
             icon_url: member.user.avatarURL() || member.user.defaultAvatarURL
         }
     }
@@ -1434,6 +1499,12 @@ async function getProfileInfoString(totals, resultUsers, query, kcgmm, mapListId
                 }
             }
         }
+        if(leader.total.milestone <= 0) {
+            str += `\n`;
+        }
+        else
+            str += `\nYou've attained milestone rank **${KCUtil.romanize(leader.total.milestone)}**.`;
+        str += ` Next milestone at level ${this.prettify(leader.total.nextMilestoneLevel)}`;
     }
 
     return str;

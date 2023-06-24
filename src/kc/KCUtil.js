@@ -171,4 +171,24 @@ export const KCUtil = Object.freeze({
             return false;
         return Object.keys(obj1).every(key => obj2.hasOwnProperty(key) && obj1[key] === obj2[key]);
     },
+
+    /**
+     * https://stackoverflow.com/a/9083076
+     * @param {number} num 
+     * @returns {string}
+     */
+    romanize(num) {
+        if (isNaN(num))
+            return '';
+        var digits = String(+num).split(""),
+            key = ["","C","CC","CCC","CD","D","DC","DCC","DCCC","CM",
+                   "","X","XX","XXX","XL","L","LX","LXX","LXXX","XC",
+                   "","I","II","III","IV","V","VI","VII","VIII","IX"],
+            roman = "",
+            i = 3;
+        while (i--)
+            //@ts-ignore
+            roman = (key[+digits.pop() + (i * 10)] || "") + roman;
+        return Array(+digits.join("") + 1).join("M") + roman;
+    }
 });

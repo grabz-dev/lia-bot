@@ -1,6 +1,6 @@
 {
   "name": "lia-bot",
-  "version": "0.16.1",
+  "version": "0.16.2",
   "description": "",
   "main": "bot.js",
   "author": "Grabz#4707",
@@ -16,7 +16,7 @@
     "jsdom": "^16.4.0",
     "node-fetch": "^2.6.1",
     "seedrandom": "^3.0.5",
-    "xml2js": "^0.4.23"
+    "xml2js": "^0.6.0"
   },
   "devDependencies": {
     "@types/jsdom": "^16.2.6",
