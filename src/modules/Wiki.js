@@ -171,7 +171,9 @@ export default class Wiki extends Bot.Module {
         case 'prpl':
         case '4rpl': {
             let command = interaction.options.getString('command', true);
-            await this.getXrpl(interaction, guild, member, commandName, command);
+            let commandFinal = this.rpl[commandName].pageOverrides[command] ?? command;
+
+            await this.getXrpl(interaction, guild, member, commandName, commandFinal);
             return;
         }
         }
