@@ -190,5 +190,14 @@ export const KCUtil = Object.freeze({
             //@ts-ignore
             roman = (key[+digits.pop() + (i * 10)] || "") + roman;
         return Array(+digits.join("") + 1).join("M") + roman;
+    },
+
+    /**
+     * 
+     * @param {Discord.GuildMember?} member 
+     * @param {Discord.User} user 
+     */
+    getUserDisplayName(member, user) {
+        return member?.nickname ?? member?.displayName ?? user.displayName ?? user.username
     }
 });

@@ -214,7 +214,7 @@ function getEmbedTemplate(member) {
     };
     if(member) {
         embed.author = {
-            name: member.nickname ?? member.displayName ?? member.user.username,
+            name: KCUtil.getUserDisplayName(member, member.user),
             icon_url: member.user.avatarURL() || member.user.defaultAvatarURL
         }
     }

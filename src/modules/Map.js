@@ -716,7 +716,6 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm, opts) {
 }
 
 /**
- * @this Map
  * @param {string} game
  * @param {Discord.GuildEmoji|null} emote
  * @param {boolean} thumbnail

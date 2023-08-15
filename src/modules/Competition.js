@@ -1294,7 +1294,7 @@ async function buildScoreTally(guild, channel, query, champion) {
             let bold = i <= tallyChamps ? '**' : '';
             
             const championMember = guildMembers.get(snowflake);
-            const name = championMember ? (championMember.nickname ?? championMember.user.username) : null;
+            const name = championMember ? (KCUtil.getUserDisplayName(championMember, championMember.user)) : null;
             if(name) {
                 if(i > maxShown) {
                     field.value += `...and ${players.size - i + 1} more players.\n`;
@@ -1327,7 +1327,7 @@ async function buildScoreTally(guild, channel, query, champion) {
             if(!data.champion) continue;
 
             const championMember = guildMembers.get(snowflake);
-            const name = championMember ? (championMember.nickname ?? championMember.user.username) : null;
+            const name = championMember ? (KCUtil.getUserDisplayName(championMember, championMember.user)) : null;
             if(name) field.value += `\`${data.points} points${Bot.Util.String.fixedWidth('', data.weeks, '*')}\` ${name}\n`;
         }
 
@@ -1555,7 +1555,7 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
 
             /** @type {void|Discord.GuildMember} */
             const member = await guild.members.fetch(entry.user).catch(() => {});
-            const name = (member ? member.nickname || member.user.username : entry.user).substring(0, 17);
+            const name = (member ? KCUtil.getUserDisplayName(member, member.user) : entry.user).substring(0, 17);
 
             if(i <= maxScoresInTable - 1) {
                 if(isPoints) 
@@ -1752,7 +1752,6 @@ function hasMapStatusChanged(guild, msqd, leaderboard) {
 }
 
 /**
- * @this {Competition}
  * @param {SQLWrapper.Query} query
  * @param {Discord.Guild} guild
  * @param {string} game

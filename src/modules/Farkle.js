@@ -9,6 +9,7 @@ import * as Bot from 'discord-bot-core';
 const logger = Bot.logger;
 
 import * as AIBrain from './Farkle/AIBrain.js';
+import { KCUtil } from '../kc/KCUtil.js';
 
 /**
  * @typedef {object} Db.farkle_channels
@@ -1542,7 +1543,7 @@ export default class Farkle extends Bot.Module {
             let embed = getEmbedBlank();
             embed.title = "Farkle";
             embed.author = {
-                name: interaction.user.username,
+                name: KCUtil.getUserDisplayName(null, interaction.user),
                 icon_url: interaction.user.displayAvatarURL()
             }
             const lastSeen = await Q.getPlayerLastSeen(member.id, query);

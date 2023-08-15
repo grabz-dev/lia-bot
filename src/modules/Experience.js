@@ -1294,7 +1294,7 @@ function getEmbedTemplate(member) {
     }
     if(member) {
         embed.author = {
-            name: member.nickname ?? member.displayName ?? member.user.username,
+            name: KCUtil.getUserDisplayName(member, member.user),
             icon_url: member.user.avatarURL() || member.user.defaultAvatarURL
         }
     }
@@ -1380,10 +1380,10 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
             else msgStr += '🔹 ';
             msgStr += `\`#${i+1}\``;
             msgStr += getFormattedXPBarString.call(this, '', leader.total, this.expBarLeadersLength, true);
-            msgStr += ` ${leaderMember ? leaderMember.nickname ?? leaderMember.user.username : leader.resultUser.user_name}\n`;
+            msgStr += ` ${leaderMember ? KCUtil.getUserDisplayName(leaderMember, leaderMember.user) : leader.resultUser.user_name}\n`;
         }
         else {
-            let name = leaderMember ? leaderMember.nickname ?? leaderMember.user.username : leader.resultUser.user_name;
+            let name = leaderMember ? KCUtil.getUserDisplayName(leaderMember, leaderMember.user) : leader.resultUser.user_name;
             if(name.length > 18) {
                 name = `${name.substring(0, 18)}...`;
             }
@@ -1414,7 +1414,7 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
 
         msgStr += `\`#${leaders.findIndex(v => v.resultUser.user_id === user.user_id)+1}\``;
         msgStr += getFormattedXPBarString.call(this, '', getExpDataFromTotalExp(totalExp), this.expBarLeadersLength, true);
-        msgStr += ` ${member.nickname ?? member.user.username}\n`;
+        msgStr += ` ${KCUtil.getUserDisplayName(member, member.user)}\n`;
     }
     embed.description += msgStr;
     return embed;

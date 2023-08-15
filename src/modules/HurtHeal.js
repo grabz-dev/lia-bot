@@ -1081,7 +1081,7 @@ export default class HurtHeal extends Bot.Module {
             //Delete user's message and post our own
             if(type !== 'decay' && currentItem != null) {
                 await channel.send({
-                    content: `${member.nickname??member.user.username} ${this.dictionary[type]} **${currentItem.name}** ${(reason??'').trim()}`,
+                    content: `${KCUtil.getUserDisplayName(member, member.user)} ${this.dictionary[type]} **${currentItem.name}** ${(reason??'').trim()}`,
                     allowedMentions: {
                         parse: ["users"]
                     }

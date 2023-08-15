@@ -321,7 +321,7 @@ function getEmbedChronom(member) {
     }
 
     embed.author = {
-        name: member.nickname ?? member.displayName ?? member.user.username,
+        name: KCUtil.getUserDisplayName(member, member.user),
         icon_url: member.user.avatarURL() || member.user.defaultAvatarURL
     }
     return embed;
@@ -346,7 +346,7 @@ function getAdditionalMastersEmbed(additionalMasters, masters, message, emote) {
     for(const key of Object.keys(additionalMasters)) {
         const master = additionalMasters[key];
         let member = message.guild?.members.cache.get(master.register.user_id);
-        let name = member ? (member.nickname ? member.nickname : member.user.username) : master.register.user_name;
+        let name = member ? (KCUtil.getUserDisplayName(member, member.user)) : master.register.user_name;
 
         embed.description += `**${name}** is **#${master.rank}** in ${KCLocaleManager.getDisplayNameFromAlias("cw4_objectives", master.objective+'')}\n > on ${getDateString(master.timestamp)} with ${KCUtil.getFormattedTimeFromFrames(master.time)}\n`;
     }
@@ -356,7 +356,7 @@ function getAdditionalMastersEmbed(additionalMasters, masters, message, emote) {
     for(const key of Object.keys(masters)) {
         const master = masters[key];
         let member = message.guild?.members.cache.get(master.register.user_id);
-        let name = member ? (member.nickname ? member.nickname : member.user.username) : master.register.user_name;
+        let name = member ? (KCUtil.getUserDisplayName(member, member.user)) : master.register.user_name;
         embed.description += `**${name}** with a streak of **${master.bestStreak}**\n`;
     }
 

@@ -5,6 +5,7 @@
 import Discord from 'discord.js';
 import { SlashCommandBuilder } from '@discordjs/builders';
 import * as Bot from 'discord-bot-core';
+import { KCUtil } from '../kc/KCUtil.js';
 const logger = Bot.logger;
 
 
@@ -56,8 +57,8 @@ function getEmbed(message, member, user, url) {
         
     };
 
-    embed.author = { //member.nickname ?? member.displayName ?? member.user.username,
-        name: `${(member?.nickname??member?.displayName??user.username)} said:`,
+    embed.author = {
+        name: `${(KCUtil.getUserDisplayName(member, user))} said:`,
         icon_url: user.avatarURL() || user.defaultAvatarURL
     }
     embed.description = message.content;
