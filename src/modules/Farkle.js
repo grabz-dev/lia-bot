@@ -219,10 +219,6 @@ export default class Farkle extends Bot.Module {
     constructor(bot) {
         super(bot);
         this.commands = ['f', 'mod_f'];
-
-        /** @type {(Discord.Message|{user: Discord.User, msg: string, gameId: number})[]} */
-        this.queue = [];
-        this.queueRunning = false;
     }
     
     /** @param {Discord.Guild} guild - Current guild. */
@@ -284,27 +280,12 @@ export default class Farkle extends Bot.Module {
             if(resultChannels) this.cache.set(guild.id, "farkle_channel_id", resultChannels.channel_id);
         }).catch(logger.error);
     }
-    
-    //TODO I believe I can safely remove the queue system if I use locking with FOR UPDATE
-    //and change database type from REPEATABLE READ to READ COMMITTED
-    //but not many people play this and I don't have enough testing accounts
-    //so I'm leaving it as-is for now.
 
     /** @param {Discord.Message|{user: Discord.User, msg: string, gameId: number}} message - The message that was sent. */
     onMessageDM(message) {
-        //Ensure order of play
-        this.queue.push(message);
-        if(this.queueRunning) return;
-        this.queueRunning = true;
-
         (async () => {
-            while(this.queue.length > 0) {
-                let qitem = this.queue[0];
-                this.queue.splice(0, 1);
-                if(qitem instanceof Discord.Message) await this.play({ author: qitem.author, content: qitem.content.toLowerCase(), client: qitem.author.client, gameId: null });
-                else await this.play({ author: qitem.user, content: qitem.msg.toLowerCase(), client: qitem.user.client, gameId: qitem.gameId });
-            }
-            this.queueRunning = false;
+            if(message instanceof Discord.Message) await this.play({ author: message.author, content: message.content.toLowerCase(), client: message.author.client, gameId: null });
+            else await this.play({ author: message.user, content: message.msg.toLowerCase(), client: message.user.client, gameId: message.gameId });
         })();
     }
 
