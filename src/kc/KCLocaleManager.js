@@ -18,7 +18,7 @@ const config = {
                 "aliases": ["whiteboardwarchopraider", "whiteboardwar", "chopraider"]
             },
             "cw1" : {
-                "display": "Creeper World 1",
+                "display": "Creeper World",
                 "aliases": ["creeperworld1", "creeperworld", "cw", "1", "cw1"]
             },
             "cw2" : {

@@ -28,7 +28,7 @@ export const KCUtil = Object.freeze({
             Object.freeze({ name: 'Particle Fleet',  value: 'pf' }),
             Object.freeze({ name: 'Creeper World 3', value: 'cw3' }),
             Object.freeze({ name: 'Creeper World 2', value: 'cw2' }),
-            Object.freeze({ name: 'Creeper World 1', value: 'cw1' })
+            Object.freeze({ name: 'Creeper World', value: 'cw1' })
         ]
     }),
 

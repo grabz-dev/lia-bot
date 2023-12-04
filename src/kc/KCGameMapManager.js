@@ -160,7 +160,7 @@ export function KCGameMapManager(options, locale) {
                     let i = +t.substring(1);
                     if(!(data.records[t][0].record instanceof Array))
                         continue;
-                    entries[i] = getMapLeaderboardEntryFromRecord(game, data.records[t][0].record, options);
+                    entries[i] = getMapLeaderboardEntryFromRecord.call(this, game, data.records[t][0].record, mapScoreQueryData, options);
                     entries[i].sort((a, b) => {
                         return a.rank - b.rank;
                     });
@@ -172,7 +172,7 @@ export function KCGameMapManager(options, locale) {
                 let entries = [];
                 if(!(data.records.record instanceof Array))
                     return { entries: [entries] };
-                entries = getMapLeaderboardEntryFromRecord(game, data.records.record, options);
+                entries = getMapLeaderboardEntryFromRecord.call(this, game, data.records.record, mapScoreQueryData, options);
                 entries.sort((a, b) => {
                     return a.rank - b.rank;
                 });
@@ -766,13 +766,14 @@ export function KCGameMapManager(options, locale) {
     }
 
     /**
-     * 
+     * @this {KCGameMapManager}
      * @param {string} game
      * @param {any} record
+     * @param {MapScoreQueryData} msqd
      * @param {{removeMverseTag?: boolean}=} options
      * @returns {MapLeaderboardEntry[]}
      */
-    function getMapLeaderboardEntryFromRecord(game, record, options) {
+    function getMapLeaderboardEntryFromRecord(game, record, msqd, options) {
         /** @type {MapLeaderboardEntry[]} */
         let arr = [];
 
@@ -812,6 +813,13 @@ export function KCGameMapManager(options, locale) {
 
             if(game === 'cw4' && options?.removeMverseTag) {
                 user = user.replace('[M] ', '');
+            }
+
+            if(game === 'cw4' && msqd.gameUID === this.resolveCampaignMapGUIDFromInputString("cw4", "Founders")) {
+                if(user === 'cornucanis' && time === 1987 && eco === 0 && unitsBuilt === 12 && unitsLost === 6) continue;
+                if(user === 'cornucanis' && time === 1992 && eco === 0 && unitsBuilt === 12 && unitsLost === 6) continue;
+                if(user === 'cornucanis' && time === 2285 && eco === 0 && unitsBuilt === 16 && unitsLost === 6) continue;
+                if(user === 'Fireswamp'  && time === 2511 && eco === 0 && unitsBuilt === 15 && unitsLost === 11) continue;
             }
 
             //Increase rank by 1 for PF leaderboards because they start at 0.
