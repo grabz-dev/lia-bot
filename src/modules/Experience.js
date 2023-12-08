@@ -72,7 +72,7 @@ import { CustomManager, getMapsCompleted } from './Experience/CustomManager.js';
 import { CampaignManager } from './Experience/CampaignManager.js';
 import { MarkVManager } from './Experience/MarkVManager.js';
 
-const COOLDOWN_TIME = 1000;
+const COOLDOWN_TIME = 60000;
 const DEBUG_NO_COOLDOWN = false;
 const XP_TO_NEXT_LEVEL = 600; //2000 XP to level 2.
 const XP_INCREASE_PER_LEVEL = 200;
