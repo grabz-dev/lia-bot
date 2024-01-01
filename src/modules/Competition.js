@@ -1717,14 +1717,15 @@ function getMapScoreQueryDataFromDatabase(resultMaps) {
 function hasMapStatusChanged(guild, msqd, leaderboard) {
     /** @type {{msqd: KCGameMapManager.MapScoreQueryData, leaderboard: KCGameMapManager.MapLeaderboard}[]} */
     let compMaps = this.cache.get(guild.id, 'comp_maps');
-
     let compMapMatch = compMaps.find(v => KCUtil.objectCompareShallow(v.msqd, msqd));
 
+    //First attempt has to register the current state, so that future attempts can compare against it
     if(compMapMatch == null) {
         compMaps.push({ msqd, leaderboard });
         this.cache.set(guild.id, 'comp_maps', compMaps);
         return false;
     }
+    //Compare new state to last state
     else {
         compMaps[compMaps.indexOf(compMapMatch)] = { msqd, leaderboard }
         this.cache.set(guild.id, 'comp_maps', compMaps);
@@ -1732,6 +1733,7 @@ function hasMapStatusChanged(guild, msqd, leaderboard) {
         const leaderboardIndex = msqd.objective ?? 0;
         let leaderboardOld = compMapMatch.leaderboard.entries[leaderboardIndex];
         let leaderboardNew = leaderboard.entries[leaderboardIndex];
+        if(leaderboardOld == null && leaderboardNew != null) return true;
         if(leaderboardOld == null || leaderboardNew == null) return false;
 
         leaderboardOld = leaderboardOld.slice().filter(v => v.rank === 1);
