@@ -318,6 +318,15 @@ export default class Map extends Bot.Module {
     */
     async map(interaction, guild, member, channel, game, kcgmm, opts) {
         if(interaction && !interaction.deferred) await interaction.deferReply();
+
+        let mapsUpdatedToLatest = true;
+        if(game == "cw3" || game == "pf" || game == "cw4") {
+            await kcgmm.fetch(game).catch(e => {
+                logger.info(e);
+                mapsUpdatedToLatest = false;
+            });
+        }
+
         const emote = await SQLUtil.getEmote(this.bot.sql, guild.id, game) ?? ':game_die:';
 
         /** @type {KCGameMapManager.MapData|KCGameMapManager.MapData[]|null} */
@@ -327,34 +336,25 @@ export default class Map extends Bot.Module {
         if(opts.id != null) {
             //Look for the map
             mapData = kcgmm.getMapById(game, opts.id);
-            //If the map is not found, fetch, and look for it again
+            //If the map is not found
             if(mapData == null) {
                 let mapArr = kcgmm.getMapListArray(game);
                 if(mapArr != null && opts.id < mapArr.reduce((p, c) => p = c.id > p ? c.id : p, 0)) {
                     if(interaction) await interaction.editReply({ content: `Map #${opts.id} was deleted.` })
                     return;
                 }
-                if(game !== 'cw2') {
-                    try {
-                        await kcgmm.fetch(game);
-                    } catch {
-                        //Exit if fetch has failed (too quick)
-                        if(interaction) {
-                            let str = `I couldn't find map #${opts.id}.`;
-                            if(game !== 'cw2') str += ` If you're certain this map exists, try again in a few minutes.`;
-                            await interaction.editReply({ content: str });
-                        }
-                        return;
-                    }
+
+                if(interaction) {
+                    let str = `I couldn't find map #${opts.id}.`;
+                    if(!mapsUpdatedToLatest) str += ` If you're certain this map exists, try again later.`;
+                    await interaction.editReply({ content: str });
+                    return;
                 }
-                mapData = kcgmm.getMapById(game, opts.id);
-            }
-            //If the map is not found the second time, we ain't got it chief
-            if(mapData == null) {
-                if(interaction) await interaction.editReply({ content: this.bot.locale.category('mapdata', 'search_result_not_found') });
+
                 return;
             }
         }
+
         //If we are doing a title search
         else if(opts.title != null) {
             //Look for the map(s)

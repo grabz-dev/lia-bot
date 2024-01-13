@@ -73,7 +73,7 @@ core.on('ready', bot => {
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw3').catch(logger.error);
                 /* core.call(guild => { autopost.loop(guild); }); */
-            }, 1000 * 60 * 60 * 6);
+            }, 1000 * 60 * 60 * 24);
             setInterval(async () => {
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw2').catch(logger.error);
