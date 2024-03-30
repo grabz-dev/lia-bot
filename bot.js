@@ -341,7 +341,7 @@ core.on('ready', bot => {
 
         (() => {
             const strings = [
-                { v: 'Looking over Skars',      minMins: 60, maxMins: 120 },
+                { v: 'Watching over Skars',      minMins: 60, maxMins: 120 },
                 { v: '[Gel maintenance]',       minMins: 30, maxMins: 60 },
                 { v: 'Drifting through space',  minMins: 30, maxMins: 60 },
                 { v: 'Maintaining ship',        minMins: 15, maxMins: 30 },

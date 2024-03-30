@@ -1470,9 +1470,12 @@ function getMapListArray(kcgmm, game) {
  * @returns {Promise<string>}
  */
 async function getProfileInfoString(totals, resultUsers, query, kcgmm, mapListId, guild, member, game) {
+    var _campaign_count = Object.keys(this.managers.campaign.maps[game]).length;
+
+
     const xpMultNew = Math.ceil(this.getExpMultiplier(totals.totalCompletedNew) * 100)/100;
     const xpMultOld = totals.totalCompletedOld == null ? null : Math.ceil(this.getExpMultiplier(totals.totalCompletedOld) * 100)/100;
-    let str = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed ${totals.totalCompletedOld != null ? `${totals.totalCompletedOld} -> ` : ''}**${totals.totalCompletedNew}** maps (XP mult: ${xpMultOld != null ? `${xpMultOld >= 1000 ? this.prettify(xpMultOld) : xpMultOld}x -> ` : ''}**${xpMultNew >= 1000 ? this.prettify(xpMultNew) : xpMultNew}x**)`;
+    let str = `Your leaderboards name is \`${resultUsers.user_name}\`\nYou've completed ${totals.totalCompletedOld != null ? `${totals.totalCompletedOld} -> ` : ''}**${totals.totalCompletedNew}** maps (XP mult: ${xpMultOld != null ? `${xpMultOld >= 1000 ? this.prettify(xpMultOld) : xpMultOld}x -> ` : ''}**${xpMultNew >= 1000 ? this.prettify(xpMultNew) : xpMultNew}x**) out of ${mapListId.size+_campaign_count} (${Math.floor(totals.totalCompletedNew/(mapListId.size+_campaign_count)*10000)/100}%)`;
     
     const leaders = await getLeaderboard.call(this, query, kcgmm, mapListId, guild, game);
     const leader = leaders.find(v => v.resultUser.user_id === member.id);

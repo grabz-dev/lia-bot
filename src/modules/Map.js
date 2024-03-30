@@ -317,7 +317,12 @@ export default class Map extends Bot.Module {
     * @returns {Promise<Discord.Message|undefined>}
     */
     async map(interaction, guild, member, channel, game, kcgmm, opts) {
+        /** @type {Discord.Message | null} */
+        let targetMsg = null;
         if(interaction && !interaction.deferred) await interaction.deferReply();
+        if(!interaction) {
+            targetMsg = await channel.send("Loading...");
+        }
 
         let mapsUpdatedToLatest = true;
         if(game == "cw3" || game == "pf" || game == "cw4") {
@@ -392,6 +397,8 @@ export default class Map extends Bot.Module {
         }
         //Otherwise send as regular message
         else {
+            if(targetMsg != null)
+                targetMsg.delete();
             message = await channel.send({ embeds:[embed] });
         }
 

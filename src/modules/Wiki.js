@@ -125,7 +125,23 @@ export default class Wiki extends Bot.Module {
                     'frameadvance':     'MSG_FrameAdvance',
                     'preupdate':        'MSG_PreUpdate',
                     'postupdate':       'MSG_PostUpdate',
+                    'savegame':         'MSG_SaveGame',
                     ',':                'comma',
+                    '+':                'add',
+                    '&&':               'and',
+                    '/':                'div',
+                    '==':               'eq',
+                    '>':                'gt',
+                    '>=':               'gte',
+                    '<':                'lt',
+                    '<=':               'lte',
+                    '%':                'mod',
+                    '*':                'mul',
+                    '!=':               'neq',
+                    '!':                'not',
+                    '||':               'or',
+                    '^':                'pow',
+                    '-':                'sub',
                 }, commonPageOverrides)
             }
         }
@@ -171,7 +187,7 @@ export default class Wiki extends Bot.Module {
         case 'prpl':
         case '4rpl': {
             let command = interaction.options.getString('command', true);
-            let commandFinal = this.rpl[commandName].pageOverrides[command] ?? command;
+            let commandFinal = this.rpl[commandName].pageOverrides[command] ?? encodeURIComponent(command);
 
             await this.getXrpl(interaction, guild, member, commandName, commandFinal);
             return;
@@ -232,7 +248,7 @@ export default class Wiki extends Bot.Module {
         }
         
         //URL of the rpl doc page.
-        const url = `${this.rpl[xrpl].urlCmd}${pageName.toLowerCase()}`;
+        const url = `${this.rpl[xrpl].urlCmd}${encodeURIComponent(pageName.toLowerCase())}`;
         const data = await HttpRequest.get(url);
         const dom = new JSDOM(data);
         const window = dom.window;
