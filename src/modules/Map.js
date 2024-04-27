@@ -320,9 +320,6 @@ export default class Map extends Bot.Module {
         /** @type {Discord.Message | null} */
         let targetMsg = null;
         if(interaction && !interaction.deferred) await interaction.deferReply();
-        if(!interaction) {
-            targetMsg = await channel.send("Loading...");
-        }
 
         let mapsUpdatedToLatest = true;
         if(game == "cw3" || game == "pf" || game == "cw4") {
@@ -375,6 +372,10 @@ export default class Map extends Bot.Module {
         if(mapData == null) {
             if(interaction) await interaction.editReply({ content: `An unexpected error occurred.`});
             return;
+        }
+
+        if(!interaction) {
+            targetMsg = await channel.send("Loading...");
         }
 
         //If we only found one map

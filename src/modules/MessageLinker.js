@@ -32,7 +32,8 @@ export default class MessageLinker extends Bot.Module {
         const guildId = split[0];
         if(message.guild.id !== guildId) return;
         const channelId = split[1];
-        const messageId = split[2];
+        let messageId = split[2];
+        messageId = messageId.split(/[^0-9]/g)[0];
         message.guild.channels.fetch(channelId).then(channel => {
             if(channel == null) return;
             /** @type {Discord.TextChannel} */(channel)?.messages?.fetch(messageId).then(m => {
