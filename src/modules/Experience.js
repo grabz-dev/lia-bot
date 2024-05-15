@@ -1436,7 +1436,7 @@ function getMapListId(kcgmm, game) {
     const obj = new Discord.Collection();
 
     for(let map of arr) {
-        if(map.tags && map.tags.includes('MVERSE')) continue;
+    //  if(map.tags && map.tags.includes('MVERSE')) continue;
         obj.set(map.id, map);
     }
     return obj;
@@ -1454,7 +1454,8 @@ function getMapListArray(kcgmm, game) {
     var arr = kcgmm.getMapListArray(game);
     if(arr == null) return null;
 
-    return arr.filter(v => !(v.tags && v.tags.includes('MVERSE')));
+    //return arr.filter(v => !(v.tags && v.tags.includes('MVERSE')));
+    return arr.filter(v => true);
 }
 
 /**
