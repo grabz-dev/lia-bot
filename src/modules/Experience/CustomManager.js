@@ -211,7 +211,7 @@ export class CustomManager {
     getMapClaimString(map, kcgmm, total, rankMapCount, crossedOut) {
         let cross = crossedOut ? '~~' : '';
         let sup = '';
-        let str = () => `\`ID #${map.id}\`: ${this.exp.prettify(this.getExpFromMap(map, kcgmm, total))} XP${sup} - ${cross}${map.title} __by ${map.author}__${cross}`;
+        let str = () => `\`ID #${map.id}\`: ${this.exp.prettify(this.getExpFromMap(map, kcgmm, total))} XP${sup} - ${cross}${KCUtil.escapeMarkdown(map.title)} __by ${KCUtil.escapeMarkdown(map.author)}__${cross}`;
 
         if(map.timestamp == null) return {str: str(), rankMapCount, sup};
         let date = kcgmm.getDateFlooredToMonth(new Date(map.timestamp));

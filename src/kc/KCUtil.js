@@ -199,5 +199,17 @@ export const KCUtil = Object.freeze({
      */
     getUserDisplayName(member, user) {
         return member?.nickname ?? member?.displayName ?? user.displayName ?? user.username
+    },
+
+    /**
+     * Escape markdown characters
+     * @param {string} str 
+     */
+    escapeMarkdown(str) {
+        str = str.replace(/\*/g, "\\*")
+        str = str.replace(/\_/g, "\\_")
+        str = str.replace(/`/g, "\\`")
+        str = str.replace(/\|/g, "\\|")
+        return str;
     }
 });
