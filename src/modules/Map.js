@@ -445,7 +445,7 @@ export default class Map extends Bot.Module {
         if(mapQueryData.id)
             field.name += `: #${mapQueryData.id}`;
         else if(mapQueryData.type === 'code')
-            field.name += `: \`${mapQueryData.name}\``;
+            field.name += `: \`${KCUtil.escapeMarkdown(mapQueryData.name??'null')}\``;
 
         let max = 15;
         let leaderboard = await kcgmm.getMapScores(mapQueryData, userName, groupName);
@@ -496,13 +496,13 @@ export default class Map extends Bot.Module {
         if(mapQueryData.id) {
             const map = kcgmm.getMapById(mapQueryData.game, mapQueryData.id);
             if(map != null) {
-                field.value = `${map.title} __by ${map.author}__\n` + field.value;
+                field.value = `${KCUtil.escapeMarkdown(map.title)} __by ${KCUtil.escapeMarkdown(map.author)}__\n` + field.value;
             }
         }
         if(this.dmd != null && mapQueryData.type === 'dmd' && mapQueryData.id) {
             let dmdMap = await this.dmd.getDMDMapInfo(mapQueryData.id);
             if(dmdMap != null) {
-                field.value = `${dmdMap.name} __by ${dmdMap.owner}__\n` + field.value;
+                field.value = `${KCUtil.escapeMarkdown(dmdMap.name)} __by ${KCUtil.escapeMarkdown(dmdMap.owner)}__\n` + field.value;
             }
         }
 
