@@ -29,6 +29,9 @@ export default class MessageLinker extends Bot.Module {
         if(str.indexOf('\n') > -1) str = str.substring(0, str.indexOf('\n'));
         let split = str.split('/');
         if(split.length !== 3) return;
+        let split2 = split[2].match(/([0-9]+)/g);
+        if(split2 == null) return;
+        split[2] = split2[0];
         const guildId = split[0];
         if(message.guild.id !== guildId) return;
         const channelId = split[1];
