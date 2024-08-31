@@ -199,7 +199,7 @@ function getCW2MapDataFromMapBrowser(data, game) {
         let id = data.substring(13, data.indexOf("</div>")).trim();
         data = data.substring(data.indexOf("</div>"));
 
-        data = data.substring(data.indexOf('<span class="result">'));
+        /*data = data.substring(data.indexOf('<span class="result">'));
         data = data.substring(21);
         data = data.substring(data.indexOf(">"));
         let upvotes = data.substring(1, data.indexOf("<")).trim();
@@ -207,7 +207,10 @@ function getCW2MapDataFromMapBrowser(data, game) {
         data = data.substring(data.indexOf("</span>"));
         data = data.substring(7);
         data = data.substring(data.indexOf(">"));
-        let downvotes = data.substring(1, data.indexOf("<")).trim();
+        let downvotes = data.substring(1, data.indexOf("<")).trim();*/
+
+        let upvotes = 0;
+        let downvotes = 0;
 
         data = data.substring(data.indexOf("Title:</td>"));
         data = data.substring(11);
