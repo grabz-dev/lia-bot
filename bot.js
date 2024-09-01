@@ -75,10 +75,10 @@ core.on('ready', bot => {
                 /* core.call(guild => { autopost.loop(guild); }); */
             }, 1000 * 60 * 60 * 24);
             setInterval(async () => {
-                await Bot.Util.Promise.sleep(1000);
-                await kcgmm.fetch('cw2').catch(logger.error);
-                await Bot.Util.Promise.sleep(1000);
-                await cwMaps.start(kcgmm, 'cw2').catch(logger.error);
+                //await Bot.Util.Promise.sleep(1000);
+                //await kcgmm.fetch('cw2').catch(logger.error);
+                //await Bot.Util.Promise.sleep(1000);
+                //await cwMaps.start(kcgmm, 'cw2').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw1').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
