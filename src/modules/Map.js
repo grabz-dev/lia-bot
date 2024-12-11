@@ -28,14 +28,20 @@ export default class Map extends Bot.Module {
                 id INT UNSIGNED PRIMARY KEY,
                 description VARCHAR(1024) NOT NULL
              )`);
+            await query(`CREATE TABLE IF NOT EXISTS map_ixe_descriptions (
+                id INT UNSIGNED PRIMARY KEY,
+                description VARCHAR(1024) NOT NULL
+             )`);
         }).catch(logger.error)
 
 
-        this.games = ['cw1', 'cw2', 'cw3', 'pf', 'cw4'];
+        this.games = ['cw1', 'cw2', 'cw3', 'pf', 'cw4', 'ixe'];
         /** @type {Object.<string, string>} */
         this.autoMap = {
+            'creeperworldixe': 'ixe',
+            'ixe-custom-maps': 'ixe',
             'creeperworld4': 'cw4',
-            'colonies-custom-maps': 'cw4',
+            'cw4-custom-maps': 'cw4',
             'particlefleet': 'pf',
             'creeperworld3': 'cw3',
             'creeperworld2': 'cw2',
@@ -322,7 +328,7 @@ export default class Map extends Bot.Module {
         if(interaction && !interaction.deferred) await interaction.deferReply();
 
         let mapsUpdatedToLatest = true;
-        if(game == "cw3" || game == "pf" || game == "cw4") {
+        if(game === "cw3" || game === "pf" || game === "cw4" || game === 'ixe') {
             await kcgmm.fetch(game).catch(e => {
                 logger.info(e);
                 mapsUpdatedToLatest = false;
@@ -489,7 +495,7 @@ export default class Map extends Bot.Module {
         if(mapQueryData.game === 'cw4' && mapQueryData.type === 'markv') {
             field.value = mapQueryData.name + '\n' + field.value;
         }
-        if(mapQueryData.game === 'cw4' && mapQueryData.timestamp != null) {
+        if(mapQueryData.timestamp != null) {
             let date = new Date(mapQueryData.timestamp);
             field.value = `${KCUtil.getMonthFromDate(date, false)} ${KCUtil.getDayFromDate(date)}, ${date.getFullYear()}\n` + field.value;
         }
@@ -539,6 +545,7 @@ export default class Map extends Bot.Module {
             case 'cw3':
             case 'pf': str += `**${map.rating}** rating (${map.ratings})`; break;
             case 'cw4': str += `**${map.upvotes}** 👍`
+            case 'ixe': str += `**${map.upvotes}** 👍`
             }
 
             str += '\n';
@@ -644,9 +651,9 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm, opts) {
         str += `Size: ${mapData.width}x${mapData.height}`;
 
         //CW4 version
-        if(mapData.version != null) {
-            str += `, Ver: ${mapData.version}`;
-        }
+        //if(mapData.version != null) {
+        //    str += `, Ver: ${mapData.version}`;
+        //}
 
         str += '\n';
     }
@@ -669,7 +676,7 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm, opts) {
     if(!opts.permanentOnly) {
         if(game === 'cw2')
             str += `Rating: **${mapData.upvotes}**👍  **${mapData.downvotes}**👎`;
-        else if(game === 'cw4')
+        else if(game === 'cw4' || game === 'ixe')
             str += `Rating: **${mapData.upvotes}**👍`;
         else if(game === 'cw1')
             str += `Rating: **${mapData.rating}/5** (${mapData.ratings} ratings)`;
@@ -687,12 +694,14 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm, opts) {
     if(mapData.discordId != null && mapData.discordId.length > 0) {
         /** @type {string|null} */
         let messageCount = null;
-        const thread = /** @type {any} */(await guild.channels.fetch(mapData.discordId));
-        if(thread instanceof Discord.ThreadChannel) {
-            if(thread.messageCount == null) messageCount = null;
-            else messageCount = thread.messageCount >= 50 ? '50+' : `${thread.messageCount}`;
+        const thread = /** @type {any} */(await guild.channels.fetch(mapData.discordId).catch(() => {}));
+        if(thread != null) {
+            if(thread instanceof Discord.ThreadChannel) {
+                if(thread.messageCount == null) messageCount = null;
+                else messageCount = thread.messageCount >= 50 ? '50+' : `${thread.messageCount}`;
+            }
+            str += `[Discord Thread ${messageCount != null ? `(${messageCount} comment${messageCount != '1' ? 's':''})` : ''}](https://discord.com/channels/192420539204239361/${mapData.discordId}/)\n`;
         }
-        str += `[Discord Thread ${messageCount != null ? `(${messageCount} comment${messageCount != '1' ? 's':''})` : ''}](https://discord.com/channels/192420539204239361/${mapData.discordId}/)\n`;
     }
     else if(mapData.forumId != null) {
         str += `[Forum Thread ${forumMessagesCount != null ? `(${forumMessagesCount} comment${forumMessagesCount != 1 ? 's':''})` : ''}](https://knucklecracker.com/forums/index.php?topic=${mapData.forumId})\n`;
@@ -735,9 +744,9 @@ function getEmbedTemplate(game, emote, thumbnail, thumbnailURL) {
         color: KCUtil.gameEmbedColors[game],
         author: {
             name: KCLocaleManager.getDisplayNameFromAlias('game', game) || '',
-            icon_url: emote ? emote.url : undefined
+            icon_url: emote ? emote.imageURL() : undefined
         },
-        thumbnail: thumbnail ? thumbnailURL != null ? {url: thumbnailURL} : ((emote ? {url: emote.url} : undefined)) : undefined,
+        thumbnail: thumbnail ? thumbnailURL != null ? {url: thumbnailURL} : ((emote ? {url: emote.imageURL()} : undefined)) : undefined,
         fields: [],
     };
 }
@@ -781,18 +790,19 @@ function userDeletionHandler(member, message, embed, forumMessage) {
  * @param {KCGameMapManager} kcgmm
  */
 async function fetchMapDescriptionForCW4(map, kcgmm) {
-    if(map.game !== 'cw4') return;
-
-    await this.bot.sql.transaction(async query => {
-        let result = (await query(`SELECT * FROM map_cw4_descriptions WHERE id = ?`, map.id)).results[0];
-        if(result != null) {
-            map.desc = result.description;
-            return;
-        }
-        if(map.guid == null) return;
-        logger.info(`Downloading description from CW4 map ${map.id}`);
-        let desc = await kcgmm.getCW4MapDescriptionFromCW4MapDownload(map.guid);
-        await query(`INSERT INTO map_cw4_descriptions (id, description) VALUES (?, ?)`, [map.id, desc]);
-        map.desc = desc;
-    }).catch(logger.error);
+    if(map.game === 'cw4' || map.game === 'ixe') {
+        await this.bot.sql.transaction(async query => {
+            let result = (await query(`SELECT * FROM map_${map.game}_descriptions WHERE id = ?`, [map.id])).results[0];
+            if(result != null) {
+                map.desc = result.description;
+                return;
+            }
+            if(map.guid == null) return;
+            logger.info(`Downloading description from ${map.game} map ${map.id}`);
+            let desc = await kcgmm.getMapDescriptionFromMapDownload(map.game, map.guid);
+            await query(`INSERT INTO map_${map.game}_descriptions (id, description) VALUES (?, ?)`, [map.id, desc]);
+            map.desc = desc;
+        }).catch(logger.error);
+    }
+    else return;
 }

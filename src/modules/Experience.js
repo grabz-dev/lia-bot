@@ -86,7 +86,7 @@ export default class Experience extends Bot.Module {
         super(bot);
         this.commands = ['exp', 'mod_exp'];
 
-        this.games = ['cw4', 'pf', 'cw3', 'cw2', 'cw1'];
+        this.games = ['ixe', 'cw4', 'pf', 'cw3', 'cw2', 'cw1'];
         this.expBarLength = 40;
         this.expBarLeadersLength = 26;
         this.dots = ['⣀', '⣄', '⣤', '⣦', '⣶', '⣷', '⣿'];
@@ -1427,19 +1427,20 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
  * @returns {Discord.Collection<number, KCGameMapManager.MapData> | null}
  */
 function getMapListId(kcgmm, game) {
-    if(game !== 'cw4') return kcgmm.getMapListId(game);
+    return kcgmm.getMapListId(game);
+    // if(game !== 'cw4') return kcgmm.getMapListId(game);
 
-    var arr = kcgmm.getMapListArray(game);
-    if(arr == null) return null;
+    // var arr = kcgmm.getMapListArray(game);
+    // if(arr == null) return null;
 
-    /** @type {Discord.Collection<number, KCGameMapManager.MapData>} */
-    const obj = new Discord.Collection();
+    // /** @type {Discord.Collection<number, KCGameMapManager.MapData>} */
+    // const obj = new Discord.Collection();
 
-    for(let map of arr) {
-    //  if(map.tags && map.tags.includes('MVERSE')) continue;
-        obj.set(map.id, map);
-    }
-    return obj;
+    // for(let map of arr) {
+    //     if(map.tags && map.tags.includes('MVERSE')) continue;
+    //     obj.set(map.id, map);
+    // }
+    // return obj;
 }
 
 /**
@@ -1449,13 +1450,14 @@ function getMapListId(kcgmm, game) {
  * @returns {Readonly<KCGameMapManager.MapData>[] | null}
  */
 function getMapListArray(kcgmm, game) {
-    if(game !== 'cw4') return kcgmm.getMapListArray(game);
+    return kcgmm.getMapListArray(game);
+    // if(game !== 'cw4') return kcgmm.getMapListArray(game);
 
-    var arr = kcgmm.getMapListArray(game);
-    if(arr == null) return null;
+    // var arr = kcgmm.getMapListArray(game);
+    // if(arr == null) return null;
 
-    //return arr.filter(v => !(v.tags && v.tags.includes('MVERSE')));
-    return arr.filter(v => true);
+    // return arr.filter(v => !(v.tags && v.tags.includes('MVERSE')));
+    // return arr.filter(v => true);
 }
 
 /**

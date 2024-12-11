@@ -49,16 +49,26 @@ export async function fetchMapsDefault(game) {
             game: game,
             author: map.a[0],
             title: map.l[0],
-            width: +map.w[0],
-            height: +map.h[0],
             timestamp: +(map.t[0]+'000'),
             forumId: +map.p[0]
         }
 
         let obj;
-        //Fill CW4 game properties
-        if(game === 'cw4') {
+
+        //Fill IXE game properties
+        if(game === 'ixe') {
             obj = Object.assign(Object.assign({}, shared), {
+                upvotes: +map.b[0],
+                tags: (map.s[0]+'').toUpperCase().split(','),
+                version: +map.v[0],
+                discordId: map.z[0]
+            });
+        }
+        //Fill CW4 game properties
+        else if(game === 'cw4') {
+            obj = Object.assign(Object.assign({}, shared), {
+                width: +map.w[0],
+                height: +map.h[0],
                 upvotes: +map.b[0],
                 tags: (map.s[0]+'').toUpperCase().split(','),
                 objectives: +map.o[0],
@@ -69,6 +79,8 @@ export async function fetchMapsDefault(game) {
         //Fill CW3 and PF game properties
         else {
             obj = Object.assign(Object.assign({}, shared), {
+                width: +map.w[0],
+                height: +map.h[0],
                 desc: map.e[0],
                 scores: +map.s[0],
                 rating: +map.r[0],

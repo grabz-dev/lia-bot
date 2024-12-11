@@ -74,6 +74,7 @@ import xml2js from 'xml2js';
 import { logger, Util } from 'discord-bot-core';
 import { HttpRequest } from '../utils/HttpRequest.js';
 import { gunzip } from '../utils/Zlib.js';
+import { spawn } from 'child_process'
 import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { CW4NBTReader, TagCompound } from './CW4NBTReader.js';
 
@@ -153,7 +154,7 @@ export function KCGameMapManager(options, locale) {
                 return null;
             }
 
-            if(game === 'cw4') {
+            if(game === 'cw4' || game === 'ixe') {
                 /** @type {Array<MapLeaderboardEntry[]>} */
                 let entries = [];
                 for(let t in data.records) { //T0 T1 T2 T3 T4 T5
@@ -187,7 +188,7 @@ export function KCGameMapManager(options, locale) {
      * @returns {string|null} 
      */
     this.resolveCampaignMapGUIDFromInputString = function(game, str) {
-        let gameConfig = campaign[/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'} */(game)];
+        let gameConfig = campaign[/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'|'ixe'} */(game)];
         let id = +str;
         //attempt to resolve by matching name
         if(!Number.isFinite(id) || id < 1) {
@@ -216,7 +217,7 @@ export function KCGameMapManager(options, locale) {
      * @returns {string|null} 
      */
     this.getCampaignMapNameFromGUID = function(game, guid) {
-        let gameConfig = campaign[/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'} */(game)];
+        let gameConfig = campaign[/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'|'ixe'} */(game)];
         for(let campaign of gameConfig) {
             for(let map of campaign.maps) {
                 if(map.gameUID === guid) return map.name;
@@ -226,23 +227,37 @@ export function KCGameMapManager(options, locale) {
     }
 
     /**
-     * 
+     * @param {string} game
      * @param {string} guid 
      * @returns 
      */
-    this.getCW4MapDescriptionFromCW4MapDownload = async function(guid) {
+    this.getMapDescriptionFromMapDownload = async function(game, guid) {
         if (global.gc) {
             global.gc();
         }
-        let buffer = await (await HttpRequest.fetch(`https://knucklecracker.com/creeperworld4/queryMaps.php?query=map&guid=${guid}`)).arrayBuffer();
-        let compressed = Array.from(new Uint8Array(buffer));
-        compressed = compressed.slice(4);
-        let data = await gunzip(new Uint8Array(compressed));
-        let reader = new CW4NBTReader(data.buffer);
-        let key = reader.readUint8();
-        let val = reader.readString();
-        let c = new TagCompound(reader);
-        return ((c.dict.get("desc").value)+'').trim();
+
+        let gameUrlParam = KCLocaleManager.getUrlStringFromPrimaryAlias(game);
+        let buffer = await (await HttpRequest.fetch(`https://knucklecracker.com/${gameUrlParam}/queryMaps.php?query=map&guid=${guid}`)).arrayBuffer();
+        
+        if(game === 'cw4') {
+            let compressed = Array.from(new Uint8Array(buffer));
+            compressed = compressed.slice(4);
+            let data = await gunzip(new Uint8Array(compressed));
+            let reader = new CW4NBTReader(data.buffer);
+            let key = reader.readUint8();
+            let val = reader.readString();
+            let c = new TagCompound(reader);
+            return ((c.dict.get("desc").value)+'').trim();
+        }
+        else if(game === 'ixe') {
+            let metadataLength = Buffer.from(buffer).readUInt32LE(0);
+            let lz4CompressedData = Uint8Array.prototype.slice.call(Buffer.from(buffer), 4, 4+metadataLength);
+
+
+            let base64data = Buffer.from(lz4CompressedData).toString('base64')
+            let desc = await getIXEDescription(base64data);
+            return desc;
+        }
     }
 
     /**
@@ -525,7 +540,7 @@ export function KCGameMapManager(options, locale) {
                 break;
             }
 
-            let guid = this.resolveCampaignMapGUIDFromInputString(/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'} */(game), campaign);
+            let guid = this.resolveCampaignMapGUIDFromInputString(/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'|'ixe'} */(game), campaign);
             if(guid == null) {
                 errors.campaign = 'Campaign Name not resolved to any mission';
                 break;
@@ -743,6 +758,7 @@ export function KCGameMapManager(options, locale) {
                 maps.sort((a, b) => (b.rating||0) - (a.rating||0));
                 break;
             case 'cw4':
+            case 'ixe':
                 maps.sort((a, b) => (b.upvotes||0) - (a.upvotes||0));
                 break;
             }
@@ -856,7 +872,7 @@ export function KCGameMapManager(options, locale) {
         switch(msqd.type) {
             case "custom":
                 if(msqd.id == null) return null;
-                return `https://knucklecracker.com/${gameUrlParam}/${msqd.game === 'cw4' ? 'playLogQuery' : 'scoreQuery'}.php?customID=${msqd.id}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
+                return `https://knucklecracker.com/${gameUrlParam}/${msqd.game === 'cw4' || msqd.game === 'ixe' ? 'playLogQuery' : 'scoreQuery'}.php?customID=${msqd.id}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
             case "dmd":
                 if(msqd.id == null) return null;
                 return `https://knucklecracker.com/${gameUrlParam}/scoreQuery.php?dmdID=${msqd.id}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
@@ -886,7 +902,7 @@ export function KCGameMapManager(options, locale) {
                 return `https://knucklecracker.com/${gameUrlParam}/playLogQuery.php?gameUID=${encode}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
             }
             case "misc": {
-                return `https://knucklecracker.com/${gameUrlParam}/${msqd.game === 'cw4' ? 'playLogQuery' : 'scoreQuery'}.php?gameUID=${msqd.gameUID}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
+                return `https://knucklecracker.com/${gameUrlParam}/${msqd.game === 'cw4' || msqd.game === 'ixe' ? 'playLogQuery' : 'scoreQuery'}.php?gameUID=${msqd.gameUID}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
             }
             default:
                 return null;
@@ -989,4 +1005,34 @@ export function KCGameMapManager(options, locale) {
 
         return arr;
     }
+}
+
+/**
+ * @param {string} base64
+ * @returns {Promise<string>}
+ */
+async function getIXEDescription(base64) {
+    return new Promise((resolve, reject) => {
+        let process = spawn('parse-ixe-description/parse_ixe_description', [base64]);
+
+        process.stdout.on('data', data => {
+            resolve(data.toString());
+        });
+        
+        process.stderr.on('data', (data) => {
+            logger.error(`Error: ${data.toString()}`);
+            reject();
+        });
+        
+        // Handle process exit
+        process.on('close', (code) => {
+            if (code === 0) {
+                logger.info('parse_ixe_description ran successfully');
+            } else {
+                logger.error(`parse_ixe_description exited with code ${code}`);
+            }
+        });
+
+        setTimeout(reject, 3000)
+    });
 }

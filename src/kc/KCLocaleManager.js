@@ -7,7 +7,8 @@ const config = {
         "cw2": "creeperworld2",
         "cw3": "creeperworld3",
         "pf": "particlefleet",
-        "cw4": "creeperworld4"
+        "cw4": "creeperworld4",
+        "ixe": "creeperworldixe",
     },
     
     /** @type {Object.<string, Object.<string, { display: string, aliases?: string[] }>>} */
@@ -36,6 +37,10 @@ const config = {
             "cw4" : {
                 "display": "Creeper World 4",
                 "aliases": ["creeperworld4", "cw4", "4"]
+            },
+            "ixe": {
+                "display": "Creeper World IXE",
+                "aliases": ["creeperworldixe", "ixe", "cwixe"]
             },
             "gemcraft" : {
                 "display": "GemCraft",
@@ -93,6 +98,8 @@ const config = {
             "cw4_chronom" : { "display": "Chronom" },
             "cw4_markv" : { "display": "Mark V" },
             "cw4_misc": { "display": "" },
+            "ixe_custom": {"display": "Colonies"},
+            "ixe_misc": { "display": "" },
         }
     },
 }

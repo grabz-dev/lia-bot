@@ -16,7 +16,8 @@ export const KCUtil = Object.freeze({
         cw2: 4942335,
         cw3: 5852364,
         pf: 11284267,
-        cw4: 6403285
+        cw4: 6403285,
+        ixe: 13002297
     }),
     embedLimits: Object.freeze({
         fields: 25,
@@ -24,6 +25,7 @@ export const KCUtil = Object.freeze({
     }),
     slashChoices: Object.freeze({
         game: [
+            Object.freeze({ name: 'Creeper World IXE', value: 'ixe' }),
             Object.freeze({ name: 'Creeper World 4', value: 'cw4' }),
             Object.freeze({ name: 'Particle Fleet',  value: 'pf' }),
             Object.freeze({ name: 'Creeper World 3', value: 'cw3' }),

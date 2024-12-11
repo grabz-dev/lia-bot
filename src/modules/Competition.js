@@ -114,7 +114,7 @@ export default class Competition extends Bot.Module {
         super(bot);
         this.commands = ['c', 'mod_c', 'admin_c'];
 
-        this.games = ["cw4", "pf", "cw3", "cw2", "cw1"];
+        this.games = ["ixe", "cw4", "pf", "cw3", "cw2", "cw1"];
         this.maxScoresInTable = 8;
         this.timeOffsetHours = 24;
         this.pinManiaActive = false;
@@ -1510,7 +1510,7 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
             break;
         }
         case 'misc': {
-            let stories = campaign[/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'}  */(mapScoreQueryData.game)]
+            let stories = campaign[/** @type {'cw1'|'cw2'|'cw3'|'pf'|'cw4'|'ixe'}  */(mapScoreQueryData.game)]
 
             let category = '';
             let mapName = '';
@@ -1524,7 +1524,10 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
             }
             if(category.length > 0 && mapName.length > 0) {
                 name = `${emoteStr} ${category}`;
-                value += `${mapName}\nObjective: **${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapScoreQueryData.objective+'')}**`;
+                value += `${mapName}`;
+                if(mapScoreQueryData.game === 'cw4') {
+                    value += `\nObjective: **${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapScoreQueryData.objective+'')}**`;
+                }
                 break;
             }
         }
@@ -1538,7 +1541,7 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
             value = `${mapData.title} __by ${mapData.author}__\n`;
             if(mapData.game === 'cw4')
                 value += `Objective: **${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', mapScoreQueryData.objective+'')}**`;
-            else
+            if(mapData.game !== 'cw4' && mapData.game !== 'ixe')
                 value += `${getDifficultyStringFromMapData(mapData)}`;
             if(mapData.width != null && mapData.height != null)
                 value += `, ${mapData.width}x${mapData.height}`;

@@ -280,6 +280,7 @@ function selectCampaignMaps(arr, user, allMapsCompleted, allMapsIgnored) {
     }
 
     switch(user.game) {
+    case 'ixe':
     case 'cw4':
     case 'pf':
     case 'cw3':
@@ -287,6 +288,11 @@ function selectCampaignMaps(arr, user, allMapsCompleted, allMapsIgnored) {
     case 'cw1': {
         //Select campaign(s) for each game
         switch(user.game) {
+        case 'ixe':
+            campaigns.ordered.push(0);
+            campaigns.ordered.push(1);
+            campaigns.ordered.push(2);
+            break;
         case 'cw4':
             campaigns.ordered.push(0);
             campaigns.random.push(1);

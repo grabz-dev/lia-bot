@@ -7,6 +7,59 @@
  */
 
 export const campaign = {
+    ixe: [{
+        name: 'Story',
+        atOnce: 1,
+        primary: true,
+        /** @type {CampaignMapDefinition[]} */
+        maps: [
+            { name: 'Cero',              gameUID: 'c3Rvcnkw',               exp: 125 },
+            { name: 'Alcance',           gameUID: 'c3Rvcnkx',               exp: 150 }, 
+            { name: 'Procyon',           gameUID: 'c3Rvcnky',               exp: 175 }, 
+            { name: 'Mintaka',           gameUID: 'c3Rvcnkz',               exp: 200 }, 
+            { name: 'Mirfak',            gameUID: 'c3Rvcnk0',               exp: 225 }, 
+            { name: 'Aldebaran',         gameUID: 'c3Rvcnk1',               exp: 250 }, 
+            { name: 'Orionis',           gameUID: 'c3Rvcnk2',               exp: 275 }, 
+            { name: 'Solara',            gameUID: 'c3Rvcnk3',               exp: 300 }, 
+            { name: 'Elysium',           gameUID: 'c3Rvcnk4',               exp: 325 }, 
+            { name: 'Vega',              gameUID: 'c3Rvcnk5',               exp: 350 }, 
+            { name: 'Altair',            gameUID: 'c3RvcnkxMA==',            exp: 375 }, 
+            { name: 'Arcturus',          gameUID: 'c3RvcnkxMQ==',            exp: 400 }, 
+            { name: 'Taurus',            gameUID: 'c3RvcnkxMg==',            exp: 425 }, 
+            { name: 'Spica',             gameUID: 'c3RvcnkxMw==',            exp: 450 }, 
+            { name: 'Deneb',             gameUID: 'c3RvcnkxNA==',            exp: 475 }, 
+            { name: 'Achernar',          gameUID: 'c3RvcnkxNQ==',            exp: 500 }, 
+            { name: 'Fomalhaut',         gameUID: 'c3RvcnkxNg==',            exp: 525 }, 
+            { name: 'Algol',             gameUID: 'c3RvcnkxNw==',            exp: 550 }, 
+            { name: 'Diphda',            gameUID: 'c3RvcnkxOA==',            exp: 575 }, 
+            { name: 'Bellatrix',         gameUID: 'c3RvcnkxOQ==',            exp: 600 }, 
+        ]
+        
+    },{
+        name: 'Tangent',
+        atOnce: 0,
+        /** @type {CampaignMapDefinition[]} */
+        maps: [
+            { name: 'Chapter 1',              gameUID: 'dGFuZ2VudDE=',    exp: 100 },
+            { name: 'Chapter 2',              gameUID: 'dGFuZ2VudDI=',    exp: 200 },
+            { name: 'Chapter 3',              gameUID: 'dGFuZ2VudDM=',    exp: 300 },
+            { name: 'Chapter 4',              gameUID: 'dGFuZ2VudDQ=',    exp: 400 },
+            { name: 'Chapter 5',              gameUID: 'dGFuZ2VudDU=',    exp: 500 },
+            { name: 'Chapter 6',              gameUID: 'dGFuZ2VudDY=',    exp: 600 },
+            { name: 'Chapter 7',              gameUID: 'dGFuZ2VudDc=',    exp: 700 },
+        ]
+    },{
+        name: 'Tangent',
+        atOnce: 0,
+        /** @type {CampaignMapDefinition[]} */
+        maps: [
+            { name: 'Trial 1',              gameUID: 'ZGVtbzE=',    exp: 100 },
+            { name: 'Trial 2',              gameUID: 'ZGVtbzI=',    exp: 200 },
+            { name: 'Trial 3',              gameUID: 'ZGVtbzM=',    exp: 300 },
+            { name: 'Trial 4',              gameUID: 'ZGVtbzQ=',    exp: 400 },
+            { name: 'Trial 5',              gameUID: 'ZGVtbzU=',    exp: 500 },
+        ]
+    }],
     cw4: [{
         name: 'Farsite Expedition',
         atOnce: 1,

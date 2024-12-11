@@ -132,7 +132,7 @@ export default class CWMaps extends Bot.Module {
         const mapList = kcgmm.getMapListArray(game);
         let startAtMapId = 1;
         if(mapList == null) {
-            log(`Couldn't find ${game} map list. Retrying in 1 minute`);
+            log(game, `Couldn't find ${game} map list. Retrying in 1 minute`);
             setTimeout(kcgmm => this._start(kcgmm, game, resolve, reject), 1000 * 60);
             return;
         }
@@ -144,20 +144,18 @@ export default class CWMaps extends Bot.Module {
                 if(result) startAtMapId = result.id + 1;
                 const index = mapList.findIndex(v => v.id >= startAtMapId);
                 if(index === -1) {
-                    log("Caught up. Retrying in 24h");
-                    setTimeout(() => this._start(kcgmm, game, resolve, reject), 1000 * 60 * 60 * 24);
+                    log(game, "Already caught up.");
                     resolve(undefined);
                     return;
                 }
                 const state = await this.work(game, mapList.splice(index), 10, query);
                 if(state === 1) {
-                    log("Success. Continuing...");
+                    log(game, "Success. Continuing...");
                     setTimeout(() => this._start(kcgmm, game, resolve, reject), INTERVAL);
                     return;
                 }
                 else if(state === 2) {
-                    log("All done. Checking again in 24h");
-                    setTimeout(() => this._start(kcgmm, game, resolve, reject), 1000 * 60 * 60 * 24);
+                    log(game, "All done.");
                     resolve(undefined);
                     return;
                 }
@@ -193,7 +191,7 @@ export default class CWMaps extends Bot.Module {
 
             /** @param {string=} str - Log a string */
             async function exit(str) {
-                if(str) log(str);
+                if(str) log(game, str);
                 count--;
                 window.close();
                 await Bot.Util.Promise.sleep(INTERVAL);
@@ -205,7 +203,7 @@ export default class CWMaps extends Bot.Module {
                 const date = new Date(dateStr);
                 if(!Number.isFinite(+date.getTime())) { await exit(`Failed to find date in page at ${url}, ${dateStr}`); continue; }
                 await query(`INSERT INTO cw2_maps (id, timestamp) VALUES (?, ?)`, [map.id, date.getTime()]);
-                log(`New CW2 map upload date inserted. ID: ${map.id}, date: ${date}`);
+                log(game, `New CW2 map upload date inserted. ID: ${map.id}, date: ${date}`);
             }
             else if(game === 'cw1') {
                 const rating = +(document.getElementById(`outOfFive_${map.id}`)?.textContent?.trim()??NaN);
@@ -235,7 +233,7 @@ export default class CWMaps extends Bot.Module {
                 if(forumId == null) { await exit(`Failed to find forumId in page at ${url}`); continue; }
 
                 await query(`INSERT INTO cw1_maps (id, title, rating, ratings, description, forum_id, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)`, [map.id, title, rating, ratings, desc, forumId, date.getTime()]);
-                log(`New CW1 map upload date inserted. ID: ${map.id}, title: ${title}, rating: ${rating}, ratings: ${ratings}, desc: ${desc}, forumId: ${forumId}, date: ${date}`);
+                log(game, `New CW1 map upload date inserted. ID: ${map.id}, title: ${title}, rating: ${rating}, ratings: ${ratings}, desc: ${desc}, forumId: ${forumId}, date: ${date}`);
             }
 
 
@@ -249,8 +247,9 @@ export default class CWMaps extends Bot.Module {
 
 /**
  * 
+ * @param {string} game
  * @param {string} str 
  */
-function log(str) {
-    logger.info(`[CW2UploadDateFetch] ${str}`);
+function log(game, str) {
+    logger.info(`[${game}UploadDateFetch] ${str}`);
 }
