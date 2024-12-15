@@ -354,8 +354,11 @@ class TagList {
     }
 }
 export class TagCompound {
-    /** @param {CW4NBTReader} reader */
-    constructor(reader) {
+    /** 
+     * @param {CW4NBTReader} reader 
+     * @param {'cw4'|'ixe'=} game
+    */
+    constructor(reader, game) {
         this.dict = new Map();
         while (true) {
             let id = reader.readUint8();
@@ -364,9 +367,9 @@ export class TagCompound {
             }
             var key = reader.readString();
             var val = readTag(reader, id);
-            if(key !== 'desc') continue;
+            if(game === 'cw4' && key !== 'desc') continue;
             this.dict.set(key, val);
-            if(key === 'desc') return;
+            if(game === 'cw4' && key === 'desc') return;
         }
     }
     /**

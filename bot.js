@@ -69,6 +69,9 @@ core.on('ready', bot => {
 
             logger.info("Initializing map lists finished.");
             setInterval(async () => {
+                await kcgmm.fetch('ixe').catch(logger.error);
+            }, 1000 * 60 * 60 * 2);
+            setInterval(async () => {
                 await kcgmm.fetch('cw4').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('pf').catch(logger.error);

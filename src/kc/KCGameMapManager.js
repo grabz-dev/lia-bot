@@ -71,6 +71,7 @@
 import Discord from 'discord.js';
 import crypto from 'crypto';
 import xml2js from 'xml2js';
+import fs from 'fs';
 import { logger, Util } from 'discord-bot-core';
 import { HttpRequest } from '../utils/HttpRequest.js';
 import { gunzip } from '../utils/Zlib.js';
@@ -246,16 +247,26 @@ export function KCGameMapManager(options, locale) {
             let reader = new CW4NBTReader(data.buffer);
             let key = reader.readUint8();
             let val = reader.readString();
-            let c = new TagCompound(reader);
+            let c = new TagCompound(reader, 'cw4');
             return ((c.dict.get("desc").value)+'').trim();
         }
         else if(game === 'ixe') {
             let metadataLength = Buffer.from(buffer).readUInt32LE(0);
             let lz4CompressedData = Uint8Array.prototype.slice.call(Buffer.from(buffer), 4, 4+metadataLength);
-
-
             let base64data = Buffer.from(lz4CompressedData).toString('base64')
-            let desc = await getIXEDescription(base64data);
+            await LZ4Unpickle(base64data);
+            let unpickled = fs.readFileSync('data.txt', 'utf8');
+            fs.unlinkSync('data.txt');
+            let b = atob(unpickled);
+            let ab = new ArrayBuffer(b.length);
+            let uint8Array = new Uint8Array(ab);
+            for (let i = 0; i < b.length; i++) {
+                uint8Array[i] = b.charCodeAt(i);
+            }
+            let reader = new CW4NBTReader(ab);
+            let c = new TagCompound(reader, 'ixe');
+            //replace VT characters with LF
+            let desc = (Array.from(c.dict.values())[0].dict.get('e').value+'').trim().replace(/\x0B/g, '\x0A');
             return desc;
         }
     }
@@ -1009,27 +1020,29 @@ export function KCGameMapManager(options, locale) {
 
 /**
  * @param {string} base64
- * @returns {Promise<string>}
+ * @returns {Promise<void>}
  */
-async function getIXEDescription(base64) {
+async function LZ4Unpickle(base64) {
     return new Promise((resolve, reject) => {
         let process = spawn('parse-ixe-description/parse_ixe_description', [base64]);
 
-        process.stdout.on('data', data => {
-            resolve(data.toString());
-        });
+        //process.stdout.on('data', data => {
+        //    resolve(data.toString());
+        //});
         
-        process.stderr.on('data', (data) => {
-            logger.error(`Error: ${data.toString()}`);
-            reject();
-        });
+        //process.stderr.on('data', (data) => {
+        //    logger.error(`Error: ${data.toString()}`);
+        //    reject();
+        //});
         
         // Handle process exit
         process.on('close', (code) => {
             if (code === 0) {
                 logger.info('parse_ixe_description ran successfully');
+                resolve()
             } else {
                 logger.error(`parse_ixe_description exited with code ${code}`);
+                reject();
             }
         });
 

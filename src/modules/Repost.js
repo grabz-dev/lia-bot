@@ -54,7 +54,8 @@ export default class Repost extends Bot.Module {
         switch(commandName) {
         case 'repost': {
             let id = interaction.options.getInteger('id', true);
-            this.repost(interaction, id);
+            let game = interaction.options.getString('game', true);
+            this.repost(interaction, id, game);
             return;
         }
         }
@@ -73,6 +74,11 @@ export default class Repost extends Bot.Module {
                 option.setName('id')
                     .setDescription("The ID of the map to repost the thread of.")
                     .setRequired(true)
+            ).addStringOption(option =>
+                option.setName('game')
+                    .setDescription("The name of the game.")
+                    .setRequired(true)
+                    .addChoices({ name: 'Creeper World 4', value: 'cw4' }, { name: 'Creeper World IXE', value: 'ixe' })
             ).toJSON(),
         ]
     }
@@ -81,8 +87,9 @@ export default class Repost extends Bot.Module {
     /**
      * @param {Discord.CommandInteraction<"cached">} interaction
      * @param {number} id
+     * @param {string} game
      */
-    async repost(interaction, id) {
+    async repost(interaction, id, game) {
         let file;
         try {
             file = JSON.parse((await readFile('config/repost.json')).toString())
@@ -104,6 +111,12 @@ export default class Repost extends Bot.Module {
         let serverId = file.server_id;
         /** @type {string} */
         let channelId = file.channel_id;
+        
+        if(game === 'cw4')
+            requestUrl = requestUrl.replace('<URL>', 'creeperworld4')
+        else if(game === 'ixe')
+            requestUrl = requestUrl.replace('<URL>', 'creeperworldixe')
+        else return;
 
         await HttpRequest.get(`${requestUrl}?id=${id}&repost=1&modname=${interaction.user.username}`).then(() => {
             interaction.reply("Request sent successfully").catch(logger.error)
