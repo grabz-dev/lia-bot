@@ -59,6 +59,7 @@
  * @property {number=} eco - CW4 only. The eco value.
  * @property {number=} unitsBuilt - CW4 only. Total units built.
  * @property {number=} unitsLost - CW4 only. Total units lost.
+ * @property {number=} mode - IXE only. 0 - normal. 1 - freebuild. 2 - slammer. 3 - freebuild+slammer
  */
 
 /**
@@ -130,7 +131,7 @@ export function KCGameMapManager(options, locale) {
      * @param {MapScoreQueryData} mapScoreQueryData -
      * @param {string=} userName
      * @param {string=} groupName
-     * @param {{removeMverseTag?: boolean}=} options
+     * @param {{removeMverseTag?: boolean, ixeModes?: number[]}=} options
      * @returns {Promise<MapLeaderboard|null>} 
      */
     this.getMapScores = async function(mapScoreQueryData, userName, groupName, options) {
@@ -167,6 +168,25 @@ export function KCGameMapManager(options, locale) {
                         return a.rank - b.rank;
                     });
                 }
+
+                if(mapScoreQueryData.game === 'ixe' && options?.ixeModes != null && entries[0] != null) {
+                    for(let i = 0; i < entries[0].length; i++) {
+                        let entry = entries[0][i];
+                        if(entry.mode == null) continue;
+                        if(!options.ixeModes.includes(entry.mode)) {
+                            entries[0].splice(i, 1);
+                            i--;
+                        }
+                    }
+
+                    for(let i = 0; i < entries[0].length; i++) {
+                        let entry = entries[0][i];
+                        entry.rank = i+1;
+                    }
+                }
+
+
+
                 return { entries: entries }
             }
             else {
@@ -277,7 +297,7 @@ export function KCGameMapManager(options, locale) {
      * @param {MapScoreQueryData} mapScoreQueryData
      * @param {string=} name - The name of the user.
      * @param {string=} groupName - The group name.
-     * @param {{removeMverseTag?: boolean}=} options
+     * @param {{removeMverseTag?: boolean, ixeModes?: number[]}=} options
      * @returns {Promise<boolean>}
      */
     this.getMapCompleted = async function(mapScoreQueryData, name, groupName, options) {
@@ -285,7 +305,12 @@ export function KCGameMapManager(options, locale) {
         if(leaderboard == null) return false;
 
         for(let scores of leaderboard.entries) {
-            if(mapScoreQueryData.game === 'cw2') {
+            if(mapScoreQueryData.game === 'ixe' && options?.ixeModes != null) {
+                for(let mode of options.ixeModes) {
+                    if(scores && scores.find(entry => entry.user.toLowerCase() === name?.toLowerCase() && entry.mode === mode)) return true;
+                }
+            }
+            else if(mapScoreQueryData.game === 'cw2') {
                 if(scores && scores.find(entry => entry.user.toLowerCase() === name?.toLowerCase())) return true;
             }
             else {
@@ -827,6 +852,7 @@ export function KCGameMapManager(options, locale) {
             let eco = entry.eco == null ? undefined : +entry.eco[0];
             let unitsBuilt = entry.unitsBuilt == null ? undefined : +entry.unitsBuilt[0];
             let unitsLost = entry.unitsLost == null ? undefined : +entry.unitsLost[0];
+            let mode = entry.mode == null ? undefined : +entry.mode[0];
 
             let timeorscore = time??score;
             if(timeorscore != null) { 
@@ -862,7 +888,8 @@ export function KCGameMapManager(options, locale) {
                 plays: plays,
                 eco: eco,
                 unitsBuilt: unitsBuilt,
-                unitsLost: unitsLost
+                unitsLost: unitsLost,
+                mode: mode,
             });
         }
         return arr;

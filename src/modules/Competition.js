@@ -838,7 +838,7 @@ export default class Competition extends Bot.Module {
             for(let resultMaps of resultsMaps) {
                 let map = getMapScoreQueryDataFromDatabase(resultMaps);
 
-                const fullMapLeaderboard = await kcgmm.getMapScores(map, undefined, "specialevent");
+                const fullMapLeaderboard = await kcgmm.getMapScores(map, undefined, "specialevent", {ixeModes: [0]});
                 if(fullMapLeaderboard == null) {
                     if(interaction) await interaction.editReply("Failed to end competition.");
                     throw new Error("Failed to get map scores.");
@@ -1118,7 +1118,7 @@ export default class Competition extends Bot.Module {
             for(let resultMaps of resultsMaps) {
                 let map = getMapScoreQueryDataFromDatabase(resultMaps);
 
-                const fullMapLeaderboard = await kcgmm.getMapScores(map, undefined, "specialevent");
+                const fullMapLeaderboard = await kcgmm.getMapScores(map, undefined, "specialevent", {ixeModes: [0]});
                 if(fullMapLeaderboard == null) {
                     throw new Error("Failed to get map scores.");
                 }
@@ -1713,7 +1713,7 @@ function getMapScoreQueryDataFromDatabase(resultMaps) {
 /**
  * @this {Competition}
  * @param {Discord.Guild} guild
- * @param {KCGameMapManager.MapScoreQueryData} msqd
+ * @param {KCGameMapManager.MapScoreQueryData} msqd 
  * @param {KCGameMapManager.MapLeaderboard} leaderboard
  * @returns {boolean}
  */

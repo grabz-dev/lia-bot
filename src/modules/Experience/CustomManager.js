@@ -217,11 +217,11 @@ export class CustomManager {
         let date = kcgmm.getDateFlooredToMonth(new Date(map.timestamp));
         let month = KCUtil.getMonthFromDate(date, true);
         const rank = kcgmm.getMapMonthlyRank(map);
-        if(rank == null) return {str: str(), rankMapCount, sup};
+        //if(rank == null) return {str: str(), rankMapCount, sup};
 
         /** @type {string=} */
         let rankStr = undefined;
-        if(rank <= 10) {
+        if(rank != null && rank <= 10) {
             sup = SUPERSCRIPT_DIGITS[rankMapCount];
             rankStr = `#${rank} ${month} ${date.getFullYear()}`;
             rankMapCount++;
@@ -274,7 +274,7 @@ export async function getMapsCompleted(maps, userName, kcgmm) {
 
     let promises = [];
     for(let i = 0; i < maps.length; i++)
-        promises[i] = kcgmm.getMapCompleted({game: maps[i].game, type: 'custom', id: maps[i].id}, userName, undefined, { removeMverseTag: true });
+        promises[i] = kcgmm.getMapCompleted({game: maps[i].game, type: 'custom', id: maps[i].id}, userName, undefined, { removeMverseTag: true, ixeModes: [0] });
     for(let i = 0; i < promises.length; i++) {
         await promises[i] ? finished.push(maps[i]) : unfinished.push(maps[i]);
     }

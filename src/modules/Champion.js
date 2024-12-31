@@ -30,8 +30,12 @@ export default class Champion extends Bot.Module {
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 guild_id VARCHAR(64) NOT NULL,
                 entry_key VARCHAR(32) NOT NULL,
-                user_id VARCHAR(64) NOT NULL
+                user_id VARCHAR(10000) NOT NULL
              )`);
+        }).catch(logger.error);
+
+        this.bot.sql.transaction(async query => {
+            await query('ALTER TABLE champion_champions MODIFY COLUMN user_id VARCHAR(10000) NOT NULL').catch(() => {});
         }).catch(logger.error);
     }
 
@@ -64,17 +68,27 @@ export default class Champion extends Bot.Module {
      * @param {{game: string, userId: Discord.Snowflake}[]} champions 
      */
     async refreshExperienceChampions(query, guild, champions) {
+        /** @type {{[game: string]: {users: string}}} */
+        let champs = {}
         for(let champion of champions) {
+            if(champs[champion.game] == null) champs[champion.game] = {users: ''}
+            champs[champion.game].users += `${champion.userId}_`
+        }
+        for(let champ of Object.values(champs)) {
+            champ.users = champ.users.substring(0, champ.users.length - 1);
+        }
+
+        for(let [game, obj] of Object.entries(champs)) {
             /** @type {Db.champion_champions|null} */
             let resultChampions = (await query(`SELECT * FROM champion_champions 
-                WHERE guild_id = '${guild.id}' AND entry_key = 'exp_${champion.game}' FOR UPDATE`)).results[0];
+                WHERE guild_id = '${guild.id}' AND entry_key = 'exp_${game}' FOR UPDATE`)).results[0];
             
             if(resultChampions == null)
                 await query(`INSERT INTO champion_champions (guild_id, entry_key, user_id)
-                    VALUES ('${guild.id}', 'exp_${champion.game}', '${champion.userId}')`);
+                    VALUES ('${guild.id}', 'exp_${game}', '${obj.users}')`);
             else
-                await query(`UPDATE champion_champions SET user_id = '${champion.userId}'
-                    WHERE guild_id = '${guild.id}' AND entry_key = 'exp_${champion.game}'`);
+                await query(`UPDATE champion_champions SET user_id = '${obj.users}'
+                    WHERE guild_id = '${guild.id}' AND entry_key = 'exp_${game}'`);
         }
 
         await processChampionRole.call(this, query, guild);
@@ -97,7 +111,7 @@ async function processChampionRole(query, guild) {
         let arr = [];
         let membersChampions = Array.from(role.members.values());
         for(let member of membersChampions) {
-            if(!resultsChampions.find(v => v.user_id === member.id))
+            if(!resultsChampions.find(v => v.user_id.split('_').includes(member.id)))
                 arr.push(member.roles.remove(role).catch(logger.error));
         }
 
@@ -105,11 +119,12 @@ async function processChampionRole(query, guild) {
             await p;
 
         for(let resultChampions of resultsChampions) {
-            let snowflake = resultChampions.user_id;
-
-            if(!membersChampions.find(v => v.id === snowflake)) {
-                let member = await guild.members.fetch(snowflake).catch(() => {});
-                if(member) member.roles.add(role).catch(logger.error);
+            let snowflakes = resultChampions.user_id.split('_');
+            for(let snowflake of snowflakes) {
+                if(!membersChampions.find(v => v.id === snowflake)) {
+                    let member = await guild.members.fetch(snowflake).catch(() => {});
+                    if(member) member.roles.add(role).catch(logger.error);
+                }
             }
         }
     }

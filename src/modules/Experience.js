@@ -247,7 +247,7 @@ export default class Experience extends Bot.Module {
                 maps = maps ?? 6;
                 if(maps > 6) maps = 6;
                 if(maps < 1) maps = 1;
-                return this.newMaps(interaction, guild, member, game, this.kcgmm, maps, dm??false, noinstructions??false, nopriority??false);
+                return this.newMaps(interaction, guild, member, game, this.kcgmm, maps, dm??false, noinstructions??false, nopriority??false, this.champion);
             }
             case 'rename': {
                 let game = interaction.options.getString('game', true);
@@ -490,12 +490,16 @@ export default class Experience extends Bot.Module {
                 }
                 message.edit({ embeds: [embed] }).catch(logger.error);
 
-                /** @type {Discord.Snowflake|null} */
-                let user = this.cache.get(guild.id, `champion_${game}`);
-                if(user != null) arr.push({
-                    game: game,
-                    userId: user
-                })
+                /** @type {Discord.Snowflake[]|null} */
+                let userArr = this.cache.get(guild.id, `champion_${game}`);
+                if(userArr != null) {
+                    for(let user of userArr) {
+                        arr.push({
+                            game: game,
+                            userId: user
+                        });
+                    }
+                }
             }
 
             await champion.refreshExperienceChampions(query, guild, arr);
@@ -796,8 +800,9 @@ export default class Experience extends Bot.Module {
      * @param {boolean} dm
      * @param {boolean} noinstructions
      * @param {boolean} nopriority
+     * @param {import('./Champion.js').default} champion
      */
-    newMaps(interaction, guild, member, game, kcgmm, customMapCount, dm, noinstructions, nopriority) {
+    newMaps(interaction, guild, member, game, kcgmm, customMapCount, dm, noinstructions, nopriority, champion) {
         this.bot.sql.transaction(async query => {
             await interaction.deferReply();
 
@@ -939,6 +944,11 @@ export default class Experience extends Bot.Module {
                 inline: false
             }
 
+            if(game === 'ixe') {
+                //fieldInstructions.value += `\n${emote} Scores only count if played __without Game Modes__, or when played ____with Free Build and Slammer at once____. Slammer must be enabled before unpausing the mission.`
+                fieldInstructions.value += `\n${emote} Scores only count if played __without Game Modes__.`
+            }
+
             embed.fields.push(fieldXp);
             embed.fields.push(fieldNewMaps);
             if(fieldBeatenMaps.value.length > 0)
@@ -956,6 +966,8 @@ export default class Experience extends Bot.Module {
                     return dm.send({ embeds: [embed] });
                 }).catch(logger.error);
             }
+
+            this.loop(guild, kcgmm, champion).catch(logger.error);
         }).catch(logger.error);
     }
 
@@ -1370,10 +1382,12 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
     let msgStr = '';
 
     let selfFound = false;
+    /** @type {string[]} */
+    let giveRoleTo = [];
     for(let i = 0; i < Math.min(9, leaders.length); i++) {
         let leader = leaders[i];
         let leaderMember = guild.members.resolve(leader.resultUser.user_id);
-        if(i === 0 && leaders.length > 2) this.cache.set(guild.id, `champion_${game}`, leader.resultUser.user_id);
+        if(leaders.length > 2 && isPlayerChampion(leader, leaders)) giveRoleTo.push(leader.resultUser.user_id)
 
         if(member) {
             if(i === 0 && leaders.length > 2) msgStr += '🏆 ';
@@ -1393,6 +1407,7 @@ async function getLeaderboardEmbed(query, kcgmm, mapListId, guild, game, member)
         if(resultUsers && leader.resultUser.user_id === resultUsers.user_id)
             selfFound = true;
     }
+    this.cache.set(guild.id, `champion_${game}`, giveRoleTo);
 
     if(member != null && resultUsers != null && !selfFound) {
         let user = resultUsers;
@@ -1484,9 +1499,13 @@ async function getProfileInfoString(totals, resultUsers, query, kcgmm, mapListId
     const leader = leaders.find(v => v.resultUser.user_id === member.id);
     if(leader) {
         const index = leaders.indexOf(leader);
+        let leaderOverride = false;
+        if(isPlayerChampion(leader, leaders)) {
+            leaderOverride = true;
+        }
         if(index >= 0) {
-            str += `\nYour leaderboard rank is **#${index + 1}**`;
-            if(index === 0) {
+            str += `\nYour leaderboard rank is **#${leaderOverride ? '1' : index + 1}**`;
+            if(index === 0 || leaderOverride) {
                 const roleId = this.bot.getRoleId(guild.id, 'CHAMPION_OF_KC');
                 if(roleId) {
                     str += `. You are a <@&${roleId}>`;
@@ -1514,4 +1533,13 @@ async function getProfileInfoString(totals, resultUsers, query, kcgmm, mapListId
     }
 
     return str;
+}
+
+/**
+ * 
+ * @param {{resultUser: Db.experience_users, total: ExpData;}} leader 
+ * @param {{resultUser: Db.experience_users, total: ExpData;}[]} leaders
+ */
+function isPlayerChampion(leader, leaders) {
+    return leaders[0].total.currentLevel === leader.total.currentLevel && leaders[0].total.currentXP === leader.total.currentXP;
 }
