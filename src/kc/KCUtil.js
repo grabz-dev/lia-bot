@@ -45,6 +45,7 @@ export const KCUtil = Object.freeze({
                 .setRequired(true)
                 .addChoices(...[
                     { name: 'Custom Map', value: 'custom' },
+                    { name: 'IXE Map Gen Map', value: 'ixe_mapgen' },
                     { name: 'CW4 Mark V Map', value: 'cw4_markv' },
                     { name: 'CW4 Chronom Map', value: 'cw4_chronom' },
                     { name: 'CW3 DMD Map', value: 'cw3_dmd' },
@@ -72,21 +73,21 @@ export const KCUtil = Object.freeze({
                 ])
         ).addStringOption(option =>
             option.setName('seed')
-                .setDescription('[CW4 Mark V, CW2 Code] The map seed.')
+                .setDescription('[CW4 Mark V, CW2 Code, IXE Map Gen] The map seed.')
         ).addStringOption(option =>
             option.setName('date')
                 .setDescription('[Chronom] The map date. e.g. 2022-06-09')
-        ).addStringOption(option =>
+        ).addStringOption(option => //These values are reused for IXE, but +1 must be added to the value for IXE. Size is used for Enemies
             option.setName('size')
-                .setDescription('[CW2 Code] The map size.')
+                .setDescription('[CW2 Code, IXE Map Gen] The map size / The map enemies setting.')
                 .addChoices(...[
                     { name: 'Small', value: '0' },
                     { name: 'Medium', value: '1' },
                     { name: 'Large', value: '2' },
                 ])
-        ).addStringOption(option =>
+        ).addStringOption(option => //These values are reused for IXE, but +1 must be added to the value for IXE. Complexity is used for Ships
             option.setName('complexity')
-                .setDescription('[CW2 Code] The map complexity.')
+                .setDescription('[CW2 Code, IXE Map Gen] The map complexity / The map ships setting.')
                 .addChoices(...[
                     { name: 'Low', value: '0' },
                     { name: 'Medium', value: '1' },

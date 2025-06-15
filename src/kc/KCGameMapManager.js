@@ -10,7 +10,7 @@
  * @property {string} game - cw2 cw3 pf cw4
  * @property {string} type - CW2: custom, code | CW3: custom, dmd | PF: custom | CW4: custom, chronom
  * @property {number=} id - Works for everything except CW2 code maps. Map ID number.
- * @property {string=} name - CW2 code map/CW4 markv map. The map seed
+ * @property {string=} name - CW2 code map/CW4 markv map/IXE map gen map. The map seed
  * @property {number=} size - CW2 code map only. 0, 1, 2 - small, medium, large
  * @property {number=} complexity - CW2 code map only. 0, 1, 2 - low, medium, high
  * @property {number=} objective - CW4 only. Objective index 0-5
@@ -684,6 +684,50 @@ export function KCGameMapManager(options, locale) {
             }
             break;
         }
+        case 'ixe_mapgen': {
+            /** @type {number|null} */
+            let enemiesNumber = null;
+            /** @type {number|null} */
+            let shipsNumber = null;
+        
+            if(size != null) {
+                size = (+size + 1)+''
+                size = KCLocaleManager.getPrimaryAliasFromAlias("ixe_mapgen_map_enemies", size);
+                if(size == null) errors.size = 'Map Gen Enemies is incorrect';
+                else {
+                    let _sizeNumber = +size;
+                    if(![1,2,3].includes(_sizeNumber)) errors.size = 'Map Gen Enemies is incorrect';
+                    else enemiesNumber = _sizeNumber;
+                }
+            }
+
+            if(complexity != null) {
+                complexity = (+complexity + 1)+''
+                complexity = KCLocaleManager.getPrimaryAliasFromAlias("ixe_mapgen_map_ships", complexity);
+                if(complexity == null) errors.complexity = 'Map Gen Ships is incorrect';
+                else {
+                    let _complexityNumber = +complexity;
+                    if(![1,2,3].includes(_complexityNumber)) errors.complexity = 'Map Gen Ships is incorrect';
+                    else shipsNumber = _complexityNumber;
+                }
+            }
+            if(seed == null || enemiesNumber == null || shipsNumber == null) {
+                if(seed == null && errors.seed == null) errors.seed = 'Map Gen Seed is missing';
+                if(enemiesNumber == null && errors.size == null) errors.size = 'Map Gen Enemies is missing';
+                if(shipsNumber == null && errors.complexity == null) errors.complexity = 'Map Gen Ships is missing';
+                break;
+            }
+
+            if(Object.keys(errors).length > 0) break;
+            msqd = {
+                game: 'ixe',
+                type: 'mapgen',
+                name: seed,
+                size: enemiesNumber,
+                complexity: shipsNumber
+            }
+            break;
+        }
         case 'cw2_code': {
             /** @type {number|null} */
             let sizeNumber = null;
@@ -923,6 +967,14 @@ export function KCGameMapManager(options, locale) {
                 let hnum = parseInt(hash.substring(0,8), 16);
                 let gameUID = "procedural" + hnum + "-" + msqd.size + msqd.complexity;
                 return `https://knucklecracker.com/${gameUrlParam}/scoreQuery.php?gameUID=${gameUID}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
+            }
+            case "mapgen": {
+                if(msqd.size == null) return null;
+                if(msqd.complexity == null) return null;
+                if(msqd.name == null) return null;
+
+                let gameUID = `P-${msqd.name}-${msqd.size}-${msqd.complexity}`;
+                return `https://knucklecracker.com/${gameUrlParam}/playLogQuery.php?gameUID=${Buffer.from(gameUID).toString('base64')}&userfilter=${userName?userName:""}&groupfilter=${groupName?groupName:""}&sort=time`;
             }
             case "chronom": {
                 if(msqd.timestamp == null) return null;

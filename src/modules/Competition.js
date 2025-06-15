@@ -351,6 +351,7 @@ export default class Competition extends Bot.Module {
             let gameUID = interaction.options.getString('gameuid');
             let campaign = interaction.options.getString('campaign');
 
+
             const data = this.kcgmm.getMapQueryObjectFromCommandParameters(type, game, id, objective, seed, date, size, complexity, campaign);
             if(data.err != null) {
                 await interaction.reply({ content: data.err });
@@ -1484,6 +1485,12 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
     let value = "";
 
     switch(mapScoreQueryData.type) {
+        case "mapgen":
+            name += `: ${mapScoreQueryData.name}`;
+            value = "Seed: `" + mapScoreQueryData.name + "`\n";
+            value += "Enemies: " + (KCLocaleManager.getDisplayNameFromAlias("ixe_mapgen_map_enemies", mapScoreQueryData.size+"") || mapScoreQueryData.size) + "\n";
+            value += "Ships: " + (KCLocaleManager.getDisplayNameFromAlias("ixe_mapgen_map_ships", mapScoreQueryData.complexity+"") || mapScoreQueryData.complexity) + "\n";
+            break;
         case "code":
             name += `: ${mapScoreQueryData.name}`;
             value = "Code: `" + mapScoreQueryData.name + "`\n";

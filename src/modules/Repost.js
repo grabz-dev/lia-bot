@@ -96,12 +96,12 @@ export default class Repost extends Bot.Module {
         }
         catch(e) {
             logger.error(e);
-            interaction.reply("An error occurred (1)");
+            interaction.reply("An error occurred (1)").catch(logger.error);
             return;
         }
 
         if(file == null || typeof file.request_url != 'string') {
-            interaction.reply("An error occurred (2)");
+            interaction.reply("An error occurred (2)").catch(logger.error);
             return;
         }
         

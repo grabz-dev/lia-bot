@@ -75,6 +75,34 @@ const config = {
                 "aliases": ["2", "high", "h", "hi", "hig"]
             }
         },
+        "ixe_mapgen_map_ships" : {
+            "1" : {
+                "display": "Minimal",
+                "aliases": ["1", "small", "s", "sm", "sma", "smal"]
+            },
+            "2" : {
+                "display": "Normal",
+                "aliases": ["2", "medium", "m", "me", "med", "medi", "mediu"]
+            },
+            "3" : {
+                "display": "Maximum",
+                "aliases": ["3", "large", "l", "la", "lar", "larg"]
+            }
+        },
+        "ixe_mapgen_map_enemies" : {
+            "1" : {
+                "display": "Low",
+                "aliases": ["1", "low", "l", "lo"]
+            },
+            "2" : {
+                "display": "Medium",
+                "aliases": ["2", "medium", "m", "me", "med", "medi", "mediu"]
+            },
+            "3" : {
+                "display": "High",
+                "aliases": ["3", "high", "h", "hi", "hig"]
+            }
+        },
         "cw4_objectives" : {
             "0": { "display": "Nullify", "aliases": ["nullify", "n", "0"] },
             "1": { "display": "Totems", "aliases": ["totems", "totem", "t", "1"] },
@@ -100,6 +128,7 @@ const config = {
             "cw4_misc": { "display": "" },
             "ixe_custom": {"display": "Colonies"},
             "ixe_misc": { "display": "" },
+            "ixe_mapgen": { "display": "Map Gen" },
         }
     },
 }
@@ -109,7 +138,7 @@ export function KCLocaleManager() {}
 
 /**
  * Get the display name from an alias.
- * @param {"game"|"cw2_code_map_size"|"cw2_code_map_complexity"|"cw4_objectives"|"map_mode_custom"} category - The namedef category.
+ * @param {"game"|"cw2_code_map_size"|"cw2_code_map_complexity"|"cw4_objectives"|"map_mode_custom"|"ixe_mapgen_map_enemies"|"ixe_mapgen_map_ships"} category - The namedef category.
  * @param {string} str - An alias name.
  * @returns {string} The display name.
  */
@@ -133,7 +162,7 @@ KCLocaleManager.getDisplayNameFromAlias = function(category, str) {
 
 /**
  * Get the primary alias from any alias.
- * @param {"game"|"cw2_code_map_size"|"cw2_code_map_complexity"|"cw4_objectives"|"map_mode_custom"} category - The namedef category.
+ * @param {"game"|"cw2_code_map_size"|"cw2_code_map_complexity"|"cw4_objectives"|"map_mode_custom"|"ixe_mapgen_map_enemies"|"ixe_mapgen_map_ships"} category - The namedef category.
  * @param {string} str - An alias to convert to the primary alias.
  * @returns {string | null} The primary alias.
  */

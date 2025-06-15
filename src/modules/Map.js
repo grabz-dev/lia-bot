@@ -482,8 +482,14 @@ export default class Map extends Bot.Module {
         field.value = '```\n' + (field.value.length === 0 ? 'No scores' : field.value);
         field.value += '\n```';
 
-        if(mapQueryData.size != null) field.value = `Size: ${KCLocaleManager.getDisplayNameFromAlias('cw2_code_map_size', mapQueryData.size+'')}\n` + field.value;
-        if(mapQueryData.complexity != null) field.value = `Complexity: ${KCLocaleManager.getDisplayNameFromAlias('cw2_code_map_complexity', mapQueryData.complexity+'')}\n` + field.value;
+        if(mapQueryData.game === 'cw2') {
+            if(mapQueryData.size != null) field.value = `Size: ${KCLocaleManager.getDisplayNameFromAlias('cw2_code_map_size', mapQueryData.size+'')}\n` + field.value;
+            if(mapQueryData.complexity != null) field.value = `Complexity: ${KCLocaleManager.getDisplayNameFromAlias('cw2_code_map_complexity', mapQueryData.complexity+'')}\n` + field.value;
+        }
+        else if(mapQueryData.game === 'ixe') {
+            if(mapQueryData.size != null) field.value = `Enemies: ${KCLocaleManager.getDisplayNameFromAlias('ixe_mapgen_map_enemies', mapQueryData.size+'')}\n` + field.value;
+            if(mapQueryData.complexity != null) field.value = `Ships: ${KCLocaleManager.getDisplayNameFromAlias('ixe_mapgen_map_ships', mapQueryData.complexity+'')}\n` + field.value;
+        }
         if(mapQueryData.gameUID != null) {
             let name = kcgmm.getCampaignMapNameFromGUID(mapQueryData.game, mapQueryData.gameUID);
             if(name == null) field.value = `GUID: ${mapQueryData.gameUID}\n` + field.value;
