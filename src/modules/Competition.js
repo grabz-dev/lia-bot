@@ -239,6 +239,7 @@ export default class Competition extends Bot.Module {
 
         const commandName = interaction.options.getSubcommand();
         switch(commandName) {
+        case 'start':
         case 'pinmania':
         case 'setchannel':
         case 'destroy':
@@ -324,6 +325,7 @@ export default class Competition extends Bot.Module {
         }
         case 'start': {
             let dateInput = interaction.options.getString('date', true);
+            let autoInput = interaction.options.getBoolean('auto');
 
             const now = Date.now();
             let date = Date.parse(dateInput);
@@ -336,7 +338,7 @@ export default class Competition extends Bot.Module {
                 return;
             }
 
-            return this.start(interaction, guild, now, date);
+            return this.start(interaction, guild, now, date, !!autoInput);
         }
         case 'addmap':
         case 'removemap': {
@@ -451,6 +453,12 @@ export default class Competition extends Bot.Module {
                             option.setName('date')
                                 .setDescription('The end date for the Competition. Example date format: 2022-06-04')
                                 .setRequired(true)
+                        )
+                        .addBooleanOption(option =>
+                            option.setName('auto')
+                                .setDescription('Set to true if maps should be picked automatically')
+                                .setRequired(false)
+
                         )
                 ).addSubcommand(subcommand =>
                     subcommand.setName('destroy')
@@ -625,9 +633,20 @@ export default class Competition extends Bot.Module {
      * @param {Discord.Guild} guild 
      * @param {number} startTime 
      * @param {number} endTime 
+     * @param {boolean} isAuto
      */
-    start(interaction, guild, startTime, endTime) {
-        this.bot.sql.transaction(async query => {
+    async start(interaction, guild, startTime, endTime, isAuto) {
+        let kcgmm = this.kcgmm;
+        if(kcgmm == null) {
+            logger.error("Not initialized.");
+            return;
+        };
+
+        let startedSuccessfully = false;
+        /** @type {Discord.TextChannel|null} */
+        let _CHANNEL = null;
+
+        await this.bot.sql.transaction(async query => {
             await interaction.deferReply();
 
             /** @type {Db.competition_main|null} */
@@ -657,7 +676,259 @@ export default class Competition extends Bot.Module {
     
             await channel.send(this.bot.locale.category("competition", "start_message"));
             await interaction.editReply(this.bot.locale.category("competition", "start_success"));
+            startedSuccessfully = true;
+            _CHANNEL = channel;
         }).catch(logger.error);
+
+        if(!isAuto) return;
+        if(!startedSuccessfully) return;
+
+        (async (kcgmm) => {
+            await Bot.Util.Promise.sleep(3000);
+
+            let ixeMapList = kcgmm.getMapListArray('ixe');
+            if(ixeMapList == null) {
+                await interaction.editReply("Not initialized...");
+                return;
+            }
+            
+            let cw4MapList = kcgmm.getMapListArray('cw4');
+            if(cw4MapList == null) {
+                await interaction.editReply("Not initialized...");
+                return;
+            }
+
+            let pfMapList = kcgmm.getMapListArray('pf');
+            if(pfMapList == null) {
+                await interaction.editReply("Not initialized...");
+                return;
+            }
+
+            let cw3MapList = kcgmm.getMapListArray('cw3');
+            if(cw3MapList == null) {
+                await interaction.editReply("Not initialized...");
+                return;
+            }
+
+            let cw2MapList = kcgmm.getMapListArray('cw2');
+            if(cw2MapList == null) {
+                await interaction.editReply("Not initialized...");
+                return;
+            }
+
+            /**
+             * 
+             * @param {Readonly<KCGameMapManager.MapData>[]} mapList 
+             * @param {string} game
+             * @param {number} logNumber
+             * @returns 
+             */
+            var basicCustomMap = async (mapList, game, logNumber) => {
+                for(let i = 0; i < 20; i++) {
+                    let index = Bot.Util.getRandomInt(0, mapList.length);
+                    let map = mapList[index]
+                    mapList.splice(index, 1);
+                    let msqd = {
+                        game: game,
+                        type: 'custom',
+                        id: map.id
+                    }
+                    let featured = true;
+                    await this.bot.sql.transaction(async query => {
+                        featured = await getMapAlreadyFeaturedInPreviousCompetition(query, guild, map.game, msqd)
+                    }).catch(logger.error);
+
+                    if(featured) {
+                        logger.info(`Map ${logNumber}) ${game} custom map ${map.id} not chosen - already featured before`)
+                        await Bot.Util.Promise.sleep(3000);
+                        continue;
+                    }
+                    else {
+                        await Bot.Util.Promise.sleep(3000);
+                        let scores = await kcgmm.getMapScores(msqd, undefined, undefined);
+                        if(scores == null || scores.entries == null || scores.entries[0] == null) {
+                            logger.info(`Map ${logNumber}) ${game} custom map ${map.id} not chosen - issue parsing/loading leaderboards`)
+                            continue;
+                        }
+                        let countBelow10Mins = 0;
+                        for(let entry of scores.entries[0]) {
+                            if(entry && entry.time && entry.time <= (18000 + (i*1000))) {
+                                countBelow10Mins++;
+                            }
+                        }
+
+                        if(countBelow10Mins < 4) {
+                            logger.info(`Map ${logNumber}) ${game} custom map ${map.id} not chosen - not enough scores below 10 minutes`)
+                            continue;
+                        }
+
+                        this.addMap(interaction, guild, "addmap", msqd.game, msqd, kcgmm);
+                        logger.info(`Map ${logNumber}) ${game} custom map ${map.id} selected`)
+                        return;
+                    }
+                }
+            }
+
+            //MAP 1
+            await basicCustomMap(ixeMapList, 'ixe', 1).catch(logger.error)
+            
+
+             await Bot.Util.Promise.sleep(3000);
+
+            //MAP 2
+            await (async () => {
+                for(let i = 0; i < 5; i++) {
+                    /** @type {KCGameMapManager.MapScoreQueryData} */
+                    let msqd = {
+                        game: 'ixe',
+                        type: 'mapgen',
+                        name: Bot.Util.getRandomInt(1, 1000000)+'',
+                        size: Bot.Util.getRandomInt(1, 4),
+                        complexity: Bot.Util.getRandomInt(1, 4),
+                    }
+                    let featured = true;
+                    await this.bot.sql.transaction(async query => {
+                        featured = await getMapAlreadyFeaturedInPreviousCompetition(query, guild, msqd.game, msqd)
+                    }).catch(logger.error);
+
+                    if(featured) {
+                        logger.info(`Map 2) IXE mapgen map ${msqd.name} not chosen - already featured before`)
+                        await Bot.Util.Promise.sleep(3000);
+                        continue;
+                    }
+                    else {
+                        this.addMap(interaction, guild, "addmap", msqd.game, msqd, kcgmm);
+                        logger.info(`Map 2) IXE mapgen map ${msqd.name} selected`)
+                        return;
+                    }
+                }
+            })().catch(logger.error);
+
+
+            await Bot.Util.Promise.sleep(3000);
+
+
+            //MAP 3
+            await (async () => {
+                let mapsPicked = 0;
+
+                for(let i = 0; i < 50; i++) {
+                    let index = Bot.Util.getRandomInt(0, cw4MapList.length);
+                    let map = cw4MapList[index]
+                    cw4MapList.splice(index, 1);
+                    /** @type {KCGameMapManager.MapScoreQueryData} */
+                    let msqd = {
+                        game: 'cw4',
+                        type: 'custom',
+                        id: map.id
+                    }
+                    
+
+                    await Bot.Util.Promise.sleep(3000);
+                    let scores = await kcgmm.getMapScores(msqd, undefined, undefined);
+                    if(scores == null || scores.entries == null) {
+                        logger.info(`Map 3) CW4 custom map ${map.id} not chosen - issue parsing/loading leaderboards`)
+                        continue;
+                    }
+                    let leaderboardIndexes = [0,1,2,4,5]
+                    for(let j = 0; j < 5; j++) {
+                        let leaderboardArrIndex = Bot.Util.getRandomInt(0, leaderboardIndexes.length);
+                        let leaderboardIndex = leaderboardIndexes[leaderboardArrIndex];
+                        let leaderboard = scores.entries[leaderboardIndex]
+                        leaderboardIndexes.splice(leaderboardArrIndex, 1)
+                        msqd.objective = leaderboardIndex;
+
+                        let featured = true;
+                        await this.bot.sql.transaction(async query => {
+                            featured = await getMapAlreadyFeaturedInPreviousCompetition(query, guild, map.game, msqd)
+                        }).catch(logger.error);
+
+                        if(featured) {
+                            logger.info(`Map 3) CW4 custom map ${map.id} objective ${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', leaderboardIndex+'')} not chosen - already featured before`)
+                            await Bot.Util.Promise.sleep(3000);
+                            continue;
+                        }
+
+                        if(leaderboard == null || leaderboard.length < 4) {
+                            logger.info(`Map 3) CW4 custom map ${map.id} objective ${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', leaderboardIndex+'')} not chosen - not enough scores`)
+                            continue;
+                        }
+
+                        let countBelow10Mins = 0;
+                        for(let entry of leaderboard) {
+                            if(entry && entry.time && entry.time <= (18000 + (i*1000))) {
+                                countBelow10Mins++;
+                            }
+                        }
+
+                        if(countBelow10Mins < 4) {
+                            logger.info(`Map 3) CW4 custom map ${map.id} objective ${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', leaderboardIndex+'')} not chosen - not enough scores below 10 minutes`)
+                            continue;
+                        }
+
+                        this.addMap(interaction, guild, "addmap", msqd.game, msqd, kcgmm);
+                        logger.info(`Map 3) CW4 custom map ${map.id} objective ${KCLocaleManager.getDisplayNameFromAlias('cw4_objectives', leaderboardIndex+'')} selected`)
+                        
+                        mapsPicked++;
+                        if(mapsPicked >= 2) return;
+
+                        break;
+                    }
+                }
+                
+            })().catch(logger.error);
+
+
+            await Bot.Util.Promise.sleep(3000);
+
+            //MAP 4
+            await (async () => {
+                for(let i = 0; i < 10; i++) {
+                    /** @type {KCGameMapManager.MapScoreQueryData} */
+                    let msqd = {
+                        game: 'cw4',
+                        type: 'markv',
+                        name: Bot.Util.getRandomInt(1, 1000000)+`#${Bot.Util.getRandomInt(1, 5)}${Bot.Util.getRandomInt(1, 5)}${Bot.Util.getRandomInt(1, 5)}${Bot.Util.getRandomInt(1, 5)}${Bot.Util.getRandomInt(0, 2)===0?'':'$'}`,
+                        objective: Bot.Util.getRandomInt(0, 3)
+                    }
+                    let featured = true;
+                    await this.bot.sql.transaction(async query => {
+                        featured = await getMapAlreadyFeaturedInPreviousCompetition(query, guild, msqd.game, msqd)
+                    }).catch(logger.error);
+
+                    if(featured) {
+                        logger.info(`Map 4) CW4 markv map ${msqd.name} not chosen - already featured before`)
+                        await Bot.Util.Promise.sleep(3000);
+                        continue;
+                    }
+                    else {
+                        this.addMap(interaction, guild, "addmap", msqd.game, msqd, kcgmm);
+                        logger.info(`Map 4) CW4 markv map ${msqd.name} selected`)
+                        return;
+                    }
+                }
+            })().catch(logger.error);
+
+            await Bot.Util.Promise.sleep(3000);
+
+            //MAP 5
+            await basicCustomMap(pfMapList, 'pf', 5).catch(logger.error)
+
+            await Bot.Util.Promise.sleep(3000);
+
+            await basicCustomMap(cw3MapList, 'cw3', 6).catch(logger.error)
+
+            await Bot.Util.Promise.sleep(3000);
+
+            await basicCustomMap(cw2MapList, 'cw2', 7).catch(logger.error)
+
+            await Bot.Util.Promise.sleep(3000);
+
+            if(_CHANNEL != null)
+                await this.pinMania(interaction, _CHANNEL, guild);
+
+        })(kcgmm);
+        
     }
 
     /**
@@ -690,7 +961,7 @@ export default class Competition extends Bot.Module {
      */
     addMap(interaction, guild, type, game, msqd, kcgmm) {
         this.bot.sql.transaction(async query => {
-            await interaction.deferReply();
+            await interaction.deferReply().catch(() => {});
 
             /** @type {Db.competition_main|null} */
             let resultMain = (await query(`SELECT * FROM competition_main WHERE guild_id = '${guild.id}' FOR UPDATE`)).results[0];
@@ -989,7 +1260,7 @@ export default class Competition extends Bot.Module {
         if(this.pinManiaActive) return;
         this.pinManiaActive = true;
         this.bot.sql.transaction(async query => {
-            await interaction.deferReply();
+            await interaction.deferReply().catch(() => {});
             /** @type {Db.competition_messages[]} */
             let compMessages = (await query(`SELECT * FROM competition_messages WHERE guild_id = ?`, [guild.id])).results;
             /** @type {Db.competition_main} */
@@ -1573,7 +1844,7 @@ async function getEmbedFieldFromMapData(guild, mapLeaderboard, mapScoreQueryData
                 else
                     leaderboardStr += `#${Bot.Util.String.fixedWidth(entry.rank+"", 2, "⠀", true)}`;
                 
-                leaderboardStr += `${Bot.Util.String.fixedWidth(entry.time != null ? KCUtil.getFormattedTimeFromFrames(entry.time) : (entry.score+'')??'', 8, "⠀", false)} ${name}\n`;
+                leaderboardStr += `${Bot.Util.String.fixedWidth(entry.time != null ? KCUtil.getFormattedTimeFromFrames(entry.time) : (entry.score+'')||'', 8, "⠀", false)} ${name}\n`;
             }
             else if(i === maxScoresInTable) {
                 if(!onlyFirstPlace) leaderboardStr += `${(entries.length - i)} more scores from: `;

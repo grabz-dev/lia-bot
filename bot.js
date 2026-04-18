@@ -54,8 +54,8 @@ core.on('ready', bot => {
                 await Bot.Util.Promise.sleep(1000);
                 //await kcgmm.fetch('cw2').catch(logger.error);
             });
-            await Bot.Util.Promise.sleep(1000);
-            await cwMaps.start(kcgmm, 'cw2').catch(logger.error);
+            //await Bot.Util.Promise.sleep(1000);
+            //await cwMaps.start(kcgmm, 'cw2').catch(logger.error);
 
             await Bot.Util.Promise.sleep(1000);
             await kcgmm.readCacheCW1().catch(async e => {
@@ -63,8 +63,8 @@ core.on('ready', bot => {
                 await Bot.Util.Promise.sleep(1000);
                 //await kcgmm.fetch('cw1').catch(logger.error);
             });
-            await Bot.Util.Promise.sleep(1000);
-            await cwMaps.start(kcgmm, 'cw1').catch(logger.error);
+            //await Bot.Util.Promise.sleep(1000);
+            //await cwMaps.start(kcgmm, 'cw1').catch(logger.error);
             
 
             logger.info("Initializing map lists finished.");

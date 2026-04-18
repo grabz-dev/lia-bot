@@ -133,7 +133,7 @@ export default class CWMaps extends Bot.Module {
         let startAtMapId = 1;
         if(mapList == null) {
             log(game, `Couldn't find ${game} map list. Retrying in 1 minute`);
-            setTimeout(kcgmm => this._start(kcgmm, game, resolve, reject), 1000 * 60);
+            setTimeout((/** @type {KCGameMapManager} */ kcgmm) => this._start(kcgmm, game, resolve, reject), 1000 * 60);
             return;
         }
         mapList.sort((a, b) => a.id - b.id);
@@ -188,6 +188,8 @@ export default class CWMaps extends Bot.Module {
             const dom = new JSDOM(data);
             const window = dom.window;
             const document = window.document;
+
+            console.log(data, window, document)
 
             /** @param {string=} str - Log a string */
             async function exit(str) {

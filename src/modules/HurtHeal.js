@@ -11,11 +11,14 @@ import { KCLocaleManager } from '../kc/KCLocaleManager.js';
 import { KCUtil } from '../kc/KCUtil.js';
 
 import Diacritics from 'diacritics';
+import 'chartjs-adapter-moment';
+import { Chart, registerables } from 'chart.js';
+Chart.register( ...registerables);
 import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
-import chartjs from 'chart.js';
-import 'chartjs-adapter-date-fns';
 
-const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 800, height: 500, chartCallback: ChartJS => {
+const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 800, height: 500, plugins: {
+    
+}, chartCallback: ChartJS => {
     ChartJS.defaults.color = '#CCCCCC';
     ChartJS.defaults.font.size = 15;
     ChartJS.defaults.font.family = "Helvetica Neue, Helvetica, Arial, sans-serif"
@@ -354,7 +357,7 @@ export default class HurtHeal extends Bot.Module {
      * @param {SQLWrapper.Query} query
      * @param {Discord.CommandInteraction<"cached">|Discord.Message} interaction
      * @param {Discord.Guild} guild
-     * @param {string | Discord.MessagePayload | Discord.MessageCreateOptions} botMessage
+     * @param {string | Discord.MessagePayload | Discord.MessageCreateOptions | any} botMessage
      * @param {boolean} botMessageDelete
      * @returns {Promise<Discord.Message>}
      */
