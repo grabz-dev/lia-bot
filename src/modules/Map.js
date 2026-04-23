@@ -688,15 +688,17 @@ async function getMapMessageEmbed(mapData, emoteStr, guild, game, kcgmm, opts) {
 
     //Rating/Upvotes/Downvotes
     if(!opts.permanentOnly) {
-        if(game === 'cw2')
-            str += `Rating: **${mapData.upvotes}**👍  **${mapData.downvotes}**👎`;
-        else if(game === 'cw4' || game === 'ixe')
-            str += `Rating: **${mapData.upvotes}**👍`;
-        else if(game === 'cw1')
-            str += `Rating: **${mapData.rating}/5** (${mapData.ratings} ratings)`;
-        else
-            str += `Rating: **${mapData.rating}** (${mapData.ratings} ratings)`;
-        str += '\n';
+        if(game !== 'cw2' || (game === 'cw2' && mapData.id <= 3057)) {
+            if(game === 'cw2')
+                str += `Rating: **${mapData.upvotes}**👍  **${mapData.downvotes}**👎`;
+            else if(game === 'cw4' || game === 'ixe')
+                str += `Rating: **${mapData.upvotes}**👍`;
+            else if(game === 'cw1')
+                str += `Rating: **${mapData.rating}/5** (${mapData.ratings} ratings)`;
+            else
+                str += `Rating: **${mapData.rating}** (${mapData.ratings} ratings)`;
+            str += '\n';
+        }
     }
 
     //Tags
