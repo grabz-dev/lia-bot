@@ -33,18 +33,19 @@ const URLs = {
  * @this {KCGameMapManager}
  * @param {KCGameMapManagerOptions} options
  * @param {"cw1"|"cw2"} game
+ * @param {number=} maxPage
  * @returns {Promise<void>}
  */
-export async function fetchMaps(options, game) {
+export async function fetchMaps(options, game, maxPage) {
     /** @type {Discord.Collection<number, MapData>} */
     const mapListTemp = new Discord.Collection();
     let currentPage = 0;
 
     while(true) {
-        let finished = await fetcher.call(this, options, game, currentPage, mapListTemp);
+        let finished = await fetcher.call(this, options, game, currentPage, mapListTemp, maxPage);
         if(finished) break;
         currentPage++;
-        await Bot.Util.Promise.sleep(10000);
+        await Bot.Util.Promise.sleep(maxPage == null ? 10000 : 1000);
     }
 }
 
@@ -118,9 +119,10 @@ async function writeCache(game, mapList) {
  * @param {"cw1"|"cw2"} game
  * @param {number} page 
  * @param {Discord.Collection<number, MapData>} mapListTemp
+ * @param {number=} maxPage
  * @returns {Promise<boolean>} true if finished, false if not
  */
-async function fetcher(options, game, page, mapListTemp) {
+async function fetcher(options, game, page, mapListTemp, maxPage) {
     //Fetch all maps from the current page.
     while(true) {
         try {
@@ -149,20 +151,47 @@ async function fetcher(options, game, page, mapListTemp) {
     while(mapData != null);
 
     if(i > 0) exit = false;
+    if(maxPage != null && page + 1 > maxPage) exit = true;
 
     logger.info(`[KCGameMapManager.fetchMaps] Fetching from ${game} web browser. Page ${page}.`);
 
     //If no maps were found on the current page, we finalize and quit.
     if(exit) {
-        const arr = mapListArrFromEntries(mapListTemp);
+        let mapsId = this._maps.id.get(game)
 
-        this._maps.id.set(game, mapListTemp);
+        if(mapsId == null) {
+            this._maps.id.set(game, mapListTemp);
+        }
+        else {
+            for(let [key, value] of mapListTemp.entries()) {
+                let existingObj = mapsId.get(key);
+                if(existingObj == null) {
+                    mapsId.set(key, value);
+                }
+                else {
+                    let existingObjClone = structuredClone(existingObj)
+                    let valueClone = structuredClone(value);
+
+                    //delete upvote/downvote entries from newly pulled entries, otherwise historical information on this data is erased with zeroes
+                    if(game === 'cw2' && value.id < 3058) {
+                        delete valueClone.upvotes;
+                        delete valueClone.downvotes;
+                    }
+
+                    Object.assign(existingObjClone, valueClone)
+                    mapsId.set(key, existingObjClone);
+                }
+            }
+        }
+
+        const arr = mapListArrFromEntries(mapsId ?? mapListTemp);
         this._maps.array.set(game, Object.freeze(arr));
         this._maps.month.set(game, this.getMonthObjFromMapData.call(this, game, arr));
 
-        logger.info(`[KCGameMapManager.fetchMaps] End reached for ${game}. Page ${page} contains no entries.`);
+        logger.info(`[KCGameMapManager.fetchMaps] End reached for ${game}. ${maxPage == null ? `Page ${page} contains no entries` : `Stopped early`}`);
 
-        await writeCache(game, mapListTemp).catch(() => {});
+        let _maps = this._maps.id.get(game)
+        if(_maps) await writeCache(game, _maps).catch(() => {});
         logger.info(`[KCGameMapManager.fetchMaps] Cache updated for ${game}.`);
 
         return true;

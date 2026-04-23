@@ -189,8 +189,6 @@ export default class CWMaps extends Bot.Module {
             const window = dom.window;
             const document = window.document;
 
-            console.log(data, window, document)
-
             /** @param {string=} str - Log a string */
             async function exit(str) {
                 if(str) log(game, str);

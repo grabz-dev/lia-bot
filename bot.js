@@ -44,6 +44,8 @@ core.on('ready', bot => {
         await kcgmm.fetch('pf').catch(logger.error);
         await Bot.Util.Promise.sleep(1000);
         await kcgmm.fetch('cw3').catch(logger.error);
+        await Bot.Util.Promise.sleep(1000);
+
         
         await cwMaps.updateCW1Maps(kcgmm);
         await cwMaps.updateCW2Maps(kcgmm);
@@ -52,43 +54,43 @@ core.on('ready', bot => {
             await kcgmm.readCacheCW2().catch(async e => {
                 logger.error(e);
                 await Bot.Util.Promise.sleep(1000);
-                //await kcgmm.fetch('cw2').catch(logger.error);
+                await kcgmm.fetch('cw2').catch(logger.error);
             });
-            //await Bot.Util.Promise.sleep(1000);
-            //await cwMaps.start(kcgmm, 'cw2').catch(logger.error);
+            await Bot.Util.Promise.sleep(1000);
+            await cwMaps.start(kcgmm, 'cw2').catch(logger.error);
 
             await Bot.Util.Promise.sleep(1000);
             await kcgmm.readCacheCW1().catch(async e => {
                 logger.error(e);
                 await Bot.Util.Promise.sleep(1000);
-                //await kcgmm.fetch('cw1').catch(logger.error);
+                await kcgmm.fetch('cw1').catch(logger.error);
             });
-            //await Bot.Util.Promise.sleep(1000);
-            //await cwMaps.start(kcgmm, 'cw1').catch(logger.error);
+            await Bot.Util.Promise.sleep(1000);
+            await cwMaps.start(kcgmm, 'cw1').catch(logger.error);
             
 
             logger.info("Initializing map lists finished.");
+
+            
             setInterval(async () => {
                 await kcgmm.fetch('ixe').catch(logger.error);
-            }, 1000 * 60 * 60 * 12);
-            setInterval(async () => {
+                await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw4').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('pf').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw3').catch(logger.error);
-                // core.call(guild => { autopost.loop(guild); });
             }, 1000 * 60 * 60 * 24);
             setInterval(async () => {
-                //await Bot.Util.Promise.sleep(1000);
-                //await kcgmm.fetch('cw2').catch(logger.error);
-                //await Bot.Util.Promise.sleep(1000);
-                //await cwMaps.start(kcgmm, 'cw2').catch(logger.error);
+                await Bot.Util.Promise.sleep(1000);
+                await kcgmm.fetch('cw2').catch(logger.error);
+                await Bot.Util.Promise.sleep(1000);
+                await cwMaps.start(kcgmm, 'cw2').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
                 await kcgmm.fetch('cw1').catch(logger.error);
                 await Bot.Util.Promise.sleep(1000);
                 await cwMaps.start(kcgmm, 'cw1').catch(logger.error);
-            }, 1000 * 60 * 60 * 24 * 7);
+            }, 1000 * 60 * 60 * 24 * 3);
         })();
 
         /** @type {import('./src/modules/Map.js').default} */
@@ -116,6 +118,7 @@ core.on('ready', bot => {
 
         map.kcgmm = kcgmm;
         map.dmd = dmd;
+        map.cwMaps = cwMaps;
         chronom.kcgmm = kcgmm;
         experience.kcgmm = kcgmm;
         experience.champion = champion;
@@ -125,8 +128,6 @@ core.on('ready', bot => {
         competition.dmd = dmd;
         autopost.map = map;
         autopost.kcgmm = kcgmm;
-
-        /* core.call(guild => { autopost.loop(guild); }); */
 
         setTimeout(() => {
             core.addLoop(1000 * 60 * 48, guild => { experience.loop(guild, kcgmm, champion); });
@@ -143,13 +144,14 @@ core.on('ready', bot => {
 
         (() => {
             const strings = [
-                { v: 'Watching over Skars',      minMins: 60, maxMins: 120 },
-                { v: '[Gel maintenance]',       minMins: 30, maxMins: 60 },
-                { v: 'Drifting through space',  minMins: 30, maxMins: 60 },
-                { v: 'Maintaining ship',        minMins: 15, maxMins: 30 },
-                { v: 'Installing OS updates',   minMins: 15, maxMins: 30 },
-                { v: 'Anticipating destiny',    minMins: 15, maxMins: 30 },
-                { v: 'Monitoring Earth',        minMins: 15, maxMins: 30 }
+                { v: 'Watching over Skars',      minMins: 60, maxMins: 120, type: Discord.ActivityType.Custom },
+                { v: '[Gel maintenance]',       minMins: 30, maxMins: 60, type: Discord.ActivityType.Custom },
+                { v: 'Drifting through space',  minMins: 30, maxMins: 60, type: Discord.ActivityType.Custom },
+                { v: 'Maintaining ship',        minMins: 15, maxMins: 30, type: Discord.ActivityType.Custom },
+                { v: 'Installing OS updates',   minMins: 15, maxMins: 30, type: Discord.ActivityType.Custom },
+                { v: 'Anticipating destiny',    minMins: 15, maxMins: 30, type: Discord.ActivityType.Custom},
+                { v: 'Monitoring Earth',        minMins: 15, maxMins: 30, type: Discord.ActivityType.Custom },
+                { v: 'Creeper World 5',        minMins: 3, maxMins: 6, type: Discord.ActivityType.Playing },
             ];
 
             let update = () => {
@@ -158,8 +160,8 @@ core.on('ready', bot => {
 
                 if(core.client.user == null) return;
                 core.client.user.setActivity({
-                    type: Discord.ActivityType.Playing,
-                    name: `| ${obj.v}`
+                    type: obj.type,
+                    name: `${obj.v}`
                 });
             }
             update();

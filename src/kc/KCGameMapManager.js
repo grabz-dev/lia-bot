@@ -505,9 +505,10 @@ export function KCGameMapManager(options, locale) {
      * 
      * @throws Error
      * @param {string} game //cw2 cw3 pf cw4
+     * @param {number=} maxPage //max page for cw1 cw2
      * @returns {Promise<void>}
      */
-    this.fetch = async function(game) {
+    this.fetch = async function(game, maxPage) {
         const now = Date.now();
         if(lastFetchTimestamp[game] == null) lastFetchTimestamp[game] = 0;
         if(now - lastFetchTimestamp[game] < minFetchInterval) {
@@ -515,7 +516,7 @@ export function KCGameMapManager(options, locale) {
         }
 
         try {
-            await fetchMapData.call(this, game);
+            await fetchMapData.call(this, game, maxPage);
             logger.info(`[KCGameMapManager.fetch] Fetched map data for ${game}.`);
             lastFetchTimestamp[game] = Date.now();
         }
@@ -851,12 +852,13 @@ export function KCGameMapManager(options, locale) {
      * Fetch map data.
      * @this {KCGameMapManager}
      * @param {string} game //cw1 cw2 cw3 pf cw4
+     * @param {number=} maxPage //max page for cw1 or cw2
      */
-    async function fetchMapData(game) {
+    async function fetchMapData(game, maxPage) {
         if(game === 'cw1')
-            await fetchMaps.call(this, options, 'cw1');
+            await fetchMaps.call(this, options, 'cw1', maxPage);
         else if(game === 'cw2')
-            await fetchMaps.call(this, options, 'cw2');
+            await fetchMaps.call(this, options, 'cw2', maxPage);
         else
             await fetchMapsDefault.call(this, game);
     }

@@ -53,6 +53,9 @@ export default class Map extends Bot.Module {
 
         /** @type {import('./DMD.js').default|null} */
         this.dmd = null;
+
+        /** @type {import('./CWMaps.js').default|null} */
+        this.cwMaps = null;
     }
 
     /** @param {Discord.Message} message */
@@ -327,13 +330,18 @@ export default class Map extends Bot.Module {
         let targetMsg = null;
         if(interaction && !interaction.deferred) await interaction.deferReply();
 
-        let mapsUpdatedToLatest = true;
-        if(game === "cw3" || game === "pf" || game === "cw4" || game === 'ixe') {
-            await kcgmm.fetch(game).catch(e => {
-                logger.info(e);
-                mapsUpdatedToLatest = false;
-            });
+        if(game === 'cw1' || game === 'cw2') {
+            if(interaction) await interaction.editReply('Loading...');
         }
+
+        let mapsUpdatedToLatest = true;
+        await kcgmm.fetch(game, 2).catch(e => {
+            logger.info(e);
+            mapsUpdatedToLatest = false;
+        });
+
+        if(game === 'cw1' || game === 'cw2')
+            await this.cwMaps?.start(kcgmm, game).catch(logger.error);
 
         const emote = await SQLUtil.getEmote(this.bot.sql, guild.id, game) ?? ':game_die:';
 
@@ -400,13 +408,13 @@ export default class Map extends Bot.Module {
         let message;
         //Edit the interaction if this is an interaction
         if(interaction) {
-            message = await interaction.editReply({ embeds:[embed] });
+            message = await interaction.editReply({ content: " ", embeds:[embed] });
         }
         //Otherwise send as regular message
         else {
             if(targetMsg != null)
                 targetMsg.delete();
-            message = await channel.send({ embeds:[embed] });
+            message = await channel.send({ content: " ", embeds:[embed] });
         }
 
         /** @type {Discord.Message=} */
