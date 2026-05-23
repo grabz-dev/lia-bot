@@ -165,6 +165,12 @@ export default class Chronom extends Bot.Module {
                         usersCompleted[i][entry.user] = true;
                     }
                 }
+                for(let entries of data.leaderboardScores.entries) {
+                    if(entries == null) continue;
+                    for(let entry of entries) {
+                        usersCompleted[i][entry.user] = true;
+                    }
+                }
             }
             
             /** @type {{[user: string]: {timestamp: number, rank: number, objective: number, time: number, register: Db.competition_register}}} */
@@ -280,7 +286,7 @@ export default class Chronom extends Bot.Module {
                 if(i < 5)
                     str += `${completed ? ':white_check_mark:' : ':x:'} ${getDateString(arr[i].timestamp)}\n`;
             }
-            str += `\nCurrent streak: ${streak.bestStreak}/${this.days}\n`;
+            str += `\nCurrent streak: ${streak.bestStreak}/${this.days}. `;
 
             if(roleId != null) {
                 if(streak.bestStreak >= this.daysRole) {
@@ -290,6 +296,8 @@ export default class Chronom extends Bot.Module {
                     str += `Reach a streak of 5 to become <@&${roleId}>`;
                 }
             }
+
+            str += '\n\n' + getAdditionalMastersText.call(this, additionalMasters, guild);
 
             str += `\n\nSubmit scores with \`${resultRegister.user_name}\` as your name and \`specialevent\` as the group name.\n\`/c register\` to change your name.`;
             embed.description = str;
@@ -330,6 +338,23 @@ function getEmbedChronom(member) {
 /**
  * @this {Chronom}
  * @param {{[user: string]: {timestamp: number, rank: number, objective: number, time: number, register: Db.competition_register}}} additionalMasters
+ * @param {Discord.Guild?} guild
+ */
+function getAdditionalMastersText(additionalMasters, guild) {
+    let str = `The following users are currently Masters of Chronom for getting a high score on recent Chronom maps. This list always populates ${this.additionalMastersCount} entries.\n`;
+    for(const key of Object.keys(additionalMasters)) {
+        const master = additionalMasters[key];
+        let member = guild?.members.cache.get(master.register.user_id);
+        let name = member ? (KCUtil.getUserDisplayName(member, member.user)) : master.register.user_name;
+
+        str += `**${name}** is **#${master.rank}** in ${KCLocaleManager.getDisplayNameFromAlias("cw4_objectives", master.objective+'')}\n > on ${getDateString(master.timestamp)} with ${KCUtil.getFormattedTimeFromFrames(master.time)}\n`;
+    }
+    return str;
+}
+
+/**
+ * @this {Chronom}
+ * @param {{[user: string]: {timestamp: number, rank: number, objective: number, time: number, register: Db.competition_register}}} additionalMasters
  * @param {{[user: string]: {register: Db.competition_register, bestStreak: number}}} masters
  * @param {string} emote
  * @param {Discord.Message} message
@@ -342,14 +367,8 @@ function getAdditionalMastersEmbed(additionalMasters, masters, message, emote) {
     
     embed.title = `${emote} Masters of Chronom`;
 
-    embed.description = `Remember to submit scores with the \`specialevent\` group name!\n\nThe following users are currently Masters of Chronom for getting a high score on recent Chronom maps. This list always populates ${this.additionalMastersCount} entries.\n`;
-    for(const key of Object.keys(additionalMasters)) {
-        const master = additionalMasters[key];
-        let member = message.guild?.members.cache.get(master.register.user_id);
-        let name = member ? (KCUtil.getUserDisplayName(member, member.user)) : master.register.user_name;
-
-        embed.description += `**${name}** is **#${master.rank}** in ${KCLocaleManager.getDisplayNameFromAlias("cw4_objectives", master.objective+'')}\n > on ${getDateString(master.timestamp)} with ${KCUtil.getFormattedTimeFromFrames(master.time)}\n`;
-    }
+    embed.description = `Remember to submit scores with the \`specialevent\` group name!\n\n`;
+    embed.description += getAdditionalMastersText.call(this, additionalMasters, message.guild)
 
     embed.description += `\nIn addition, the following users are also Masters of Chronom for keeping a streak of ${this.daysRole} Chronom completions.\n`;
 
