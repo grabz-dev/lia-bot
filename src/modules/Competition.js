@@ -716,6 +716,12 @@ export default class Competition extends Bot.Module {
                 return;
             }
 
+            let cw1MapList = kcgmm.getMapListArray('cw1');
+            if(cw1MapList == null) {
+                await interaction.editReply("Not initialized...");
+                return;
+            }
+
             /**
              * 
              * @param {Readonly<KCGameMapManager.MapData>[]} mapList 
@@ -924,8 +930,12 @@ export default class Competition extends Bot.Module {
 
             await Bot.Util.Promise.sleep(3000);
 
+            await basicCustomMap(cw1MapList, 'cw1', 8).catch(logger.error)
+
+            await Bot.Util.Promise.sleep(3000);
+
             if(_CHANNEL != null)
-                await this.pinMania(interaction, _CHANNEL, guild);
+                this.pinMania(interaction, _CHANNEL, guild);
 
         })(kcgmm);
         
